@@ -3,6 +3,8 @@
  * GET: Get all platform configs (from Supabase)
  * POST: Update platform config (syncs to Supabase)
  * PUT: Toggle maintenance mode (syncs to Supabase)
+ * 
+ * Personal use - no auth required
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,30 +21,10 @@ import {
     loadConfigFromDB,
     type PlatformId
 } from '@/lib/services/service-config';
-import { verifySession, verifyAdminSession } from '@/lib/utils/admin-auth';
-
-// Auth check helper - any logged in user can view
-async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
-    const auth = await verifySession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
-    }
-    return null;
-}
-
-// Admin-only check helper
-async function checkAdminAuth(request: NextRequest): Promise<NextResponse | null> {
-    const auth = await verifyAdminSession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Admin access required' }, { status: 403 });
-    }
-    return null;
-}
 
 // GET - Get all service configs
 export async function GET(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
+    void request;
     
     try {
         // Force refresh from DB
@@ -60,11 +42,8 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST - Update platform config (admin only)
+// POST - Update platform config
 export async function POST(request: NextRequest) {
-    const authError = await checkAdminAuth(request);
-    if (authError) return authError;
-    
     try {
         const body = await request.json();
         const { action, platformId, ...updates } = body;
@@ -107,11 +86,8 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// PUT - Global settings (maintenance mode, global rate limit, messages, apiKeyRequired) - admin only
+// PUT - Global settings (maintenance mode, global rate limit, messages, apiKeyRequired)
 export async function PUT(request: NextRequest) {
-    const authError = await checkAdminAuth(request);
-    if (authError) return authError;
-    
     try {
         const body = await request.json();
         const { maintenanceMode, maintenanceMessage, globalRateLimit, apiKeyRequired } = body;

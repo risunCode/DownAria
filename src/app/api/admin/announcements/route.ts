@@ -4,14 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { verifySession } from '@/lib/utils/admin-auth';
 
 export async function GET(request: NextRequest) {
-    // Auth check - any logged in user can view
-    const auth = await verifySession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
-    }
+    void request; // Personal use - no auth required
     
     const db = supabaseAdmin || supabase;
     if (!db) {

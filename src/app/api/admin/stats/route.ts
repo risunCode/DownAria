@@ -7,14 +7,10 @@ import {
     getRecentErrors,
     getStats
 } from '@/lib/supabase';
-import { verifySession } from '@/lib/utils/admin-auth';
 
 export async function GET(request: NextRequest) {
-    // Auth check - any logged in user can view stats
-    const auth = await verifySession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
-    }
+    // Personal use - no auth required
+    void request; // Suppress unused warning
     
     try {
         const { searchParams } = new URL(request.url);

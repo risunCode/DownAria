@@ -1,6 +1,7 @@
 /**
  * Admin Cookies API
  * Manage global cookies for platforms
+ * Personal use - no auth required
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,23 +13,12 @@ import {
   type CookiePlatform 
 } from '@/lib/utils/admin-cookie';
 import { parseCookie, validateCookie } from '@/lib/utils/cookie-parser';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
 
 const VALID_PLATFORMS: CookiePlatform[] = ['facebook', 'instagram', 'weibo', 'twitter'];
 
-// Auth check helper - admin only
-async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
-  const auth = await verifyAdminSession(request);
-  if (!auth.valid) {
-    return NextResponse.json({ success: false, error: auth.error || 'Admin access required' }, { status: 403 });
-  }
-  return null;
-}
-
 // GET - List all admin cookies
 export async function GET(request: NextRequest) {
-  const authError = await checkAuth(request);
-  if (authError) return authError;
+  void request;
   
   try {
     const cookies = await getAllAdminCookies();
@@ -43,9 +33,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Create/Update cookie
 export async function POST(request: NextRequest) {
-  const authError = await checkAuth(request);
-  if (authError) return authError;
-  
   try {
     const { platform, cookie, note } = await request.json();
     
@@ -87,9 +74,6 @@ export async function POST(request: NextRequest) {
 
 // PATCH - Toggle cookie enabled status
 export async function PATCH(request: NextRequest) {
-  const authError = await checkAuth(request);
-  if (authError) return authError;
-  
   try {
     const { platform, enabled } = await request.json();
     
@@ -117,9 +101,6 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE - Remove cookie
 export async function DELETE(request: NextRequest) {
-  const authError = await checkAuth(request);
-  if (authError) return authError;
-  
   try {
     const { searchParams } = new URL(request.url);
     const platform = searchParams.get('platform') as CookiePlatform;

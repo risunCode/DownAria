@@ -13,21 +13,10 @@ import {
     regenerateApiKey,
     resetKeyStats,
 } from '@/lib/services/api-keys';
-import { verifySession } from '@/lib/utils/admin-auth';
 
-// Auth check helper
-async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
-    const auth = await verifySession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
-    }
-    return null;
-}
-
-// GET - List all API keys
+// GET - List all API keys (personal use - no auth)
 export async function GET(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
+    void request;
     
     try {
         const keys = await getAllApiKeys();
@@ -40,11 +29,8 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST - Create, update, delete, regenerate keys
+// POST - Create, update, delete, regenerate keys (personal use - no auth)
 export async function POST(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     try {
         const body = await request.json();
         const { action, id, name, enabled, rateLimit, isTest, keyLength, keyFormat, validityDays, prefix } = body;

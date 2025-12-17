@@ -6,18 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
 
 const getDb = () => supabaseAdmin || supabase;
-
-// Auth check helper - admin only
-async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
-    const auth = await verifyAdminSession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Admin access required' }, { status: 403 });
-    }
-    return null;
-}
 
 export interface GlobalSettings {
     user_agent_chrome: string;
@@ -35,9 +25,6 @@ export interface GlobalSettings {
 
 // GET - Get all settings
 export async function GET(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     const db = getDb();
     if (!db) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
@@ -67,9 +54,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Update settings
 export async function POST(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     const db = getDb();
     if (!db) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });

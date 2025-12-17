@@ -7,22 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
-
-// Auth check helper - admin only
-async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
-    const auth = await verifyAdminSession(request);
-    if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error || 'Admin access required' }, { status: 403 });
-    }
-    return null;
-}
 
 // GET - List all users
 export async function GET(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }
@@ -77,9 +64,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Update user
 export async function POST(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }
@@ -176,9 +160,6 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete user
 export async function DELETE(request: NextRequest) {
-    const authError = await checkAuth(request);
-    if (authError) return authError;
-    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }
