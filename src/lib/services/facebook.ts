@@ -122,33 +122,90 @@ function extractPostId(url: string): string | null {
  * Find the JSON block containing the target post
  * Facebook HTML contains multiple post blocks (related, sidebar, etc)
  * We need to find the one that matches our target post
+ * 
+ * Strategy:
+ * 1. Find target pfbid position in HTML
+ * 2. Find all_subattachments blocks and their nearby pfbids
+ * 3. Return the block that belongs to target pfbid
  */
 function findTargetPostBlock(html: string, postId: string): string {
-    // Try multiple patterns to find the post block
-    const patterns = [
-        // pfbid in URL patterns
-        new RegExp(`/posts/${postId}`, 'g'),
-        new RegExp(`"post_id":"[^"]*${postId.substring(0, 20)}`, 'g'),
-        // For pfbid, also search for the encoded version in JSON
-        new RegExp(`pfbid[^"]*${postId.substring(5, 15)}`, 'g'),
-        // Numeric ID patterns
-        new RegExp(`"id":"${postId}"`, 'g'),
-        new RegExp(`story_fbid=${postId}`, 'g'),
-    ];
+    // For pfbid, extract the unique middle part for matching
+    const isPfbid = postId.startsWith('pfbid');
+    const searchKey = isPfbid ? postId.substring(5, 25) : postId;
     
-    for (const pattern of patterns) {
-        const match = pattern.exec(html);
-        if (match) {
-            // Extract larger area: 50KB before + 100KB after for posts with many images
-            const start = Math.max(0, match.index - 50000);
-            const end = Math.min(html.length, match.index + 100000);
-            logger.debug('facebook', `Found target post block for ID ${postId.substring(0, 20)}... at pos ${match.index}`);
-            return html.substring(start, end);
+    // Find target pfbid position
+    let targetPos = -1;
+    if (isPfbid) {
+        targetPos = html.indexOf(postId);
+        if (targetPos === -1) {
+            // Try partial match
+            targetPos = html.indexOf(searchKey);
+        }
+    } else {
+        // Numeric ID
+        const patterns = [
+            new RegExp(`/posts/${postId}`),
+            new RegExp(`"id":"${postId}"`),
+            new RegExp(`story_fbid=${postId}`),
+        ];
+        for (const re of patterns) {
+            const m = html.match(re);
+            if (m?.index !== undefined) {
+                targetPos = m.index;
+                break;
+            }
         }
     }
     
-    logger.debug('facebook', `Post ID ${postId.substring(0, 20)}... not found, using full HTML`);
-    return html;
+    if (targetPos === -1) {
+        logger.debug('facebook', `Post ID ${postId.substring(0, 20)}... not found in HTML`);
+        return html;
+    }
+    
+    logger.debug('facebook', `Target post ID found at pos ${targetPos}`);
+    
+    // Find all all_subattachments blocks
+    const subRe = /"all_subattachments":\{"count":(\d+)/g;
+    const blocks: { pos: number; count: number; nearbyPfbid: string | null }[] = [];
+    let m;
+    while ((m = subRe.exec(html)) !== null) {
+        // Look for pfbid in 10KB before this block
+        const lookbackStart = Math.max(0, m.index - 10000);
+        const lookback = html.substring(lookbackStart, m.index);
+        const pfbidMatch = lookback.match(/pfbid([a-zA-Z0-9]{30,})/);
+        blocks.push({
+            pos: m.index,
+            count: parseInt(m[1]),
+            nearbyPfbid: pfbidMatch ? 'pfbid' + pfbidMatch[1] : null
+        });
+    }
+    
+    // Find the block that belongs to target pfbid
+    let targetBlock = blocks.find(b => b.nearbyPfbid && b.nearbyPfbid.includes(searchKey));
+    
+    // Fallback: find block closest to (but after) target position
+    if (!targetBlock && blocks.length > 0) {
+        const afterTarget = blocks.filter(b => b.pos > targetPos);
+        if (afterTarget.length > 0) {
+            targetBlock = afterTarget[0]; // First block after target
+        } else {
+            targetBlock = blocks[0]; // Fallback to first block
+        }
+    }
+    
+    if (targetBlock) {
+        // Extract area around the target block: 5KB before + 50KB after
+        const start = Math.max(0, targetBlock.pos - 5000);
+        const end = Math.min(html.length, targetBlock.pos + 50000);
+        logger.debug('facebook', `Using all_subattachments block at pos ${targetBlock.pos} (count=${targetBlock.count})`);
+        return html.substring(start, end);
+    }
+    
+    // No all_subattachments found, use area around target position
+    const start = Math.max(0, targetPos - 50000);
+    const end = Math.min(html.length, targetPos + 100000);
+    logger.debug('facebook', `No all_subattachments found, using area around target pos ${targetPos}`);
+    return html.substring(start, end);
 }
 
 /**
@@ -435,13 +492,19 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, url
     let m;
     
     // Method 1: viewer_image from all_subattachments (best for carousels)
-    // Extract from all_subattachments first as it has the most reliable data
-    const subMatch = decoded.match(/"all_subattachments":\{"count":\d+,"nodes":\[[\s\S]*?\]\}/);
+    // IMPORTANT: Search in TARGET area only to avoid related posts
+    const subMatch = target.match(/"all_subattachments":\{"count":\d+,"nodes":\[[\s\S]*?\]\}/);
     if (subMatch) {
         const viewerInSubRe = /"viewer_image":\{"height":\d+,"width":\d+,"uri":"(https:[^"]+)"/g;
         while ((m = viewerInSubRe.exec(subMatch[0])) !== null) {
             const imgUrl = clean(m[1]);
             if (/scontent|fbcdn/.test(imgUrl)) add(imgUrl);
+        }
+        // If we found images from all_subattachments, return early
+        // This is the most reliable source for carousel posts
+        if (idx > 0) {
+            logger.debug('facebook', `Found ${idx} images from all_subattachments`);
+            return formats;
         }
     }
     
@@ -459,9 +522,9 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, url
         if (/scontent|fbcdn/.test(imgUrl) && !isSkipImage(imgUrl)) add(imgUrl);
     }
     
-    // Method 4: Preload links
+    // Method 4: Preload links - search in TARGET area only
     const preloadRe = /<link[^>]+rel="preload"[^>]+href="(https:\/\/scontent[^"]+_nc_sid=127cfc[^"]+)"/gi;
-    while ((m = preloadRe.exec(html)) !== null) add(clean(m[1]));
+    while ((m = preloadRe.exec(target)) !== null) add(clean(m[1]));
     
     // Method 5: JSON patterns (photo_image, full_width_image)
     const jsonRe = [/"photo_image":\{"uri":"(https:[^"]+)"/g, /"full_width_image":\{"uri":"(https:[^"]+)"/g];
@@ -472,18 +535,18 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, url
         }
     }
     
-    // Method 6: Direct t39.30808 pattern (post images)
+    // Method 6: Direct t39.30808 pattern - search in TARGET area only
     const t39Re = /https:\/\/scontent[^"'\s<>\\]+t39\.30808[^"'\s<>\\]+\.jpg[^"'\s<>\\]*/gi;
-    while ((m = t39Re.exec(decoded)) !== null) {
+    while ((m = t39Re.exec(target)) !== null) {
         const imgUrl = decodeUrl(m[0]);
         if (!/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\/|_s\d+x\d+/.test(imgUrl)) add(imgUrl);
     }
     
     // Method 7: Anchor-based fallback (only if nothing found)
     if (idx === 0) {
-        const anchor = findAnchor(decoded, url, meta);
+        const anchor = findAnchor(target, url, meta);
         if (anchor > -1) {
-            const area = decoded.substring(anchor, Math.min(anchor + 15000, decoded.length));
+            const area = target.substring(anchor, Math.min(anchor + 15000, target.length));
             const imgRe = /https:\/\/scontent[^"'\s<>\\]+\.(?:jpg|jpeg)[^"'\s<>\\]*/gi;
             while ((m = imgRe.exec(area)) !== null) {
                 const imgUrl = decodeUrl(m[0]);
