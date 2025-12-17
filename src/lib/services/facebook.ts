@@ -91,6 +91,67 @@ function extractVideoId(url: string): string | null {
 }
 
 /**
+ * Extract post identifier from Facebook URL
+ * Returns pfbid, numeric post ID, or story_fbid
+ */
+function extractPostId(url: string): string | null {
+    // pfbid format (new): /posts/pfbid02L3aX5...
+    const pfbidMatch = url.match(/\/posts\/(pfbid[a-zA-Z0-9]+)/);
+    if (pfbidMatch) return pfbidMatch[1];
+    
+    // Numeric post ID: /posts/1234567890
+    const numericMatch = url.match(/\/posts\/(\d+)/);
+    if (numericMatch) return numericMatch[1];
+    
+    // story_fbid param
+    const storyMatch = url.match(/story_fbid=(\d+)/);
+    if (storyMatch) return storyMatch[1];
+    
+    // photo fbid
+    const photoMatch = url.match(/\/photos?\/[^/]+\/(\d+)/);
+    if (photoMatch) return photoMatch[1];
+    
+    // share/p/ short code (will be in HTML as identifier)
+    const shareMatch = url.match(/\/share\/p\/([a-zA-Z0-9]+)/);
+    if (shareMatch) return shareMatch[1];
+    
+    return null;
+}
+
+/**
+ * Find the JSON block containing the target post
+ * Facebook HTML contains multiple post blocks (related, sidebar, etc)
+ * We need to find the one that matches our target post
+ */
+function findTargetPostBlock(html: string, postId: string): string {
+    // Try multiple patterns to find the post block
+    const patterns = [
+        // pfbid in URL patterns
+        new RegExp(`/posts/${postId}`, 'g'),
+        new RegExp(`"post_id":"[^"]*${postId.substring(0, 20)}`, 'g'),
+        // For pfbid, also search for the encoded version in JSON
+        new RegExp(`pfbid[^"]*${postId.substring(5, 15)}`, 'g'),
+        // Numeric ID patterns
+        new RegExp(`"id":"${postId}"`, 'g'),
+        new RegExp(`story_fbid=${postId}`, 'g'),
+    ];
+    
+    for (const pattern of patterns) {
+        const match = pattern.exec(html);
+        if (match) {
+            // Extract larger area: 50KB before + 100KB after for posts with many images
+            const start = Math.max(0, match.index - 50000);
+            const end = Math.min(html.length, match.index + 100000);
+            logger.debug('facebook', `Found target post block for ID ${postId.substring(0, 20)}... at pos ${match.index}`);
+            return html.substring(start, end);
+        }
+    }
+    
+    logger.debug('facebook', `Post ID ${postId.substring(0, 20)}... not found, using full HTML`);
+    return html;
+}
+
+/**
  * Find the JSON block containing the target video ID
  * Facebook HTML contains multiple video blocks for related content
  * We need to find the one that matches our target reel/video
@@ -331,7 +392,7 @@ function getCarouselCount(decoded: string): number {
     return match ? parseInt(match[1]) : 0;
 }
 
-function extractImages(html: string, decoded: string, seenUrls: Set<string>, url: string, meta: { title?: string }): MediaFormat[] {
+function extractImages(html: string, decoded: string, seenUrls: Set<string>, url: string, meta: { title?: string }, targetPostId?: string | null): MediaFormat[] {
     const formats: MediaFormat[] = [];
     const seenPaths = new Set<string>();
     let idx = 0;
@@ -352,14 +413,22 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, url
         return true;
     };
     
-    // Determine target area for group posts
+    // If we have a target post ID, narrow down the search area first
     let target = decoded;
-    const gmMatch = decoded.match(/set=gm\.(\d+)/);
-    if (gmMatch) {
-        const pos = decoded.indexOf(`gm.${gmMatch[1]}`);
-        if (pos > -1) {
-            // Use 200KB context (100KB before + 100KB after) for better coverage
-            target = decoded.substring(Math.max(0, pos - 100000), Math.min(decoded.length, pos + 100000));
+    if (targetPostId) {
+        target = findTargetPostBlock(decoded, targetPostId);
+        logger.debug('facebook', `Using targeted post block (${(target.length / 1024).toFixed(0)}KB) for image extraction`);
+    }
+    
+    // Fallback: Determine target area for group posts
+    if (target === decoded) {
+        const gmMatch = decoded.match(/set=gm\.(\d+)/);
+        if (gmMatch) {
+            const pos = decoded.indexOf(`gm.${gmMatch[1]}`);
+            if (pos > -1) {
+                // Use 200KB context (100KB before + 100KB after) for better coverage
+                target = decoded.substring(Math.max(0, pos - 100000), Math.min(decoded.length, pos + 100000));
+            }
         }
     }
     
@@ -783,10 +852,14 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
         const isReel = actualType === 'reel';
         const isVideo = actualType === 'video' || isReel;
         
-        // Extract video ID from final URL for targeted extraction
+        // Extract video ID and post ID from final URL for targeted extraction
         const targetVideoId = extractVideoId(finalUrl);
+        const targetPostId = extractPostId(finalUrl);
         if (targetVideoId) {
             logger.debug('facebook', `Target video ID: ${targetVideoId}`);
+        }
+        if (targetPostId) {
+            logger.debug('facebook', `Target post ID: ${targetPostId.substring(0, 30)}...`);
         }
         
         if (isStory) {
@@ -817,7 +890,7 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
             
             // For posts or unknown: also extract images
             if (isPost || (!isVideo && formats.length === 0)) {
-                formats.push(...extractImages(html, decoded, seenUrls, inputUrl, meta));
+                formats.push(...extractImages(html, decoded, seenUrls, inputUrl, meta, targetPostId));
                 
                 // Check if carousel has more images than extracted
                 // NOTE: Facebook lazy-loads carousel images, we can only get ~5 from initial HTML
