@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { PendingDownloadProvider } from "@/lib/contexts/PendingDownloadContext";
 import { DownloadManagerProvider } from "@/components/DownloadManager";
@@ -80,6 +81,7 @@ export default function RootLayout({
             {children}
           </DownloadManagerProvider>
         </PendingDownloadProvider>
+        <Analytics />
       </body>
     </html>
   );

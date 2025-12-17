@@ -18,6 +18,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.87.3",
     "@types/file-saver": "^2.0.7",
+    "@vercel/analytics": "^1.6.1",
     "axios": "^1.13.2",
     "cheerio": "^1.1.2",
     "file-saver": "^2.0.5",
