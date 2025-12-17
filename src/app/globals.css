@@ -1,0 +1,403 @@
+@import "tailwindcss";
+
+
+
+/* Custom CSS Variables */
+:root {
+  /* Light theme as default */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f0f0;
+  
+  --accent-primary: #6366f1;
+  --accent-secondary: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #d97706;
+  
+  --border-color: #e5e5e5;
+  --glass-bg: rgba(0, 0, 0, 0.02);
+  --glass-border: rgba(0, 0, 0, 0.08);
+
+  /* Platform Colors */
+  --youtube: #ff0000;
+  --facebook: #1877f2;
+  --instagram: #e4405f;
+  --twitter: #000000;
+  
+  /* Override system color scheme */
+  color-scheme: light;
+}
+
+/* Light Theme - pure white */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f0f0;
+  
+  --accent-primary: #6366f1;
+  --accent-secondary: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #d97706;
+  
+  --border-color: #e5e5e5;
+  --glass-bg: rgba(0, 0, 0, 0.02);
+  --glass-border: rgba(0, 0, 0, 0.08);
+}
+
+/* Solarized Theme - cream/warm white with better contrast */
+.theme-solarized {
+  --bg-primary: #fdf6e3;
+  --bg-secondary: #eee8d5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f5f0e1;
+  
+  --accent-primary: #5046e5;
+  --accent-secondary: #7c3aed;
+  --accent-gradient: linear-gradient(135deg, #5046e5 0%, #7c3aed 100%);
+  
+  --text-primary: #1c1917;
+  --text-secondary: #44403c;
+  --text-muted: #78716c;
+  
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #d97706;
+  
+  --border-color: #d6d3d1;
+  --glass-bg: rgba(28, 25, 23, 0.03);
+  --glass-border: rgba(28, 25, 23, 0.12);
+}
+
+/* Dark Theme - Solid teal/cyan style */
+.theme-dark {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #1c2128;
+  --bg-card-hover: #252c35;
+  
+  --accent-primary: #58a6ff;
+  --accent-secondary: #79c0ff;
+  --accent-gradient: linear-gradient(135deg, #58a6ff 0%, #79c0ff 100%);
+  
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  
+  --success: #3fb950;
+  --error: #f85149;
+  --warning: #d29922;
+  
+  --border-color: #30363d;
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono), 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Frosted glass - more subtle, for headers/navbars */
+.frost-glass {
+  background: var(--bg-primary)/80;
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  border-bottom: 1px solid var(--border-color)/50;
+}
+
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+}
+
+/* Accent text - solid color */
+.gradient-text {
+  color: var(--accent-primary);
+}
+
+/* Accent button - solid color */
+.btn-gradient {
+  background: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+}
+
+.btn-gradient:active {
+  transform: translateY(0);
+}
+
+.btn-gradient:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Platform tabs */
+.platform-tab {
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.platform-tab:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.platform-tab.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.platform-tab.youtube.active {
+  border-color: var(--youtube);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+}
+
+.platform-tab.facebook.active {
+  border-color: var(--facebook);
+  box-shadow: 0 0 20px rgba(24, 119, 242, 0.2);
+}
+
+.platform-tab.instagram.active {
+  border-color: var(--instagram);
+  box-shadow: 0 0 20px rgba(228, 64, 95, 0.2);
+}
+
+.platform-tab.twitter.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+/* Input styles */
+.input-url {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.input-url:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.input-url::placeholder {
+  color: var(--text-muted);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Quality badges */
+.quality-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.quality-badge:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.quality-badge.selected {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: white;
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-card) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+
+/* Spinning border animation for input card */
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin-border {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-border 3s linear infinite;
+}
+
+.animate-spin-slow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--border-angle),
+    var(--accent-primary) 0%,
+    transparent 15%,
+    transparent 85%,
+    var(--accent-primary) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}

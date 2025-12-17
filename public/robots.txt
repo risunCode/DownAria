@@ -1,0 +1,14 @@
+# XTFetch - Social Media Downloader
+# https://github.com/risunCode/XTFetch
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://xtfetch.vercel.app/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1
+
+# Disallow API routes
+Disallow: /api/

@@ -1,0 +1,71 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js
+/.next/
+/out/
+/build
+
+# Production
+/dist
+
+# Testing
+/coverage
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.kiro
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Project specific
+/planning/
+/.planning/
+/cookies/
+/cookie-test/
+/.xtf-pentest/
+/pentest-xtf-brutal/
+
+# Temporary files
+*.tmp
+*.temp
+*-player-script.js
+
+# SQL files (sensitive data)
+*.sql
+REMOVE-BEFORE-DEPLOY.md
