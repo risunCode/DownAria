@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 
 const getDb = () => supabaseAdmin || supabase;
 
@@ -25,6 +26,11 @@ export interface GlobalSettings {
 
 // GET - Get all settings
 export async function GET(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     const db = getDb();
     if (!db) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
@@ -54,6 +60,11 @@ export async function GET(request: NextRequest) {
 
 // POST - Update settings
 export async function POST(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     const db = getDb();
     if (!db) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });

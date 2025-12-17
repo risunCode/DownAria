@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ import {
     ChevronDown, X, Megaphone
 } from 'lucide-react';
 import { getSession, getUser, signOut, getUserProfile } from '@/lib/supabase';
+import { getAdminKey, setAdminKey, hasAdminKey, installAdminFetchGlobal } from '@/lib/utils/admin-fetch';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES & CONTEXT
@@ -30,12 +31,14 @@ interface AdminContextType {
     user: UserProfile | null;
     isAdmin: boolean;
     canAccess: (requiredRole: UserRole) => boolean;
+    adminFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const AdminContext = createContext<AdminContextType>({
     user: null,
     isAdmin: false,
     canAccess: () => false,
+    adminFetch: fetch,
 });
 
 export const useAdmin = () => useContext(AdminContext);
@@ -77,37 +80,105 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [user, setUser] = useState<UserProfile | null>(null);
+    const [showKeyPrompt, setShowKeyPrompt] = useState(false);
+    const [keyInput, setKeyInput] = useState('');
+    const [keyError, setKeyError] = useState('');
+
+    // Admin fetch with X-Admin-Key header
+    const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+        const adminKey = getAdminKey();
+        const headers = new Headers(options.headers);
+        if (adminKey) {
+            headers.set('X-Admin-Key', adminKey);
+        }
+        return fetch(url, { ...options, headers });
+    }, []);
+
+    // Verify admin key works
+    const verifyAdminKey = useCallback(async (key: string): Promise<boolean> => {
+        try {
+            const res = await fetch('/api/admin/stats', {
+                headers: { 'X-Admin-Key': key }
+            });
+            return res.ok;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    // Handle key submission
+    const handleKeySubmit = async () => {
+        if (!keyInput.trim()) {
+            setKeyError('Please enter admin key');
+            return;
+        }
+        
+        const valid = await verifyAdminKey(keyInput.trim());
+        if (valid) {
+            setAdminKey(keyInput.trim());
+            setShowKeyPrompt(false);
+            setKeyError('');
+            // Reload to apply
+            window.location.reload();
+        } else {
+            setKeyError('Invalid admin key');
+        }
+    };
+
+    // Install global fetch interceptor for admin APIs
+    useEffect(() => {
+        installAdminFetchGlobal();
+    }, []);
 
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const session = await getSession();
-                if (!session) {
-                    router.push('/auth');
-                    return;
+                // First check if admin key is set and valid
+                if (hasAdminKey()) {
+                    const valid = await verifyAdminKey(getAdminKey()!);
+                    if (valid) {
+                        // Key is valid, set default admin user
+                        setUser({
+                            id: 'admin',
+                            email: 'admin@local',
+                            role: 'admin',
+                            display_name: 'Admin',
+                        });
+                        setIsLoading(false);
+                        return;
+                    }
                 }
                 
-                const authUser = await getUser();
-                if (authUser) {
-                    const profile = await getUserProfile(authUser.id);
-                    setUser({
-                        id: authUser.id,
-                        email: authUser.email || '',
-                        username: profile?.username,
-                        role: (profile?.role as UserRole) || 'user',
-                        display_name: profile?.display_name,
-                        avatar_url: profile?.avatar_url,
-                    });
+                // Try Supabase session as fallback
+                const session = await getSession();
+                if (session) {
+                    const authUser = await getUser();
+                    if (authUser) {
+                        const profile = await getUserProfile(authUser.id);
+                        setUser({
+                            id: authUser.id,
+                            email: authUser.email || '',
+                            username: profile?.username,
+                            role: (profile?.role as UserRole) || 'user',
+                            display_name: profile?.display_name,
+                            avatar_url: profile?.avatar_url,
+                        });
+                        setIsLoading(false);
+                        return;
+                    }
                 }
+                
+                // No valid auth - show key prompt
+                setShowKeyPrompt(true);
+                setIsLoading(false);
             } catch {
-                router.push('/auth');
-            } finally {
+                setShowKeyPrompt(true);
                 setIsLoading(false);
             }
         };
         
         checkAuth();
-    }, [router]);
+    }, [verifyAdminKey]);
 
     // Close mobile menu on route change
     useEffect(() => {
@@ -142,6 +213,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         );
     }
 
+    // Show admin key prompt
+    if (showKeyPrompt) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+                <div className="w-full max-w-md bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Shield className="w-8 h-8 text-[var(--accent-primary)]" />
+                        <div>
+                            <h1 className="text-xl font-bold">Admin Access</h1>
+                            <p className="text-sm text-[var(--text-muted)]">Enter your admin key to continue</p>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Admin Key</label>
+                            <input
+                                type="password"
+                                value={keyInput}
+                                onChange={(e) => setKeyInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleKeySubmit()}
+                                placeholder="xtf_sk_..."
+                                className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                                autoFocus
+                            />
+                            {keyError && (
+                                <p className="mt-2 text-sm text-red-400">{keyError}</p>
+                            )}
+                        </div>
+                        
+                        <button
+                            onClick={handleKeySubmit}
+                            className="w-full py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-white font-medium rounded-lg transition-colors"
+                        >
+                            Access Admin Panel
+                        </button>
+                        
+                        <p className="text-xs text-center text-[var(--text-muted)]">
+                            Get your admin key from ADMIN_SECRET_KEY or API_SECRET_KEY in .env
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!user) return null;
 
     const navItems = getNavItems();
@@ -149,7 +266,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const initials = displayName.slice(0, 2).toUpperCase();
 
     return (
-        <AdminContext.Provider value={{ user, isAdmin, canAccess }}>
+        <AdminContext.Provider value={{ user, isAdmin, canAccess, adminFetch }}>
             <div className="min-h-screen bg-[var(--bg-primary)]">
                 {/* ═══════════════════════════════════════════════════════════════ */}
                 {/* APPBAR */}

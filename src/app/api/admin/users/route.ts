@@ -7,9 +7,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 
 // GET - List all users
 export async function GET(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }
@@ -64,6 +70,11 @@ export async function GET(request: NextRequest) {
 
 // POST - Update user
 export async function POST(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }
@@ -160,6 +171,11 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete user
 export async function DELETE(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     if (!supabase) {
         return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
     }

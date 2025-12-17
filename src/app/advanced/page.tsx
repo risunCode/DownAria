@@ -115,10 +115,51 @@ function ApiPlaygroundTab() {
     const [result, setResult] = useState<PlaygroundResult | null>(null);
     const [copied, setCopied] = useState(false);
     const [rateLimit, setRateLimit] = useState({ remaining: 5, limit: 5 });
+    const [urlError, setUrlError] = useState('');
     const { startDownload } = useDownloadManager();
+
+    // Fetch current rate limit status on mount
+    useEffect(() => {
+        fetch('/api/playground')
+            .then(res => res.json())
+            .then(data => {
+                if (data.rateLimit) {
+                    setRateLimit({ remaining: data.rateLimit.maxRequests, limit: data.rateLimit.maxRequests });
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    // Simple URL validation (client-side)
+    const validateUrl = (input: string): boolean => {
+        if (!input.trim()) {
+            setUrlError('');
+            return false;
+        }
+        try {
+            const parsed = new URL(input);
+            if (!['http:', 'https:'].includes(parsed.protocol)) {
+                setUrlError('URL must start with http:// or https://');
+                return false;
+            }
+            // Check if it's a supported platform
+            const supportedDomains = ['facebook.com', 'fb.com', 'fb.watch', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'weibo.com', 'weibo.cn'];
+            const isSupported = supportedDomains.some(d => parsed.hostname.includes(d));
+            if (!isSupported) {
+                setUrlError('Unsupported platform. Try Facebook, Instagram, Twitter, TikTok, YouTube, or Weibo');
+                return false;
+            }
+            setUrlError('');
+            return true;
+        } catch {
+            setUrlError('Invalid URL format');
+            return false;
+        }
+    };
 
     const executeRequest = async () => {
         if (!url.trim()) return;
+        if (!validateUrl(url)) return;
         setLoading(true);
         setResult(null);
         
@@ -193,18 +234,27 @@ function ApiPlaygroundTab() {
                     <input
                         type="url"
                         value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && executeRequest()}
+                        onChange={(e) => {
+                            setUrl(e.target.value);
+                            if (e.target.value) validateUrl(e.target.value);
+                            else setUrlError('');
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && !urlError && executeRequest()}
                         placeholder="Paste any social media URL..."
-                        className="input-url text-sm flex-1"
+                        className={`input-url text-sm flex-1 ${urlError ? 'border-red-500/50' : ''}`}
                     />
                     <Button onClick={handlePaste} variant="secondary" leftIcon={<Clipboard className="w-4 h-4" />}>
                         Paste
                     </Button>
                 </div>
+                {urlError && (
+                    <p className="text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> {urlError}
+                    </p>
+                )}
                 <Button 
                     onClick={executeRequest} 
-                    disabled={loading || !url.trim() || rateLimit.remaining === 0}
+                    disabled={loading || !url.trim() || !!urlError || rateLimit.remaining === 0}
                     className="w-full"
                     leftIcon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 >

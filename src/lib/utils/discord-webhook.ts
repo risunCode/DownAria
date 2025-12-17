@@ -8,7 +8,13 @@
 const APP_NAME = 'XTFetch';
 // Use PNG icon for Discord webhook avatar
 // Note: Discord caches avatars, changes may take time to appear
-const APP_ICON = 'https://xtfetch.vercel.app/icon.png';
+// Using dynamic base URL to work in both dev and prod
+const getAppIcon = () => {
+    if (typeof window !== 'undefined') {
+        return `${window.location.origin}/icon.png`;
+    }
+    return `${process.env.NEXT_PUBLIC_BASE_URL || 'https://xt-fetch.vercel.app'}/icon.png`;
+};
 
 export interface UserDiscordSettings {
     webhookUrl: string;
@@ -95,7 +101,7 @@ function getBaseUrl(): string {
         return window.location.origin;
     }
     // Fallback for SSR (shouldn't happen for Discord webhook)
-    return process.env.NEXT_PUBLIC_BASE_URL || 'https://xtfetch.vercel.app';
+    return process.env.NEXT_PUBLIC_BASE_URL || 'https://xt-fetch.vercel.app';
 }
 
 // Convert CDN URL to proxy URL for Discord embedding
@@ -172,9 +178,10 @@ export async function sendDiscordNotification(data: {
     }
 
     try {
+        const appIcon = getAppIcon();
         const payload: Record<string, unknown> = {
             username: APP_NAME,
-            avatar_url: APP_ICON,
+            avatar_url: appIcon,
         };
 
         if (settings.embedEnabled) {
@@ -216,7 +223,7 @@ export async function sendDiscordNotification(data: {
                 fields,
                 footer: {
                     text: settings.footerText || 'via XTFetch',
-                    icon_url: APP_ICON,
+                    icon_url: appIcon,
                 },
                 timestamp: new Date().toISOString(),
             };
@@ -251,7 +258,7 @@ export async function sendDiscordNotification(data: {
                             formData.append('file', videoBlob, filename);
                             formData.append('payload_json', JSON.stringify({
                                 username: APP_NAME,
-                                avatar_url: APP_ICON,
+                                avatar_url: appIcon,
                                 embeds: [embed],
                             }));
                             

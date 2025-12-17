@@ -140,12 +140,57 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { url } = body;
         
-        // Check if same URL was requested recently (no rate limit deduction)
-        const isCached = url ? isUrlCached(clientIP, url) : false;
+        // Get current rate limit status (without deducting)
+        const maxRequests = getPlaygroundRateLimit();
+        const currentEntry = rateLimitStore.get(clientIP);
+        const now = Date.now();
+        const currentRemaining = (!currentEntry || now >= currentEntry.resetAt) 
+            ? maxRequests 
+            : Math.max(0, maxRequests - currentEntry.count);
         
-        // Check guest rate limit (skip if URL is cached)
+        if (!url) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'URL required',
+                rateLimit: { remaining: currentRemaining, limit: maxRequests }
+            }, { status: 400 });
+        }
+        
+        // Validate URL BEFORE rate limit check (don't waste limit on invalid URLs)
+        const urlValidation = isValidSocialUrl(url);
+        if (!urlValidation.valid) {
+            return NextResponse.json({ 
+                success: false, 
+                error: urlValidation.error || 'Invalid URL',
+                rateLimit: { remaining: currentRemaining, limit: maxRequests }
+            }, { status: 400 });
+        }
+        
+        // Check for attack patterns (don't deduct rate limit)
+        if (detectAttackPatterns(url)) {
+            logger.error('security', `Attack pattern in playground from ${clientIP}`);
+            return NextResponse.json({ 
+                success: false, 
+                error: 'Invalid URL',
+                rateLimit: { remaining: currentRemaining, limit: maxRequests }
+            }, { status: 400 });
+        }
+        
+        // Detect platform (don't deduct rate limit for unsupported)
+        const platform = detectPlatform(url);
+        if (!platform) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'Unsupported URL. Supported: Facebook, Instagram, Twitter, TikTok, YouTube, Weibo',
+                supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'],
+                rateLimit: { remaining: currentRemaining, limit: maxRequests }
+            }, { status: 400 });
+        }
+        
+        // NOW check rate limit (only for valid URLs that will actually be processed)
+        const isCached = isUrlCached(clientIP, url);
         const rateCheck = isCached 
-            ? { allowed: true, remaining: getPlaygroundRateLimit(), resetIn: 60, limit: getPlaygroundRateLimit() }
+            ? { allowed: true, remaining: currentRemaining, resetIn: 60, limit: maxRequests }
             : checkGuestRateLimit(clientIP);
             
         if (!rateCheck.allowed) {
@@ -158,41 +203,6 @@ export async function POST(request: NextRequest) {
                     limit: rateCheck.limit
                 }
             }, { status: 429 });
-        }
-        
-        if (!url) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'URL required',
-                rateLimit: { remaining: rateCheck.remaining, limit: rateCheck.limit }
-            }, { status: 400 });
-        }
-        
-        // Validate URL
-        const urlValidation = isValidSocialUrl(url);
-        if (!urlValidation.valid) {
-            return NextResponse.json({ 
-                success: false, 
-                error: urlValidation.error || 'Invalid URL',
-                rateLimit: { remaining: rateCheck.remaining, limit: rateCheck.limit }
-            }, { status: 400 });
-        }
-        
-        // Check for attack patterns
-        if (detectAttackPatterns(url)) {
-            logger.error('security', `Attack pattern in playground from ${clientIP}`);
-            return NextResponse.json({ success: false, error: 'Invalid URL' }, { status: 400 });
-        }
-        
-        // Detect platform
-        const platform = detectPlatform(url);
-        if (!platform) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Unsupported URL',
-                supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'],
-                rateLimit: { remaining: rateCheck.remaining, limit: rateCheck.limit }
-            }, { status: 400 });
         }
         
         // Check if platform is enabled

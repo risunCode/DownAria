@@ -270,78 +270,88 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="glass-card p-4 flex gap-4 group"
+                                className="glass-card p-3 sm:p-4 group"
                             >
-                                {/* Thumbnail - clickable to open gallery */}
-                                <button
-                                    onClick={() => openGallery(filteredHistory.findIndex(h => h.id === item.id))}
-                                    className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all"
-                                >
-                                    {item.thumbnail ? (
-                                        <Image
-                                            src={getProxiedThumbnail(item.thumbnail, item.platform)}
-                                            alt={item.title}
-                                            fill
-                                            className="object-cover"
-                                            unoptimized
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            {getTypeIcon(item.type)}
-                                        </div>
-                                    )}
-                                    <div className="absolute inset-0 bg-black/0 hover:bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                        <Search className="w-4 h-4 text-white" />
-                                    </div>
-                                </button>
-
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-1">
-                                        {item.title}
-                                    </h4>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-[var(--text-muted)]">
-                                        <span
-                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded"
-                                            style={{
-                                                backgroundColor: `${platformConfig?.color}20`,
-                                                color: platformConfig?.color,
-                                            }}
+                                {/* Mobile: Stack layout, Desktop: Flex row */}
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                    {/* Top row on mobile: Thumbnail + Info */}
+                                    <div className="flex gap-3 sm:gap-4 flex-1 min-w-0">
+                                        {/* Thumbnail - clickable to open gallery */}
+                                        <button
+                                            onClick={() => openGallery(filteredHistory.findIndex(h => h.id === item.id))}
+                                            className="relative w-20 h-14 sm:w-24 sm:h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all"
                                         >
-                                            <PlatformIcon platform={item.platform} className="w-3.5 h-3.5" /> {platformConfig?.name}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            {getTypeIcon(item.type)} {item.quality}
-                                        </span>
-                                        <span>{formatRelativeTime(item.downloadedAt)}</span>
-                                    </div>
-                                </div>
+                                            {item.thumbnail ? (
+                                                <Image
+                                                    src={getProxiedThumbnail(item.thumbnail, item.platform)}
+                                                    alt={item.title}
+                                                    fill
+                                                    className="object-cover"
+                                                    unoptimized
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    {getTypeIcon(item.type)}
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/0 hover:bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                <Search className="w-4 h-4 text-white" />
+                                            </div>
+                                        </button>
 
-                                {/* Actions - always visible on mobile, hover on desktop */}
-                                <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => handleCopyUrl(item.id, item.url)}
-                                        className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                                        title="Copy URL"
-                                    >
-                                        {copiedId === item.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                                    </button>
-                                    <a
-                                        href={item.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                                        title="Open original"
-                                    >
-                                        <ExternalLink className="w-4 h-4" />
-                                    </a>
-                                    <button
-                                        onClick={() => handleDelete(item.id, item.title)}
-                                        className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-muted)] hover:text-[var(--error)] transition-colors"
-                                        title="Delete"
-                                    >
-                                        <XCircle className="w-4 h-4" />
-                                    </button>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-medium text-[var(--text-primary)] line-clamp-2 sm:line-clamp-1">
+                                                {item.title}
+                                            </h4>
+                                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1 text-xs text-[var(--text-muted)]">
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded"
+                                                    style={{
+                                                        backgroundColor: `${platformConfig?.color}20`,
+                                                        color: platformConfig?.color,
+                                                    }}
+                                                >
+                                                    <PlatformIcon platform={item.platform} className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> 
+                                                    <span className="hidden xs:inline">{platformConfig?.name}</span>
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    {getTypeIcon(item.type)} {item.quality}
+                                                </span>
+                                                <span className="hidden sm:inline">{formatRelativeTime(item.downloadedAt)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions - bottom row on mobile, inline on desktop */}
+                                    <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity border-t sm:border-0 border-[var(--border-color)] pt-2 sm:pt-0 -mx-3 px-3 sm:mx-0 sm:px-0">
+                                        <span className="text-xs text-[var(--text-muted)] mr-auto sm:hidden">
+                                            {formatRelativeTime(item.downloadedAt)}
+                                        </span>
+                                        <button
+                                            onClick={() => handleCopyUrl(item.id, item.url)}
+                                            className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                                            title="Copy URL"
+                                        >
+                                            {copiedId === item.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                                        </button>
+                                        <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                                            title="Open original"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                        <button
+                                            onClick={() => handleDelete(item.id, item.title)}
+                                            className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-muted)] hover:text-[var(--error)] transition-colors"
+                                            title="Delete"
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         );

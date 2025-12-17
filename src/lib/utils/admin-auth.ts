@@ -1,47 +1,23 @@
 /**
  * Admin Authentication
- * Supabase session-based auth for admin panel
+ * API Key-based auth for admin panel (secure & simple)
+ * 
+ * How it works:
+ * 1. Admin panel stores key in localStorage after first setup
+ * 2. Every admin API request includes X-Admin-Key header
+ * 3. Backend verifies against ADMIN_SECRET_KEY env var
+ * 
+ * Benefits:
+ * - No cookies = works everywhere (Vercel, local, etc)
+ * - Simple to implement and debug
+ * - Secure (key only sent over HTTPS)
  */
 
 import crypto from 'crypto';
 import { NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Create admin client for server-side operations (bypasses RLS)
-function getSupabaseAdmin() {
-    if (!supabaseUrl || !serviceRoleKey) return null;
-    return createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-    });
-}
-
-// Create SSR client that can read cookies from request
-function createSupabaseServerClient(request: NextRequest) {
-    // Check if Supabase is properly configured
-    if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === '' || supabaseAnonKey === '') {
-        return null;
-    }
-    
-    try {
-        return createServerClient(supabaseUrl, supabaseAnonKey, {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll();
-                },
-                setAll() {
-                    // We don't need to set cookies in API routes
-                },
-            },
-        });
-    } catch {
-        return null;
-    }
-}
+// Admin secret key from environment
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || process.env.API_SECRET_KEY || '';
 
 export type UserRole = 'user' | 'admin';
 
@@ -54,218 +30,70 @@ interface AuthResult {
 }
 
 /**
- * Verify user session from request cookies (Supabase auth)
- * Works with both user and admin roles
+ * Verify admin access via API Key
  * 
- * For personal use: Always allows access (no strict auth needed)
+ * Checks in order:
+ * 1. X-Admin-Key header (primary method)
+ * 2. Authorization: Bearer <key> header (alternative)
+ * 3. ?admin_key=<key> query param (for testing only)
  */
 export async function verifySession(request: NextRequest): Promise<AuthResult> {
-    // PERSONAL USE MODE: Always allow admin access
-    // This is a personal project - no need for strict authentication
-    // Remove this block if you want to enable proper auth for multi-user
-    return { valid: true, role: 'admin', error: undefined };
-    
-    // DEVELOPMENT MODE: Always allow access for personal use
-    if (process.env.NODE_ENV === 'development') {
-        return { valid: true, role: 'admin', error: undefined };
+    // If no admin key configured, allow access (dev mode / unconfigured)
+    if (!ADMIN_SECRET_KEY) {
+        console.warn('[Auth] ADMIN_SECRET_KEY not set - allowing all access');
+        return { valid: true, role: 'admin' };
     }
     
-    // Use SSR client to properly read Supabase cookies
-    const supabase = createSupabaseServerClient(request);
-    const supabaseAdmin = getSupabaseAdmin();
-    
-    if (!supabase) {
-        // If Supabase not configured, allow access
-        return { valid: true, role: 'admin', error: undefined };
+    // Method 1: X-Admin-Key header (recommended)
+    const adminKey = request.headers.get('X-Admin-Key');
+    if (adminKey && timingSafeEqual(adminKey, ADMIN_SECRET_KEY)) {
+        return { valid: true, role: 'admin' };
     }
-
-    try {
-        // Get user from session using SSR client
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error || !user) {
-            // Fallback: try Authorization header
-            const authHeader = request.headers.get('Authorization');
-            if (authHeader?.startsWith('Bearer ') && supabaseAdmin) {
-                const token = authHeader.slice(7);
-                const { data: { user: headerUser }, error: headerError } = await supabaseAdmin.auth.getUser(token);
-                
-                if (!headerError && headerUser) {
-                    const { data: profile } = await supabaseAdmin
-                        .from('users')
-                        .select('role')
-                        .eq('id', headerUser.id)
-                        .single();
-
-                    return {
-                        valid: true,
-                        userId: headerUser.id,
-                        email: headerUser.email,
-                        role: (profile?.role as UserRole) || 'admin'
-                    };
-                }
-            }
-            
-            return { valid: false, error: error?.message || 'Auth session missing' };
+    
+    // Method 2: Authorization Bearer header
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.slice(7);
+        if (timingSafeEqual(token, ADMIN_SECRET_KEY)) {
+            return { valid: true, role: 'admin' };
         }
-
-        // Get user profile to check role (use admin client to bypass RLS)
-        let role: UserRole = 'admin'; // Default to admin for personal use
-        if (supabaseAdmin) {
-            const { data: profile } = await supabaseAdmin
-                .from('users')
-                .select('role')
-                .eq('id', user.id)
-                .single();
-            role = (profile?.role as UserRole) || 'admin';
-        }
-
-        return {
-            valid: true,
-            userId: user.id,
-            email: user.email,
-            role
-        };
-    } catch (err) {
-        console.error('[Auth] Session verification error:', err);
-        return { valid: false, error: 'Session verification failed' };
     }
+    
+    // Method 3: Query param (for easy testing, not recommended for production)
+    const queryKey = request.nextUrl.searchParams.get('admin_key');
+    if (queryKey && timingSafeEqual(queryKey, ADMIN_SECRET_KEY)) {
+        return { valid: true, role: 'admin' };
+    }
+    
+    return { valid: false, error: 'Invalid or missing admin key' };
 }
 
 /**
- * Verify admin access (must be logged in AND have admin role)
- * For personal use - less strict, allows any logged in user
+ * Verify admin access (alias for verifySession)
  */
 export async function verifyAdminSession(request: NextRequest): Promise<AuthResult> {
-    const result = await verifySession(request);
-    
-    if (!result.valid) {
-        return result;
-    }
-
-    // For personal use - any valid session is admin
-    // In production with multiple users, uncomment the role check:
-    // if (result.role !== 'admin') {
-    //     return { valid: false, error: 'Admin access required' };
-    // }
-
-    return { ...result, role: 'admin' };
+    return verifySession(request);
 }
 
 /**
- * Legacy: Verify admin token from request (JWT-based)
- * Kept for backward compatibility, but now also checks Supabase session
+ * Timing-safe string comparison to prevent timing attacks
  */
-export function verifyAdminToken(request: NextRequest): { valid: boolean; username?: string; error?: string } {
-    // First try JWT token (legacy)
-    const authHeader = request.headers.get('Authorization');
-    let token: string | null = null;
-    
-    if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.slice(7);
-    }
-    
-    if (!token) {
-        token = request.cookies.get('admin_token')?.value || null;
-    }
-    
-    if (token) {
-        const payload = verifyJWT(token);
-        if (payload) {
-            return { valid: true, username: payload.sub };
-        }
-    }
-    
-    // JWT not found or invalid - return false
-    // Caller should use verifyAdminSession() for Supabase auth
-    return { valid: false, error: 'No valid token' };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// JWT HELPERS (Legacy, kept for backward compatibility)
-// ═══════════════════════════════════════════════════════════════
-
-const JWT_SECRET = process.env.JWT_SECRET || process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
-
-interface TokenPayload {
-    sub: string;
-    iat: number;
-    exp: number;
-}
-
-function base64UrlEncode(str: string): string {
-    return Buffer.from(str).toString('base64url');
-}
-
-function base64UrlDecode(str: string): string {
-    return Buffer.from(str, 'base64url').toString();
-}
-
-function signJWT(payload: TokenPayload): string {
-    const header = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const body = base64UrlEncode(JSON.stringify(payload));
-    const signature = crypto
-        .createHmac('sha256', JWT_SECRET)
-        .update(`${header}.${body}`)
-        .digest('base64url');
-    return `${header}.${body}.${signature}`;
-}
-
-function verifyJWT(token: string): TokenPayload | null {
+function timingSafeEqual(a: string, b: string): boolean {
     try {
-        const [header, body, signature] = token.split('.');
-        if (!header || !body || !signature) return null;
-        
-        const expectedSig = crypto
-            .createHmac('sha256', JWT_SECRET)
-            .update(`${header}.${body}`)
-            .digest('base64url');
-        
-        if (signature !== expectedSig) return null;
-        
-        const payload = JSON.parse(base64UrlDecode(body)) as TokenPayload;
-        if (payload.exp < Date.now()) return null;
-        
-        return payload;
+        const bufA = Buffer.from(a.padEnd(100));
+        const bufB = Buffer.from(b.padEnd(100));
+        return crypto.timingSafeEqual(bufA, bufB);
     } catch {
-        return null;
-    }
-}
-
-/**
- * Generate admin token (legacy JWT)
- */
-export function generateAdminToken(username: string): string {
-    const payload: TokenPayload = {
-        sub: username,
-        iat: Date.now(),
-        exp: Date.now() + TOKEN_EXPIRY,
-    };
-    return signJWT(payload);
-}
-
-/**
- * Validate admin credentials
- */
-export function validateAdminCredentials(username: string, password: string): boolean {
-    const adminUser = process.env.ADMIN_USER;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    
-    // SECURITY: Require env vars to be set - no defaults!
-    if (!adminUser || !adminPassword) {
         return false;
     }
-    
-    // Timing-safe comparison to prevent timing attacks
-    const userMatch = crypto.timingSafeEqual(
-        Buffer.from(username.padEnd(100)),
-        Buffer.from(adminUser.padEnd(100))
-    );
-    const passMatch = crypto.timingSafeEqual(
-        Buffer.from(password.padEnd(100)),
-        Buffer.from(adminPassword.padEnd(100))
-    );
-    
-    return userMatch && passMatch;
+}
+
+/**
+ * Get the admin key for client-side use
+ * This is exposed via a public env var for the admin panel
+ */
+export function getAdminKeyForClient(): string | null {
+    // Client should get this from NEXT_PUBLIC_ADMIN_KEY
+    // or prompt user to enter it manually
+    return null;
 }

@@ -317,11 +317,19 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                 </div>
             </nav>
 
-            {/* Footer */}
+            {/* Footer with hidden admin link */}
             <div className="p-4 border-t border-[var(--border-color)]">
                 <div className="px-4">
                     <p className="text-xs text-[var(--text-muted)]">
-                        © 2025 risunCode
+                        © 2025{' '}
+                        <Link 
+                            href="/admin" 
+                            onClick={onLinkClick}
+                            className="hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
+                            title="🔐"
+                        >
+                            risunCode
+                        </Link>
                     </p>
                     <p className="text-[10px] text-[var(--text-muted)] mt-1">
                         For personal use only
