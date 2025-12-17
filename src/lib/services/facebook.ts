@@ -928,9 +928,15 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
         if (isStory) {
             formats = extractStories(decoded, seenUrls);
         } else {
-            // Always try video extraction first for videos/reels
-            // Pass targetVideoId to extract the correct video (not related content)
-            formats = extractVideos(decoded, seenUrls, targetVideoId);
+            // For videos/reels: extract videos with targeting
+            // For posts: SKIP video extraction to avoid related content pollution
+            if (isVideo && targetVideoId) {
+                formats = extractVideos(decoded, seenUrls, targetVideoId);
+            } else if (isVideo) {
+                // Video/reel without ID - search full HTML (legacy behavior)
+                formats = extractVideos(decoded, seenUrls, null);
+            }
+            // For posts (isPost): don't extract videos - they're from related content
             
             // For reels/videos: if no video found, debug what patterns exist
             if (isVideo && formats.length === 0) {
