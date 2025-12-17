@@ -1,52 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { validateAdminCredentials, generateAdminToken, verifyAdminToken } from '@/lib/utils/admin-auth';
+/**
+ * Admin Auth API
+ * Simple API key verification endpoint
+ * 
+ * POST - Verify admin key
+ * GET - Check if key is valid
+ */
 
-// POST - Login
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
+
+// POST - Verify admin key
 export async function POST(request: NextRequest) {
     try {
-        const { username, password } = await request.json();
+        const { key } = await request.json();
 
-        if (!username || !password) {
-            return NextResponse.json({ success: false, error: 'Username and password required' }, { status: 400 });
+        if (!key) {
+            return NextResponse.json({ success: false, error: 'Admin key required' }, { status: 400 });
         }
 
-        if (!validateAdminCredentials(username, password)) {
-            return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+        // Create a mock request with the key as header to verify
+        const mockHeaders = new Headers();
+        mockHeaders.set('X-Admin-Key', key);
+        const mockRequest = new NextRequest(request.url, { headers: mockHeaders });
+        
+        const auth = await verifyAdminSession(mockRequest);
+        
+        if (!auth.valid) {
+            return NextResponse.json({ success: false, error: 'Invalid admin key' }, { status: 401 });
         }
-
-        const token = generateAdminToken(username);
         
-        const response = NextResponse.json({ success: true, token });
-        
-        // Also set as httpOnly cookie for browser requests
-        response.cookies.set('admin_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 24 * 60 * 60, // 24 hours
-            path: '/',
-        });
-        
-        return response;
+        return NextResponse.json({ success: true, message: 'Admin key verified' });
     } catch {
         return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });
     }
 }
 
-// GET - Verify token
+// GET - Check current auth status
 export async function GET(request: NextRequest) {
-    const result = verifyAdminToken(request);
+    const auth = await verifyAdminSession(request);
     
-    if (!result.valid) {
-        return NextResponse.json({ success: false, error: result.error }, { status: 401 });
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
     }
     
-    return NextResponse.json({ success: true, username: result.username });
-}
-
-// DELETE - Logout
-export async function DELETE() {
-    const response = NextResponse.json({ success: true });
-    response.cookies.delete('admin_token');
-    return response;
+    return NextResponse.json({ success: true, role: auth.role });
 }
