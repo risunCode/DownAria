@@ -57,9 +57,14 @@ interface AuthResult {
  * Verify user session from request cookies (Supabase auth)
  * Works with both user and admin roles
  * 
- * For personal use: Always allows access in development mode
+ * For personal use: Always allows access (no strict auth needed)
  */
 export async function verifySession(request: NextRequest): Promise<AuthResult> {
+    // PERSONAL USE MODE: Always allow admin access
+    // This is a personal project - no need for strict authentication
+    // Remove this block if you want to enable proper auth for multi-user
+    return { valid: true, role: 'admin', error: undefined };
+    
     // DEVELOPMENT MODE: Always allow access for personal use
     if (process.env.NODE_ENV === 'development') {
         return { valid: true, role: 'admin', error: undefined };
