@@ -9,7 +9,7 @@ import {
     ChevronLeft, Menu, Shield, Server, Code, Cookie, Users,
     ChevronDown, X, Megaphone
 } from 'lucide-react';
-import { getSession, getUser, signOut, getUserProfile } from '@/lib/supabase';
+import { signOut } from '@/lib/supabase';
 import { getAdminKey, setAdminKey, hasAdminKey, installAdminFetchGlobal } from '@/lib/utils/admin-fetch';
 
 // ═══════════════════════════════════════════════════════════════
@@ -132,9 +132,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => {
         const checkAuth = async () => {
-            try {
-                // First check if admin key is set and valid
-                if (hasAdminKey()) {
+            // Check if admin key is set and valid
+            if (hasAdminKey()) {
+                try {
                     const valid = await verifyAdminKey(getAdminKey()!);
                     if (valid) {
                         // Key is valid, set default admin user
@@ -147,34 +147,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         setIsLoading(false);
                         return;
                     }
+                } catch {
+                    // Key verification failed, show prompt
                 }
-                
-                // Try Supabase session as fallback
-                const session = await getSession();
-                if (session) {
-                    const authUser = await getUser();
-                    if (authUser) {
-                        const profile = await getUserProfile(authUser.id);
-                        setUser({
-                            id: authUser.id,
-                            email: authUser.email || '',
-                            username: profile?.username,
-                            role: (profile?.role as UserRole) || 'user',
-                            display_name: profile?.display_name,
-                            avatar_url: profile?.avatar_url,
-                        });
-                        setIsLoading(false);
-                        return;
-                    }
-                }
-                
-                // No valid auth - show key prompt
-                setShowKeyPrompt(true);
-                setIsLoading(false);
-            } catch {
-                setShowKeyPrompt(true);
-                setIsLoading(false);
             }
+            
+            // No valid key - show key prompt (skip Supabase entirely)
+            setShowKeyPrompt(true);
+            setIsLoading(false);
         };
         
         checkAuth();
