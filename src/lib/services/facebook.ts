@@ -792,17 +792,25 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
         // Use cookie only when needed (smart decision) or for content that requires it
         const headers = useCookie ? { ...BROWSER_HEADERS, Cookie: parsedCookie } : BROWSER_HEADERS;
         
-        // Resolve short URLs and share links (5s timeout for reliability)
-        // /share/p/ = post, /share/v/ = video, /share/r/ = reel - these are direct links
-        // /share/XXXX (alphanumeric without p/v/r prefix) = short code that needs resolution
-        const needsResolve = /fb\.watch|fb\.me|l\.facebook/.test(fetchUrl) ||
-            (/\/share\//.test(fetchUrl) && !/\/share\/[pvr]\//.test(fetchUrl));
+        // Resolve short URLs and share links (3s timeout for speed)
+        // /share/p/ = post, /share/v/ = video, /share/r/ = reel - these need resolution
+        const needsResolve = /fb\.watch|fb\.me|l\.facebook|\/share\//.test(fetchUrl);
         if (needsResolve) {
-            const resolved = await resolveUrl(fetchUrl, 5000);
+            const resolved = await resolveUrl(fetchUrl, 3000);
             fetchUrl = cleanTrackingParams(normalizeUrl(resolved, 'facebook'));
             logger.debug('facebook', `Resolved: ${fetchUrl.substring(0, 80)}...`);
-            // Small delay after resolve to let Facebook prepare content
-            await new Promise(r => setTimeout(r, 300));
+        }
+        
+        // Convert permalink.php to /posts/ format for better HTML content
+        // permalink.php doesn't include image data in initial HTML
+        if (fetchUrl.includes('permalink.php')) {
+            const storyFbid = fetchUrl.match(/story_fbid=(pfbid[a-zA-Z0-9]+|[\d]+)/);
+            const userId = fetchUrl.match(/[?&]id=(\d+)/);
+            if (storyFbid && userId) {
+                const domain = fetchUrl.includes('www.facebook') ? 'www.facebook.com' : 'web.facebook.com';
+                fetchUrl = `https://${domain}/${userId[1]}/posts/${storyFbid[1]}`;
+                logger.debug('facebook', `Converted permalink to: ${fetchUrl}`);
+            }
         }
         
         const contentType = detectType(fetchUrl);
@@ -815,9 +823,21 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
         let html: string;
         let finalUrl: string;
         
-        // Use manual redirect to preserve cookies across domain changes (www → web)
-        // Facebook redirects www.facebook.com to web.facebook.com and cookies get lost with redirect:follow
+        // Fetch with redirect handling
+        // - With cookie: manual redirect to preserve cookies across domain changes
+        // - Without cookie: auto redirect for speed
         const fetchWithRedirect = async (url: string, maxRedirects = 10): Promise<{ html: string; finalUrl: string }> => {
+            // Fast path: no cookie = use auto redirect
+            if (!useCookie) {
+                const res = await fetch(url, { headers, redirect: 'follow' });
+                // Check for checkpoint in final URL
+                if (res.url.includes('/checkpoint/')) {
+                    throw new Error('CHECKPOINT_REQUIRED');
+                }
+                return { html: await res.text(), finalUrl: res.url };
+            }
+            
+            // With cookie: manual redirect to preserve cookies
             let currentUrl = url;
             for (let i = 0; i < maxRedirects; i++) {
                 const res = await fetch(currentUrl, { headers, redirect: 'manual' });
@@ -826,21 +846,19 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
                     if (location) {
                         currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
                         logger.debug('facebook', `Redirect ${res.status} → ${currentUrl.substring(0, 80)}...`);
-                        // Detect checkpoint (shadow ban / account verification required)
                         if (currentUrl.includes('/checkpoint/')) {
                             throw new Error('CHECKPOINT_REQUIRED');
                         }
                         continue;
                     }
                 }
-                // Use currentUrl as finalUrl since res.url is not reliable with redirect:manual
                 return { html: await res.text(), finalUrl: currentUrl };
             }
             throw new Error('Too many redirects');
         };
         
-        // Stories and Reels need special handling - Facebook needs time to prepare content
-        const needsPolling = (contentType === 'story' && useCookie) || contentType === 'reel';
+        // Stories need polling - Reels usually work on first try
+        const needsPolling = contentType === 'story' && useCookie;
         if (needsPolling) {
             // First fetch to initialize session
             const initial = await fetchWithRedirect(fetchUrl);
@@ -858,13 +876,12 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
             };
             
             let mediaCount = countMedia(html);
-            const typeLabel = contentType === 'story' ? 'Story' : 'Reel';
             
             if (mediaCount === 0) {
-                logger.debug('facebook', `${typeLabel} detected, polling for content...`);
-                // Poll every 500ms, max 3s (6 attempts)
-                for (let i = 0; i < 6; i++) {
-                    await new Promise(r => setTimeout(r, 500));
+                logger.debug('facebook', `Story detected, polling for content...`);
+                // Poll every 400ms, max 2s (5 attempts) - faster polling
+                for (let i = 0; i < 5; i++) {
+                    await new Promise(r => setTimeout(r, 400));
                     const result = await fetchWithRedirect(fetchUrl);
                     const newCount = countMedia(result.html);
                     // Only update if we found more media
@@ -881,7 +898,7 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
                     }
                 }
             } else {
-                logger.debug('facebook', `${typeLabel} content found immediately (${mediaCount} items)`);
+                logger.debug('facebook', `Story content found immediately (${mediaCount} items)`);
             }
         } else {
             // Single fetch for non-stories
