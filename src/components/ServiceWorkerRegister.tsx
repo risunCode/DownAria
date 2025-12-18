@@ -1,10 +1,78 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+
+interface UpdatePromptSettings {
+  enabled: boolean;
+  mode: 'always' | 'once' | 'session';
+  delay_seconds: number;
+  dismissable: boolean;
+  custom_message: string;
+}
+
+const DEFAULT_SETTINGS: UpdatePromptSettings = {
+  enabled: true,
+  mode: 'always',
+  delay_seconds: 0,
+  dismissable: true,
+  custom_message: '',
+};
+
+const STORAGE_KEY = 'xtf_update_dismissed';
 
 export function ServiceWorkerRegister() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [settings, setSettings] = useState<UpdatePromptSettings>(DEFAULT_SETTINGS);
+
+  // Check if prompt should be shown based on mode
+  const shouldShowPrompt = useCallback((mode: UpdatePromptSettings['mode']): boolean => {
+    if (mode === 'always') return true;
+    
+    if (mode === 'once') {
+      // Check localStorage - if dismissed, never show again
+      const dismissed = localStorage.getItem(STORAGE_KEY);
+      return dismissed !== 'forever';
+    }
+    
+    if (mode === 'session') {
+      // Check sessionStorage - if dismissed this session, don't show
+      const dismissed = sessionStorage.getItem(STORAGE_KEY);
+      return dismissed !== 'session';
+    }
+    
+    return true;
+  }, []);
+
+  // Fetch settings from API
+  useEffect(() => {
+    fetch('/api/settings/update-prompt')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setSettings(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Show prompt when update available (with delay and mode check)
+  useEffect(() => {
+    if (!updateAvailable || !settings.enabled) return;
+    
+    if (!shouldShowPrompt(settings.mode)) {
+      console.log('[PWA] Update prompt dismissed by user preference');
+      return;
+    }
+
+    const delay = (settings.delay_seconds || 0) * 1000;
+    const timer = setTimeout(() => {
+      setShowPrompt(true);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [updateAvailable, settings, shouldShowPrompt]);
 
   useEffect(() => {
     // Track online/offline status
@@ -65,6 +133,18 @@ export function ServiceWorkerRegister() {
     }
   };
 
+  // Dismiss handler based on mode
+  const handleDismiss = () => {
+    if (settings.mode === 'once') {
+      localStorage.setItem(STORAGE_KEY, 'forever');
+    } else if (settings.mode === 'session') {
+      sessionStorage.setItem(STORAGE_KEY, 'session');
+    }
+    setShowPrompt(false);
+  };
+
+  const promptMessage = settings.custom_message || 'Refresh to get the latest features.';
+
   return (
     <>
       {/* Offline indicator */}
@@ -76,13 +156,13 @@ export function ServiceWorkerRegister() {
       )}
 
       {/* Update available prompt */}
-      {updateAvailable && (
+      {showPrompt && (
         <div className="fixed bottom-4 right-4 z-50 p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--accent-primary)] shadow-xl animate-fade-in max-w-xs">
           <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
             🎉 New version available!
           </p>
           <p className="text-xs text-[var(--text-muted)] mb-3">
-            Refresh to get the latest features.
+            {promptMessage}
           </p>
           <div className="flex gap-2">
             <button
@@ -91,12 +171,14 @@ export function ServiceWorkerRegister() {
             >
               Update Now
             </button>
-            <button
-              onClick={() => setUpdateAvailable(false)}
-              className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-card-hover)] transition-colors"
-            >
-              Later
-            </button>
+            {settings.dismissable && (
+              <button
+                onClick={handleDismiss}
+                className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-card-hover)] transition-colors"
+              >
+                Later
+              </button>
+            )}
           </div>
         </div>
       )}

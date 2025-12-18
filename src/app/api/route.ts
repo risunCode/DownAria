@@ -211,12 +211,23 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
     let cookie = userCookie ? parseCookie(userCookie, platform as CookiePlatform) : null;
     if (!cookie && cookiePlatforms.includes(platform as CookiePlatform)) {
         const adminCookie = await getAdminCookie(platform as CookiePlatform);
-        cookie = adminCookie ? parseCookie(adminCookie, platform as CookiePlatform) : null;
-        if (cookie) logger.debug(platform, 'Using admin cookie');
+        if (adminCookie) {
+            cookie = parseCookie(adminCookie, platform as CookiePlatform);
+            if (cookie) {
+                logger.debug(platform, `Using admin cookie (${adminCookie.length} chars)`);
+            } else {
+                logger.error(platform, 'Admin cookie found but failed to parse');
+            }
+        } else {
+            logger.debug(platform, 'No admin cookie available in pool');
+        }
     }
 
     let result;
     let usedCookie = false;
+
+    // Track if we used admin cookie (for marking success/error)
+    let usedAdminCookie = false;
 
     try {
         switch (platform) {
@@ -226,7 +237,10 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
                 result = await scraper(url);
                 if (!result.success && cookie) {
                     result = await scraper(url, { cookie });
-                    if (result.success) usedCookie = true;
+                    if (result.success) {
+                        usedCookie = true;
+                        usedAdminCookie = !userCookie; // Admin cookie if no user cookie
+                    }
                 }
                 break;
             }
@@ -234,7 +248,10 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
                 result = await scrapeTwitter(url);
                 if (!result.success && cookie) {
                     result = await scrapeTwitter(url, { cookie });
-                    if (result.success) usedCookie = true;
+                    if (result.success) {
+                        usedCookie = true;
+                        usedAdminCookie = !userCookie;
+                    }
                 }
                 break;
             }
@@ -260,12 +277,37 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
                 } else {
                     result = await scrapeWeibo(url, { cookie });
                     usedCookie = true;
+                    usedAdminCookie = !userCookie;
                 }
                 break;
             }
         }
     } catch (e) {
         result = { success: false, error: e instanceof Error ? e.message : 'Scrape failed' };
+    }
+
+    // Import cookie pool functions for marking status
+    const { markCookieSuccess, markCookieCooldown, markCookieExpired } = await import('@/lib/utils/cookie-pool');
+
+    // Handle cookie status based on result
+    if (usedAdminCookie && result) {
+        if (result.success) {
+            // Mark cookie as successful
+            markCookieSuccess().catch(() => {});
+        } else if (result.error) {
+            const errorLower = result.error.toLowerCase();
+            // Check for checkpoint/verification errors - mark as expired
+            if (errorLower.includes('verification') || errorLower.includes('checkpoint') || 
+                errorLower.includes('login') || errorLower.includes('session expired')) {
+                markCookieExpired(result.error).catch(() => {});
+                logger.error(platform, `Admin cookie expired: ${result.error}`);
+            }
+            // Check for rate limit - mark as cooldown
+            else if (errorLower.includes('rate limit') || errorLower.includes('too many') || errorLower.includes('429')) {
+                markCookieCooldown(30, result.error).catch(() => {});
+                logger.error(platform, `Admin cookie rate limited: ${result.error}`);
+            }
+        }
     }
 
     const responseTime = Date.now() - startTime;

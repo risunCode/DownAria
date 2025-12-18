@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Shield, Database, Globe, Save, RefreshCw, Webhook, MessageSquare, Github, ExternalLink } from 'lucide-react';
+import { Settings, Shield, Database, Globe, Save, RefreshCw, Webhook, ExternalLink, Bell } from 'lucide-react';
 import Swal from 'sweetalert2';
 import AdminGuard from '@/components/AdminGuard';
 
@@ -16,6 +16,12 @@ interface GlobalSettings {
     discord_notify_enabled: string;
     logging_enabled: string;
     cache_ttl: string;
+    // Update prompt settings
+    update_prompt_enabled: string;
+    update_prompt_mode: string;
+    update_prompt_delay_seconds: string;
+    update_prompt_dismissable: string;
+    update_prompt_custom_message: string;
     [key: string]: string;
 }
 
@@ -29,6 +35,12 @@ const DEFAULT_SETTINGS: GlobalSettings = {
     discord_notify_enabled: 'false',
     logging_enabled: 'true',
     cache_ttl: '259200',
+    // Update prompt defaults
+    update_prompt_enabled: 'true',
+    update_prompt_mode: 'always',
+    update_prompt_delay_seconds: '0',
+    update_prompt_dismissable: 'true',
+    update_prompt_custom_message: '',
 };
 
 export default function AdminSettingsPage() {
@@ -308,6 +320,87 @@ function SettingsContent() {
                             />
                             Enable download notifications
                         </label>
+                    </div>
+                </motion.div>
+
+                {/* PWA Update Prompt */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Bell className="w-4 h-4 text-cyan-400" />
+                        <h2 className="font-semibold text-sm">PWA Update Prompt</h2>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
+                        Control the &quot;New version available&quot; notification behavior
+                    </p>
+                    <div className="space-y-3">
+                        {/* Enable/Disable */}
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                            <div>
+                                <p className="text-sm font-medium">Show Update Prompt</p>
+                                <p className="text-xs text-[var(--text-muted)]">Display notification when new version available</p>
+                            </div>
+                            <button
+                                onClick={() => updateSetting('update_prompt_enabled', settings.update_prompt_enabled === 'true' ? 'false' : 'true')}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${settings.update_prompt_enabled === 'true' ? 'bg-cyan-500' : 'bg-gray-600'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${settings.update_prompt_enabled === 'true' ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        {settings.update_prompt_enabled === 'true' && (
+                            <>
+                                {/* Mode Selection */}
+                                <div>
+                                    <label className="block text-xs text-[var(--text-muted)] mb-1">Display Mode</label>
+                                    <select
+                                        value={settings.update_prompt_mode}
+                                        onChange={e => updateSetting('update_prompt_mode', e.target.value)}
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                                    >
+                                        <option value="always">Always show (setiap ada update)</option>
+                                        <option value="once">Once only (dismiss = gone forever)</option>
+                                        <option value="session">Per session (dismiss = gone until refresh)</option>
+                                    </select>
+                                </div>
+
+                                {/* Delay */}
+                                <div>
+                                    <label className="block text-xs text-[var(--text-muted)] mb-1">Delay (seconds)</label>
+                                    <input
+                                        type="number"
+                                        value={settings.update_prompt_delay_seconds}
+                                        onChange={e => updateSetting('update_prompt_delay_seconds', e.target.value)}
+                                        min={0}
+                                        max={60}
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                                    />
+                                    <p className="text-[10px] text-[var(--text-muted)] mt-1">Delay before showing prompt (0 = immediate)</p>
+                                </div>
+
+                                {/* Dismissable */}
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.update_prompt_dismissable === 'true'}
+                                        onChange={e => updateSetting('update_prompt_dismissable', e.target.checked ? 'true' : 'false')}
+                                        className="rounded"
+                                    />
+                                    Allow dismiss (show &quot;Later&quot; button)
+                                </label>
+
+                                {/* Custom Message */}
+                                <div>
+                                    <label className="block text-xs text-[var(--text-muted)] mb-1">Custom Message (optional)</label>
+                                    <input
+                                        type="text"
+                                        value={settings.update_prompt_custom_message}
+                                        onChange={e => updateSetting('update_prompt_custom_message', e.target.value)}
+                                        placeholder="Refresh to get the latest features."
+                                        className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </motion.div>
 

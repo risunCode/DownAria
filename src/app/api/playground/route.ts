@@ -268,6 +268,24 @@ async function handlePlaygroundRequest(request: NextRequest, url: string): Promi
     }
     
     const responseTime = Date.now() - startTime;
+
+    // Track admin cookie status
+    if (usedCookie && cookie) {
+        const { markCookieSuccess, markCookieCooldown, markCookieExpired } = await import('@/lib/utils/cookie-pool');
+        
+        if (result?.success) {
+            markCookieSuccess().catch(() => {});
+        } else if (result?.error) {
+            const errorLower = result.error.toLowerCase();
+            if (errorLower.includes('verification') || errorLower.includes('checkpoint') || 
+                errorLower.includes('login') || errorLower.includes('session expired')) {
+                markCookieExpired(result.error).catch(() => {});
+                logger.error(platform, `Admin cookie expired: ${result.error}`);
+            } else if (errorLower.includes('rate limit') || errorLower.includes('too many') || errorLower.includes('429')) {
+                markCookieCooldown(30, result.error).catch(() => {});
+            }
+        }
+    }
     
     if (result?.success && result.data) {
         // Cache URL so same request doesn't count against rate limit

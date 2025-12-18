@@ -4,12 +4,23 @@
  * Multi-cookie rotation with health tracking & rate limiting
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Lazy init supabase client
+let supabase: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient | null {
+    if (!supabase) {
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!url || !key) {
+            console.warn('[CookiePool] Supabase not configured');
+            return null;
+        }
+        supabase = createClient(url, key);
+    }
+    return supabase;
+}
 
 export type CookieStatus = 'healthy' | 'cooldown' | 'expired' | 'disabled';
 
@@ -54,16 +65,19 @@ let lastUsedCookieId: string | null = null;
  * Priority: healthy > least recently used > lowest use count
  */
 export async function getRotatingCookie(platform: string): Promise<string | null> {
+    const db = getSupabase();
+    if (!db) return null;
+
     try {
         // First, reset any expired cooldowns
         try {
-            await supabase.rpc('reset_expired_cooldowns');
+            await db.rpc('reset_expired_cooldowns');
         } catch {
             // Ignore if RPC doesn't exist
         }
 
         // Get best available cookie
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('admin_cookie_pool')
             .select('*')
             .eq('platform', platform)
@@ -77,7 +91,7 @@ export async function getRotatingCookie(platform: string): Promise<string | null
 
         if (error || !data) {
             // Fallback: try cooldown cookies if no healthy ones
-            const { data: fallback } = await supabase
+            const { data: fallback } = await db
                 .from('admin_cookie_pool')
                 .select('*')
                 .eq('platform', platform)
@@ -91,7 +105,7 @@ export async function getRotatingCookie(platform: string): Promise<string | null
             if (!fallback) return null;
             
             // Reset cooldown and use
-            await supabase
+            await db
                 .from('admin_cookie_pool')
                 .update({ status: 'healthy', cooldown_until: null })
                 .eq('id', fallback.id);
@@ -101,7 +115,7 @@ export async function getRotatingCookie(platform: string): Promise<string | null
         }
 
         // Update usage stats
-        await supabase
+        await db
             .from('admin_cookie_pool')
             .update({
                 last_used_at: new Date().toISOString(),
@@ -111,7 +125,8 @@ export async function getRotatingCookie(platform: string): Promise<string | null
 
         lastUsedCookieId = data.id;
         return data.cookie;
-    } catch {
+    } catch (e) {
+        console.error('[CookiePool] getRotatingCookie error:', e);
         return null;
     }
 }
@@ -121,16 +136,18 @@ export async function getRotatingCookie(platform: string): Promise<string | null
  */
 export async function markCookieSuccess(): Promise<void> {
     if (!lastUsedCookieId) return;
+    const db = getSupabase();
+    if (!db) return;
     
     // Simple increment
-    const { data } = await supabase
+    const { data } = await db
         .from('admin_cookie_pool')
         .select('success_count')
         .eq('id', lastUsedCookieId)
         .single();
     
     if (data) {
-        await supabase
+        await db
             .from('admin_cookie_pool')
             .update({ success_count: data.success_count + 1, last_error: null })
             .eq('id', lastUsedCookieId);
@@ -142,16 +159,18 @@ export async function markCookieSuccess(): Promise<void> {
  */
 export async function markCookieCooldown(minutes: number = 30, error?: string): Promise<void> {
     if (!lastUsedCookieId) return;
+    const db = getSupabase();
+    if (!db) return;
     
     const cooldownUntil = new Date(Date.now() + minutes * 60000).toISOString();
     
-    const { data } = await supabase
+    const { data } = await db
         .from('admin_cookie_pool')
         .select('error_count')
         .eq('id', lastUsedCookieId)
         .single();
     
-    await supabase
+    await db
         .from('admin_cookie_pool')
         .update({
             status: 'cooldown',
@@ -167,8 +186,10 @@ export async function markCookieCooldown(minutes: number = 30, error?: string): 
  */
 export async function markCookieExpired(error?: string): Promise<void> {
     if (!lastUsedCookieId) return;
+    const db = getSupabase();
+    if (!db) return;
     
-    await supabase
+    await db
         .from('admin_cookie_pool')
         .update({
             status: 'expired',
@@ -181,7 +202,10 @@ export async function markCookieExpired(error?: string): Promise<void> {
  * Get all cookies for a platform
  */
 export async function getCookiesByPlatform(platform: string): Promise<PooledCookie[]> {
-    const { data } = await supabase
+    const db = getSupabase();
+    if (!db) return [];
+
+    const { data } = await db
         .from('admin_cookie_pool')
         .select('*')
         .eq('platform', platform)
@@ -194,7 +218,10 @@ export async function getCookiesByPlatform(platform: string): Promise<PooledCook
  * Get cookie pool stats for all platforms
  */
 export async function getCookiePoolStats(): Promise<CookiePoolStats[]> {
-    const { data } = await supabase
+    const db = getSupabase();
+    if (!db) return [];
+
+    const { data } = await db
         .from('cookie_pool_stats')
         .select('*');
     
@@ -209,10 +236,13 @@ export async function addCookieToPool(
     cookie: string,
     options?: { label?: string; note?: string; max_uses_per_hour?: number }
 ): Promise<PooledCookie | null> {
+    const db = getSupabase();
+    if (!db) throw new Error('Database not configured');
+
     // Extract user ID from cookie
     const userId = extractUserId(cookie, platform);
     
-    const { data, error } = await supabase
+    const { data, error } = await db
         .from('admin_cookie_pool')
         .insert({
             platform,
@@ -236,9 +266,12 @@ export async function updatePooledCookie(
     id: string,
     updates: Partial<Pick<PooledCookie, 'cookie' | 'label' | 'note' | 'enabled' | 'status' | 'max_uses_per_hour'>>
 ): Promise<PooledCookie | null> {
+    const db = getSupabase();
+    if (!db) throw new Error('Database not configured');
+
     // If cookie is updated, re-extract user ID
     if (updates.cookie) {
-        const { data: existing } = await supabase
+        const { data: existing } = await db
             .from('admin_cookie_pool')
             .select('platform')
             .eq('id', id)
@@ -249,7 +282,7 @@ export async function updatePooledCookie(
         }
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await db
         .from('admin_cookie_pool')
         .update(updates)
         .eq('id', id)
@@ -264,7 +297,10 @@ export async function updatePooledCookie(
  * Delete cookie from pool
  */
 export async function deleteCookieFromPool(id: string): Promise<boolean> {
-    const { error } = await supabase
+    const db = getSupabase();
+    if (!db) return false;
+
+    const { error } = await db
         .from('admin_cookie_pool')
         .delete()
         .eq('id', id);
@@ -276,7 +312,10 @@ export async function deleteCookieFromPool(id: string): Promise<boolean> {
  * Test cookie health
  */
 export async function testCookieHealth(id: string): Promise<{ healthy: boolean; error?: string }> {
-    const { data } = await supabase
+    const db = getSupabase();
+    if (!db) return { healthy: false, error: 'Database not configured' };
+
+    const { data } = await db
         .from('admin_cookie_pool')
         .select('platform, cookie')
         .eq('id', id)
@@ -298,7 +337,7 @@ export async function testCookieHealth(id: string): Promise<{ healthy: boolean; 
         
         // Check for login redirect or error
         if (html.includes('login_form') || html.includes('Log in to Facebook')) {
-            await supabase
+            await db
                 .from('admin_cookie_pool')
                 .update({ status: 'expired', last_error: 'Session expired' })
                 .eq('id', id);
@@ -306,7 +345,7 @@ export async function testCookieHealth(id: string): Promise<{ healthy: boolean; 
         }
         
         // Update as healthy
-        await supabase
+        await db
             .from('admin_cookie_pool')
             .update({ status: 'healthy', last_error: null })
             .eq('id', id);
