@@ -39,11 +39,13 @@ export default function SettingsPage() {
     useEffect(() => {
         setCurrentTheme(getTheme());
         setUserCookies(getAllCookieStatus());
-        // Fetch admin cookie status
-        fetch('/api/admin/cookies').then(r => r.json()).then(d => {
+        // Fetch admin cookie status (public endpoint - no auth needed)
+        fetch('/api/status/cookies').then(r => r.json()).then(d => {
             if (d.success && d.data) {
                 const status: Record<string, boolean> = {};
-                d.data.forEach((c: { platform: string; enabled: boolean }) => { status[c.platform] = c.enabled; });
+                Object.entries(d.data).forEach(([platform, info]) => {
+                    status[platform] = (info as { available: boolean }).available;
+                });
                 setAdminCookies(status);
             }
         }).catch(() => {});

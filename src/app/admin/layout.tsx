@@ -140,7 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (supabase) {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_OUT' || !session) {
-                    router.push('/auth');
+                    router.push('/');
                 }
             });
             
@@ -156,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const handleLogout = async () => {
         await signOut();
-        router.push('/auth');
+        router.push('/');
     };
 
     const isAdmin = user?.role === 'admin';
