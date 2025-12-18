@@ -466,7 +466,7 @@ export default function AboutPage() {
                                 Start Downloading
                             </Link>
                             <a
-                                href="https://github.com/risunCode/XTFetch/issues/new"
+                                href="https://github.com/risunCode/XTFetchs/issues/new"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-full inline-flex items-center justify-center gap-2 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium py-2.5 px-4 rounded-xl text-sm border border-[var(--accent-primary)]/30 hover:bg-[var(--accent-primary)]/20 transition-colors"
@@ -475,7 +475,7 @@ export default function AboutPage() {
                                 Contact / Feedback
                             </a>
                             <a
-                                href="https://github.com/risunCode/XTFetch"
+                                href="https://github.com/risunCode/XTFetchs"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-full inline-flex items-center justify-center gap-2 bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium py-2.5 px-4 rounded-xl text-sm border border-[var(--border-color)] hover:border-[var(--text-muted)] transition-colors"
