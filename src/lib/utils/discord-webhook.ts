@@ -306,17 +306,18 @@ export async function sendDiscordNotification(data: {
             }
             
             if (useDoubleMessage) {
-                // 2x SEND: First rich embed (info), then wrapped link (video)
-                console.log('[Discord] Using 2x send method');
+                // 2x SEND: First video link, then rich embed (info)
+                // Video first so it appears above the embed in Discord
+                console.log('[Discord] Using 2x send method (video first)');
                 
-                // Message 1: Rich embed with info (no video/image)
+                // Message 1: Wrapped link [Platform Type](url) - Discord will auto-embed video
                 const result1 = await sendToWebhook(settings.webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: APP_NAME,
                         avatar_url: appIcon,
-                        embeds: [embed],
+                        content: `[${mediaLabel}](${videoLinkUrl})`,
                     }),
                 });
                 
@@ -327,23 +328,23 @@ export async function sendDiscordNotification(data: {
                     return { sent: false, reason: `error_${result1.status}`, details: result1.error };
                 }
                 
-                // Small delay between messages
-                await new Promise(r => setTimeout(r, 300));
+                // Delay before embed so video appears first in Discord
+                await new Promise(r => setTimeout(r, 500));
                 
-                // Message 2: Wrapped link [Platform Type](url) - Discord will auto-embed video
+                // Message 2: Rich embed with info (no video/image)
                 const result2 = await sendToWebhook(settings.webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: APP_NAME,
                         avatar_url: appIcon,
-                        content: `[${mediaLabel}](${videoLinkUrl})`,
+                        embeds: [embed],
                     }),
                 });
                 
                 markSent(messageKey);
                 if (!result2.ok) {
-                    return { sent: true, details: 'Embed sent, video link failed' };
+                    return { sent: true, details: 'Video sent, embed failed' };
                 }
                 return { sent: true };
             } else {

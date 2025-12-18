@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
@@ -313,14 +314,12 @@ export default function SettingsPage() {
                                                     Get download notifications in your Discord server
                                                 </p>
                                             </div>
-                                            <a
-                                                href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                            <Link
+                                                href="/advanced#discord-webhook"
                                                 className="text-xs text-[#5865F2] hover:underline"
                                             >
-                                                Learn more →
-                                            </a>
+                                                Configure →
+                                            </Link>
                                         </div>
                                     </div>
                                 </div>
