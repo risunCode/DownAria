@@ -16,6 +16,7 @@
 
 import { MediaFormat } from '@/lib/types';
 import { addFormat, decodeUrl } from '@/lib/utils/http';
+import { parseCookie } from '@/lib/utils/cookie-parser';
 import { matchesPlatform } from './api-config';
 import { ScraperResult, ScraperOptions, EngagementStats, INSTAGRAM_GRAPHQL_HEADERS, INSTAGRAM_STORY_HEADERS } from './fetch-helper';
 import { getCache, setCache } from './cache';
@@ -386,14 +387,17 @@ async function scrapeStory(url: string, cookie?: string): Promise<ScraperResult>
 // ============================================================================
 
 export async function scrapeInstagram(url: string, options?: ScraperOptions): Promise<ScraperResult> {
-    const cookie = options?.cookie;
+    const { cookie: rawCookie, skipCache = false } = options || {};
+    
+    // Parse cookie (supports JSON format from Cookie Editor)
+    const cookie = rawCookie ? parseCookie(rawCookie, 'instagram') || undefined : undefined;
     
     if (!matchesPlatform(url, 'instagram')) {
         return createError(ScraperErrorCode.INVALID_URL, 'Invalid Instagram URL');
     }
     
     const contentType = detectContentType(url);
-    logger.debug('instagram', `Type: ${contentType} | Cookie: ${cookie ? 'Yes' : 'No'}`);
+    logger.type('instagram', contentType);
     
     // ─────────────────────────────────────────────────────────────────
     // STORIES: Always require cookie
@@ -411,10 +415,12 @@ export async function scrapeInstagram(url: string, options?: ScraperOptions): Pr
     }
     
     // Check cache
-    const cached = getCache<ScraperResult>('instagram', url);
-    if (cached?.success) {
-        logger.debug('instagram', `Cache hit: ${shortcode}`);
-        return { ...cached, cached: true };
+    if (!skipCache) {
+        const cached = await getCache<ScraperResult>('instagram', url);
+        if (cached?.success) {
+            logger.cache('instagram', true);
+            return { ...cached, cached: true };
+        }
     }
     
     // Step 1: Try GraphQL without cookie (public content)

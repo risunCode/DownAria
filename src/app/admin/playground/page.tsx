@@ -31,7 +31,7 @@ interface PlatformStats {
 
 const ENDPOINT_CONFIGS: EndpointBase[] = [
     { 
-        id: 'facebook', name: 'Facebook', icon: faFacebook, iconColor: 'text-blue-500', path: '/api/download/facebook', method: 'POST',
+        id: 'facebook', name: 'Facebook', icon: faFacebook, iconColor: 'text-blue-500', path: '/api', method: 'POST',
         description: 'Download videos, reels, stories & images',
         samples: [
             { name: 'Public Post (5 images)', url: 'https://www.facebook.com/share/p/1HBDxpAhPu/' },
@@ -40,7 +40,7 @@ const ENDPOINT_CONFIGS: EndpointBase[] = [
         ]
     },
     { 
-        id: 'instagram', name: 'Instagram', icon: faInstagram, iconColor: 'text-pink-500', path: '/api/download/instagram', method: 'POST',
+        id: 'instagram', name: 'Instagram', icon: faInstagram, iconColor: 'text-pink-500', path: '/api', method: 'POST',
         description: 'Reels, posts, stories via Embed API',
         samples: [
             { name: 'Reel Video', url: 'https://www.instagram.com/reel/DKxABC123/' },
@@ -48,28 +48,28 @@ const ENDPOINT_CONFIGS: EndpointBase[] = [
         ]
     },
     { 
-        id: 'twitter', name: 'Twitter/X', icon: faTwitter, iconColor: 'text-sky-400', path: '/api/download/twitter', method: 'POST',
+        id: 'twitter', name: 'Twitter/X', icon: faTwitter, iconColor: 'text-sky-400', path: '/api', method: 'POST',
         description: 'Videos & images via Syndication API',
         samples: [
             { name: 'Video Tweet', url: 'https://x.com/elonmusk/status/1234567890' },
         ]
     },
     { 
-        id: 'tiktok', name: 'TikTok', icon: faMusic, iconColor: 'text-pink-400', path: '/api/download/tiktok', method: 'POST',
+        id: 'tiktok', name: 'TikTok', icon: faMusic, iconColor: 'text-pink-400', path: '/api', method: 'POST',
         description: 'No watermark videos via TikWM',
         samples: [
             { name: 'TikTok Video', url: 'https://www.tiktok.com/@tiktok/video/7000000000000000000' },
         ]
     },
     { 
-        id: 'youtube', name: 'YouTube', icon: faYoutube, iconColor: 'text-red-500', path: '/api/download/youtube', method: 'POST',
+        id: 'youtube', name: 'YouTube', icon: faYoutube, iconColor: 'text-red-500', path: '/api', method: 'POST',
         description: 'Videos & Shorts via Innertube (360p)',
         samples: [
             { name: 'YouTube Video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
         ]
     },
     { 
-        id: 'weibo', name: 'Weibo', icon: faWeibo, iconColor: 'text-orange-500', path: '/api/download/weibo', method: 'POST',
+        id: 'weibo', name: 'Weibo', icon: faWeibo, iconColor: 'text-orange-500', path: '/api', method: 'POST',
         description: 'Requires cookie (SUB)',
         samples: [
             { name: 'Weibo Post', url: 'https://weibo.com/1234567890/abc123' },
@@ -102,7 +102,6 @@ export default function PlaygroundPage() {
     const [showSamples, setShowSamples] = useState(false);
     const [adminCookies, setAdminCookies] = useState<AdminCookieStatus>({});
     const [platformStats, setPlatformStats] = useState<Record<string, PlatformStats>>({});
-    const [apiKey, setApiKey] = useState('');
 
     // Fetch admin cookie status and platform stats on mount
     useEffect(() => {
@@ -136,7 +135,6 @@ export default function PlaygroundPage() {
         setModalEndpoint(ep);
         setUrl('');
         setCookie('');
-        setApiKey('');
         setResult(null);
         setActiveTab('gallery');
     };
@@ -153,15 +151,9 @@ export default function PlaygroundPage() {
             const body: Record<string, string> = { url: url.trim() };
             if (cookie.trim()) body.cookie = cookie.trim();
             
-            // Build headers - add API key if provided
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (apiKey.trim()) {
-                headers['X-API-Key'] = apiKey.trim();
-            }
-            
             const res = await fetch(modalEndpoint.path, {
                 method: 'POST',
-                headers,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
             const data = await res.json();
@@ -270,33 +262,37 @@ export default function PlaygroundPage() {
                     <div className="grid md:grid-cols-2 gap-4">
                         {/* Endpoints */}
                         <div>
-                            <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Endpoints</h3>
+                            <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Public Endpoints</h3>
                             <div className="space-y-2 text-xs font-mono">
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-purple-400">POST</span> /api/download
-                                    <span className="text-[var(--text-muted)] ml-2">← auto-detect</span>
+                                    <span className="text-purple-400">POST</span> /api
+                                    <span className="text-[var(--text-muted)] ml-2">← main (15/min)</span>
                                 </div>
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-blue-400">POST</span> /api/download/<span className="text-green-400">{'{platform}'}</span>
+                                    <span className="text-green-400">GET</span> /api?url=...
                                 </div>
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-green-400">GET</span> /api/download?url=...&key=...
+                                    <span className="text-blue-400">POST</span> /api/playground
+                                    <span className="text-[var(--text-muted)] ml-2">← user (5/2min)</span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Authentication */}
+                        {/* Rate Limits */}
                         <div>
-                            <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Authentication</h3>
+                            <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Rate Limits</h3>
                             <div className="space-y-2 text-xs font-mono">
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-[var(--text-muted)]">Header:</span> X-API-Key: <span className="text-yellow-400">YOUR_KEY</span>
+                                    <span className="text-purple-400">/api</span>
+                                    <span className="text-[var(--text-muted)] ml-2">15 req/min • Home page</span>
                                 </div>
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-[var(--text-muted)]">Header:</span> Authorization: Bearer <span className="text-yellow-400">KEY</span>
+                                    <span className="text-blue-400">/api/playground</span>
+                                    <span className="text-[var(--text-muted)] ml-2">5 req/2min • /advanced</span>
                                 </div>
                                 <div className="p-2 rounded bg-[var(--bg-secondary)]">
-                                    <span className="text-[var(--text-muted)]">Query:</span> ?key=<span className="text-yellow-400">YOUR_KEY</span>
+                                    <span className="text-yellow-400">API Key</span>
+                                    <span className="text-[var(--text-muted)] ml-2">Custom • Admin managed</span>
                                 </div>
                             </div>
                         </div>
@@ -304,15 +300,13 @@ export default function PlaygroundPage() {
 
                     {/* Example */}
                     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-                        <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Browser Example</h3>
+                        <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Usage Example</h3>
                         <div className="p-3 rounded bg-[var(--bg-secondary)] font-mono text-xs overflow-x-auto">
-                            <span className="text-[var(--text-muted)]">/api/download?</span>
-                            <span className="text-yellow-400">key</span>=YOUR_API_KEY
-                            <span className="text-[var(--text-muted)]">&</span>
-                            <span className="text-blue-400">url</span>=https://facebook.com/share/p/xxx
+                            <span className="text-purple-400">POST</span> /api<br/>
+                            <span className="text-[var(--text-muted)]">Body:</span> {'{'} <span className="text-blue-400">&quot;url&quot;</span>: <span className="text-green-400">&quot;https://instagram.com/p/xxx&quot;</span> {'}'}
                         </div>
                         <p className="text-[10px] text-[var(--text-muted)] mt-2">
-                            Platforms: facebook, instagram, twitter, tiktok, youtube, weibo
+                            Platforms: facebook, instagram, twitter, tiktok, youtube, weibo • No API key required
                         </p>
                     </div>
                 </div>
@@ -366,22 +360,6 @@ export default function PlaygroundPage() {
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                {/* API Key Input */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-sm font-medium text-[var(--text-muted)]">API Key (optional)</label>
-                                        {!apiKey.trim() && (
-                                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-semibold">
-                                                <FontAwesomeIcon icon={faKey} className="w-2.5 h-2.5" />
-                                                Admin bypass
-                                            </span>
-                                        )}
-                                    </div>
-                                    <input type="text" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                                        placeholder="Leave empty for admin direct access, or test with API key..."
-                                        className="w-full px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl font-mono text-sm" />
-                                </div>
-
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                         <label className="text-sm font-medium text-[var(--text-muted)]">Cookie (optional)</label>

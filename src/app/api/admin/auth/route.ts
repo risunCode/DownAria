@@ -1,47 +1,51 @@
 /**
  * Admin Auth API
- * Simple API key verification endpoint
+ * Check current auth status via Supabase session
  * 
- * POST - Verify admin key
- * GET - Check if key is valid
+ * GET - Check if user is authenticated and has admin role
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
-
-// POST - Verify admin key
-export async function POST(request: NextRequest) {
-    try {
-        const { key } = await request.json();
-
-        if (!key) {
-            return NextResponse.json({ success: false, error: 'Admin key required' }, { status: 400 });
-        }
-
-        // Create a mock request with the key as header to verify
-        const mockHeaders = new Headers();
-        mockHeaders.set('X-Admin-Key', key);
-        const mockRequest = new NextRequest(request.url, { headers: mockHeaders });
-        
-        const auth = await verifyAdminSession(mockRequest);
-        
-        if (!auth.valid) {
-            return NextResponse.json({ success: false, error: 'Invalid admin key' }, { status: 401 });
-        }
-        
-        return NextResponse.json({ success: true, message: 'Admin key verified' });
-    } catch {
-        return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });
-    }
-}
+import { verifySession, verifyAdminSession } from '@/lib/utils/admin-auth';
 
 // GET - Check current auth status
 export async function GET(request: NextRequest) {
+    const auth = await verifySession(request);
+    
+    if (!auth.valid) {
+        return NextResponse.json({ 
+            success: false, 
+            authenticated: false,
+            error: auth.error 
+        }, { status: 401 });
+    }
+    
+    return NextResponse.json({ 
+        success: true, 
+        authenticated: true,
+        userId: auth.userId,
+        email: auth.email,
+        username: auth.username,
+        role: auth.role,
+        isAdmin: auth.role === 'admin'
+    });
+}
+
+// POST - Verify admin access specifically
+export async function POST(request: NextRequest) {
     const auth = await verifyAdminSession(request);
     
     if (!auth.valid) {
-        return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
+        return NextResponse.json({ 
+            success: false, 
+            error: auth.error || 'Admin access required'
+        }, { status: auth.role ? 403 : 401 });
     }
     
-    return NextResponse.json({ success: true, role: auth.role });
+    return NextResponse.json({ 
+        success: true, 
+        message: 'Admin access verified',
+        userId: auth.userId,
+        username: auth.username
+    });
 }

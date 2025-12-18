@@ -4,8 +4,9 @@ import { logger } from '@/lib/services/logger';
 import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
 import { getAdminCookie } from '@/lib/utils/admin-cookie';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
+import { parseCookie } from '@/lib/utils/cookie-parser';
 
-async function handleRequest(url: string, userCookie?: string) {
+async function handleRequest(url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
     
     if (isMaintenanceMode()) {
@@ -17,9 +18,11 @@ async function handleRequest(url: string, userCookie?: string) {
     }
     
     // Weibo ALWAYS requires cookie
-    let cookie = userCookie;
+    // Parse cookie (supports JSON format from Cookie Editor)
+    let cookie = userCookie ? parseCookie(userCookie, 'weibo') : null;
     if (!cookie) {
-        cookie = await getAdminCookie('weibo') || undefined;
+        const adminCookie = await getAdminCookie('weibo');
+        cookie = adminCookie ? parseCookie(adminCookie, 'weibo') : null;
         if (cookie) logger.debug('weibo', 'Using admin cookie');
     }
     
@@ -29,7 +32,7 @@ async function handleRequest(url: string, userCookie?: string) {
     
     logger.url('weibo', url);
     
-    const result = await scrapeWeibo(url, { cookie });
+    const result = await scrapeWeibo(url, { cookie, skipCache });
     const responseTime = Date.now() - startTime;
     
     if (result.success && result.data) {
@@ -83,9 +86,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, cookie } = await request.json();
+        const { url, cookie, skipCache } = await request.json();
         if (!url) return missingUrlResponse('weibo');
-        return handleRequest(url, cookie);
+        return handleRequest(url, cookie, skipCache);
     } catch (error) {
         logger.error('weibo', error);
         return errorResponse('weibo', error instanceof Error ? error.message : 'Failed', 500);

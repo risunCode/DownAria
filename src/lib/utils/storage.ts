@@ -119,6 +119,7 @@ export function getAllCookieStatus(): Record<CookiePlatform, boolean> {
         instagram: hasPlatformCookie('instagram'),
         weibo: hasPlatformCookie('weibo'),
         twitter: hasPlatformCookie('twitter'),
+        youtube: hasPlatformCookie('youtube'),
     };
 }
 

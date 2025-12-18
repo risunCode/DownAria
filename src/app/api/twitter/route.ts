@@ -4,8 +4,9 @@ import { logger } from '@/lib/services/logger';
 import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
 import { getAdminCookie } from '@/lib/utils/admin-cookie';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
+import { parseCookie } from '@/lib/utils/cookie-parser';
 
-async function handleRequest(url: string, userCookie?: string) {
+async function handleRequest(url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
     
     if (isMaintenanceMode()) {
@@ -18,20 +19,21 @@ async function handleRequest(url: string, userCookie?: string) {
     
     logger.url('twitter', url);
     
-    // Get effective cookie: user > admin
-    let cookie = userCookie;
+    // Get effective cookie: user > admin (parse JSON format)
+    let cookie = userCookie ? parseCookie(userCookie, 'twitter') : null;
     if (!cookie) {
-        cookie = await getAdminCookie('twitter') || undefined;
+        const adminCookie = await getAdminCookie('twitter');
+        cookie = adminCookie ? parseCookie(adminCookie, 'twitter') : null;
         if (cookie) logger.debug('twitter', 'Using admin cookie');
     }
     
     // Try without cookie first, then with cookie
-    let result = await scrapeTwitter(url);
+    let result = await scrapeTwitter(url, { skipCache });
     let usedCookie = false;
     
     if (!result.success && cookie) {
         logger.debug('twitter', 'Retrying with cookie...');
-        result = await scrapeTwitter(url, { cookie });
+        result = await scrapeTwitter(url, { cookie, skipCache });
         if (result.success) usedCookie = true;
     }
     
@@ -82,9 +84,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, cookie } = await request.json();
+        const { url, cookie, skipCache } = await request.json();
         if (!url) return missingUrlResponse('twitter');
-        return handleRequest(url, cookie);
+        return handleRequest(url, cookie, skipCache);
     } catch (error) {
         logger.error('twitter', error);
         return errorResponse('twitter', error instanceof Error ? error.message : 'Failed', 500);

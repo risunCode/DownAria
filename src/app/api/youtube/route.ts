@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeYouTubeInnertube } from '@/lib/services/youtube-innertube';
+import { scrapeYouTubeYtdl } from '@/lib/services/youtube-ytdl';
 import { logger } from '@/lib/services/logger';
 import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
+import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
 
-async function handleRequest(url: string) {
+/**
+ * YouTube API Route
+ * Uses ytdl-core (supports HD, cookies for age-restricted)
+ */
+
+async function handleRequest(url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
     
     if (isMaintenanceMode()) {
@@ -17,7 +23,21 @@ async function handleRequest(url: string) {
     
     logger.url('youtube', url);
     
-    const result = await scrapeYouTubeInnertube(url);
+    // Get effective cookie: user cookie > admin cookie
+    let effectiveCookie = userCookie;
+    if (!effectiveCookie) {
+        effectiveCookie = await getAdminCookie('youtube' as CookiePlatform) || undefined;
+        if (effectiveCookie) {
+            logger.debug('youtube', 'Using admin cookie');
+        }
+    }
+    
+    // Use ytdl-core
+    const result = await scrapeYouTubeYtdl(url, { 
+        cookie: effectiveCookie, 
+        skipCache 
+    });
+    
     const responseTime = Date.now() - startTime;
     
     if (result.success && result.data) {
@@ -31,7 +51,7 @@ async function handleRequest(url: string) {
     }
     
     recordRequest('youtube', false, responseTime);
-    logger.error('youtube', result.error || 'Innertube failed');
+    logger.error('youtube', result.error || 'ytdl-core failed');
     return errorResponse('youtube', result.error || 'Failed to fetch video');
 }
 
@@ -41,16 +61,16 @@ export async function GET(request: NextRequest) {
     if (!url) {
         return NextResponse.json({
             name: 'XTFetch YouTube API',
-            version: '2.0',
-            method: 'Innertube API',
+            version: '3.0',
+            method: 'ytdl-core',
             usage: {
                 method: 'GET or POST',
                 params: '?url=<youtube_url>',
-                body: { url: 'string (required)' },
+                body: { url: 'string (required)', cookie: 'string (optional)' },
             },
             example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            supported: ['Videos', 'Shorts', 'Music'],
-            limitations: ['360p max (Innertube)'],
+            supported: ['Videos', 'Shorts', 'Music', 'Age-restricted (with cookie)'],
+            features: ['HD quality', 'Cookie support'],
         });
     }
     
@@ -64,9 +84,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { url } = await request.json();
+        const { url, cookie, skipCache } = await request.json();
         if (!url) return missingUrlResponse('youtube');
-        return handleRequest(url);
+        return handleRequest(url, cookie, skipCache);
     } catch (error) {
         logger.error('youtube', error);
         return errorResponse('youtube', error instanceof Error ? error.message : 'Failed', 500);

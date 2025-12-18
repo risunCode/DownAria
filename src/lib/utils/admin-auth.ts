@@ -1,23 +1,24 @@
 /**
  * Admin Authentication
- * API Key-based auth for admin panel (secure & simple)
+ * Supabase session-based auth for admin panel
  * 
  * How it works:
- * 1. Admin panel stores key in localStorage after first setup
- * 2. Every admin API request includes X-Admin-Key header
- * 3. Backend verifies against ADMIN_SECRET_KEY env var
- * 
- * Benefits:
- * - No cookies = works everywhere (Vercel, local, etc)
- * - Simple to implement and debug
- * - Secure (key only sent over HTTPS)
+ * 1. User logs in via /auth (Supabase Auth)
+ * 2. Session stored in cookies by Supabase
+ * 3. Admin APIs verify session via Supabase
+ * 4. Role checked from users table
  */
 
-import crypto from 'crypto';
 import { NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// Admin secret key from environment
-const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || process.env.API_SECRET_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Create server-side Supabase client
+const supabase = supabaseUrl && supabaseServiceKey 
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : null;
 
 export type UserRole = 'user' | 'admin';
 
@@ -25,75 +26,90 @@ interface AuthResult {
     valid: boolean;
     userId?: string;
     email?: string;
+    username?: string;
     role?: UserRole;
     error?: string;
 }
 
 /**
- * Verify admin access via API Key
- * 
- * Checks in order:
- * 1. X-Admin-Key header (primary method)
- * 2. Authorization: Bearer <key> header (alternative)
- * 3. ?admin_key=<key> query param (for testing only)
+ * Verify admin session via Supabase
+ * Checks Authorization header for Bearer token (Supabase access token)
  */
 export async function verifySession(request: NextRequest): Promise<AuthResult> {
-    // If no admin key configured, allow access (dev mode / unconfigured)
-    if (!ADMIN_SECRET_KEY) {
-        console.warn('[Auth] ADMIN_SECRET_KEY not set - allowing all access');
-        return { valid: true, role: 'admin' };
+    if (!supabase) {
+        console.error('[Auth] Supabase not configured');
+        return { valid: false, error: 'Auth service not configured' };
     }
     
-    // Method 1: X-Admin-Key header (recommended)
-    const adminKey = request.headers.get('X-Admin-Key');
-    if (adminKey && timingSafeEqual(adminKey, ADMIN_SECRET_KEY)) {
-        return { valid: true, role: 'admin' };
-    }
-    
-    // Method 2: Authorization Bearer header
+    // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
-        if (timingSafeEqual(token, ADMIN_SECRET_KEY)) {
-            return { valid: true, role: 'admin' };
+    if (!authHeader?.startsWith('Bearer ')) {
+        return { valid: false, error: 'No authorization token' };
+    }
+    
+    const token = authHeader.slice(7);
+    
+    try {
+        // Verify the token with Supabase
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
+            return { valid: false, error: error?.message || 'Invalid token' };
         }
+        
+        // Get user profile with role from database
+        const { data: profile } = await supabase
+            .from('users')
+            .select('username, role')
+            .eq('id', user.id)
+            .single();
+        
+        const role = (profile?.role as UserRole) || 'user';
+        
+        return {
+            valid: true,
+            userId: user.id,
+            email: user.email,
+            username: profile?.username,
+            role
+        };
+    } catch (error) {
+        console.error('[Auth] Session verification error:', error);
+        return { valid: false, error: 'Session verification failed' };
     }
-    
-    // Method 3: Query param (for easy testing, not recommended for production)
-    const queryKey = request.nextUrl.searchParams.get('admin_key');
-    if (queryKey && timingSafeEqual(queryKey, ADMIN_SECRET_KEY)) {
-        return { valid: true, role: 'admin' };
-    }
-    
-    return { valid: false, error: 'Invalid or missing admin key' };
 }
 
 /**
- * Verify admin access (alias for verifySession)
+ * Verify admin access - must have 'admin' role
  */
 export async function verifyAdminSession(request: NextRequest): Promise<AuthResult> {
-    return verifySession(request);
-}
-
-/**
- * Timing-safe string comparison to prevent timing attacks
- */
-function timingSafeEqual(a: string, b: string): boolean {
-    try {
-        const bufA = Buffer.from(a.padEnd(100));
-        const bufB = Buffer.from(b.padEnd(100));
-        return crypto.timingSafeEqual(bufA, bufB);
-    } catch {
-        return false;
+    const result = await verifySession(request);
+    
+    if (!result.valid) return result;
+    
+    // Check if user has admin role
+    if (result.role !== 'admin') {
+        return { 
+            valid: false, 
+            error: 'Admin access required',
+            userId: result.userId,
+            email: result.email,
+            role: result.role
+        };
     }
+    
+    return result;
 }
 
 /**
- * Get the admin key for client-side use
- * This is exposed via a public env var for the admin panel
+ * Verify admin token (alias for verifyAdminSession)
+ * Returns { valid, username } for compatibility
  */
-export function getAdminKeyForClient(): string | null {
-    // Client should get this from NEXT_PUBLIC_ADMIN_KEY
-    // or prompt user to enter it manually
-    return null;
+export async function verifyAdminToken(request: NextRequest): Promise<{ valid: boolean; username?: string; error?: string }> {
+    const result = await verifyAdminSession(request);
+    return {
+        valid: result.valid,
+        username: result.username || result.email || 'admin',
+        error: result.error
+    };
 }

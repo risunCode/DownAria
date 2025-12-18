@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 import { 
     getDownloadsByPlatform, 
     getDownloadsByCountry, 
@@ -9,8 +10,10 @@ import {
 } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
-    // Personal use - no auth required
-    void request; // Suppress unused warning
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
     
     try {
         const { searchParams } = new URL(request.url);

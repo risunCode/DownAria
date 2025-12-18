@@ -45,7 +45,7 @@ async function getEffectiveCookie(
     return adminCookie || undefined;
 }
 
-async function handleRequest(url: string, userCookie?: string) {
+async function handleRequest(url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
     
     // Check maintenance mode
@@ -84,31 +84,18 @@ async function handleRequest(url: string, userCookie?: string) {
         // For stories/groups: use cookie directly (skip guest attempt)
         if (cookie) {
             logger.debug(platform, `Using ${userCookie ? 'user' : 'admin'} cookie for private content...`);
-            result = await scraper(url, { cookie });
+            result = await scraper(url, { cookie, skipCache });
             usedCookie = result.success;
         } else {
             logger.debug(platform, 'No cookie available for private content');
             result = { success: false, error: 'This content requires login. Please add your cookie in Settings.' };
         }
     } else {
-        // For public content:
-        // - Facebook: use cookie if available (single request strategy to avoid detection)
-        // - Instagram: try without cookie first, retry with cookie if fails
-        if (platform === 'facebook' && cookie) {
-            logger.debug(platform, `Using ${userCookie ? 'user' : 'admin'} cookie...`);
-            result = await scraper(url, { cookie });
-            usedCookie = result.success;
-        } else {
-            logger.debug(platform, 'Trying without cookie...');
-            result = await scraper(url);
-            
-            // If failed and cookie available, retry (Instagram only, or Facebook without cookie)
-            if (!result.success && cookie) {
-                logger.debug(platform, `Retrying with ${userCookie ? 'user' : 'admin'} cookie...`);
-                result = await scraper(url, { cookie });
-                if (result.success) usedCookie = true;
-            }
-        }
+        // For public content: pass cookie to scraper for internal retry logic
+        // Scraper will try guest first, then retry with cookie if needed
+        logger.debug(platform, cookie ? 'Scraping with cookie available for retry...' : 'Scraping without cookie...');
+        result = await scraper(url, { cookie, skipCache });
+        usedCookie = result.success && !!cookie;
     }
 
     const responseTime = Date.now() - startTime;
@@ -168,11 +155,11 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST: /api/meta { url, cookie }
+// POST: /api/meta { url, cookie, skipCache }
 export async function POST(request: NextRequest) {
     try {
-        const { url, cookie } = await request.json();
-        return handleRequest(url, cookie);
+        const { url, cookie, skipCache } = await request.json();
+        return handleRequest(url, cookie, skipCache);
     } catch (error) {
         logger.error('facebook', error);
         return errorResponse('facebook', error instanceof Error ? error.message : 'Failed to fetch', 500);

@@ -1,12 +1,17 @@
 /**
  * Admin Cookie Manager
  * Fetches global cookies set by admin from Supabase
- * Priority: localStorage (user) > Supabase (admin)
+ * Now supports Cookie Pool rotation for multi-cookie management
+ * Priority: localStorage (user) > Cookie Pool (rotating) > Legacy single cookie
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getRotatingCookie, markCookieSuccess, markCookieCooldown, markCookieExpired } from './cookie-pool';
 
-export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter';
+export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter' | 'youtube';
+
+// Re-export cookie pool functions for convenience
+export { markCookieSuccess, markCookieCooldown, markCookieExpired };
 
 interface AdminCookie {
     platform: string;
@@ -17,10 +22,9 @@ interface AdminCookie {
 }
 
 // Supabase client (lazy init)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let supabase: any = null;
+let supabase: SupabaseClient | null = null;
 
-function getSupabase() {
+function getSupabase(): SupabaseClient | null {
     if (!supabase) {
         const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
         // Prefer service role key for admin operations (bypasses RLS)
@@ -36,11 +40,21 @@ const cache = new Map<string, { cookie: string | null; expires: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get admin cookie from Supabase
+ * Get admin cookie from Cookie Pool (rotating) or legacy single cookie
  * Returns null if not found or disabled
  */
 export async function getAdminCookie(platform: CookiePlatform): Promise<string | null> {
-    // Check cache first
+    // Try Cookie Pool first (rotating multi-cookie)
+    try {
+        const poolCookie = await getRotatingCookie(platform);
+        if (poolCookie) {
+            return poolCookie;
+        }
+    } catch {
+        // Pool not available, fall through to legacy
+    }
+
+    // Fallback to legacy single cookie
     const cached = cache.get(platform);
     if (cached && cached.expires > Date.now()) {
         return cached.cookie;
@@ -100,8 +114,8 @@ export async function getAllAdminCookies(): Promise<AdminCookie[]> {
  * Set admin cookie (for admin panel)
  */
 export async function setAdminCookie(
-    platform: CookiePlatform, 
-    cookie: string, 
+    platform: CookiePlatform,
+    cookie: string,
     note?: string
 ): Promise<boolean> {
     const sb = getSupabase();

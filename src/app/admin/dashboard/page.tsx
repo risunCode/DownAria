@@ -59,6 +59,10 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
         try {
+            // Small delay to ensure global fetch interceptor is installed
+            // and Supabase session is ready
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
             const [statsRes, keysRes] = await Promise.all([
                 fetch(`/api/admin/stats?days=${days}`),
                 fetch('/api/admin/apikeys')

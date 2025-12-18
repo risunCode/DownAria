@@ -14,6 +14,16 @@ import { faFacebook, faInstagram, faYoutube, faWeibo, faTwitter, faTiktok } from
 
 type TabType = 'playground' | 'facebook-html' | 'proxy' | 'discord';
 
+// Proxy thumbnail URL for CORS-blocked CDNs (Instagram, Facebook, etc.)
+function getProxiedThumbnail(url: string | undefined): string | undefined {
+    if (!url) return undefined;
+    // Check if URL needs proxying (Instagram/Facebook CDN)
+    if (url.includes('fbcdn.net') || url.includes('cdninstagram.com') || url.includes('scontent')) {
+        return `/api/proxy?url=${encodeURIComponent(url)}&inline=1`;
+    }
+    return url;
+}
+
 export default function AdvancedPage() {
     const [activeTab, setActiveTab] = useState<TabType>('playground');
 
@@ -206,7 +216,7 @@ function ApiPlaygroundTab() {
                     <div className="flex-1">
                         <h2 className="font-semibold">API Playground</h2>
                         <p className="text-xs text-[var(--text-muted)] mt-1">
-                            Test the download API without authentication. Rate limited to {rateLimit.limit} requests/minute.
+                            Test the download API without authentication. Rate limited to {rateLimit.limit} requests/2 minutes.
                         </p>
                     </div>
                     <div className="text-right">
@@ -216,6 +226,75 @@ function ApiPlaygroundTab() {
                         </div>
                     </div>
                 </div>
+                
+                {/* API Endpoint Info */}
+                <details className="mt-3 pt-3 border-t border-[var(--border-color)]">
+                    <summary className="text-xs text-[var(--accent-primary)] cursor-pointer hover:underline flex items-center gap-1">
+                        <Code className="w-3 h-3" /> View API Endpoint & Example
+                    </summary>
+                    <div className="mt-2 space-y-3 text-xs">
+                        {/* Browser Test - GET */}
+                        <div className="p-2 rounded bg-green-500/10 border border-green-500/20">
+                            <p className="text-green-400 font-medium mb-1 flex items-center gap-1">
+                                <ExternalLink className="w-3 h-3" /> Test in Browser (GET):
+                            </p>
+                            <code className="text-[10px] break-all">/api/playground?url=https://www.instagram.com/reel/C6O6Wp-yXHy/</code>
+                            <p className="text-[var(--text-muted)] text-[10px] mt-1">Paste this in browser address bar to see JSON response</p>
+                        </div>
+
+                        {/* POST Endpoint */}
+                        <div className="p-2 rounded bg-[var(--bg-secondary)] font-mono">
+                            <span className="text-purple-400 font-bold">POST</span> <span className="text-[var(--text-primary)]">/api/playground</span>
+                            <p className="text-[var(--text-muted)] text-[10px] mt-1 font-sans">For programmatic use - send URL in request body</p>
+                        </div>
+                        
+                        {/* Request Body */}
+                        <div>
+                            <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
+                                <Code className="w-3 h-3" /> POST Body:
+                            </p>
+                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto">
+{`{
+  "url": "https://www.instagram.com/reel/C6O6Wp-yXHy/"
+}`}
+                            </pre>
+                        </div>
+
+                        {/* cURL */}
+                        <div>
+                            <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
+                                <Code className="w-3 h-3" /> cURL:
+                            </p>
+                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
+{`curl -X POST https://xt-fetch.vercel.app/api/playground \\
+  -H "Content-Type: application/json" \\
+  -d '{"url":"https://www.instagram.com/reel/C6O6Wp-yXHy/"}'`}
+                            </pre>
+                        </div>
+
+                        {/* JavaScript */}
+                        <div>
+                            <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
+                                <Code className="w-3 h-3" /> JavaScript:
+                            </p>
+                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
+{`const response = await fetch('/api/playground', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    url: 'https://www.instagram.com/reel/C6O6Wp-yXHy/' 
+  })
+});
+const data = await response.json();
+console.log(data);`}
+                            </pre>
+                        </div>
+
+                        <p className="text-[var(--text-muted)] text-[10px] p-2 rounded bg-blue-500/10 border border-blue-500/20 flex items-center gap-1">
+                            <Info className="w-3 h-3 text-blue-400" /> No API key required • GET /api = 15/min • POST /api/playground = 5/2min
+                        </p>
+                    </div>
+                </details>
             </div>
 
             {/* Platform Icons */}
@@ -304,7 +383,7 @@ function ApiPlaygroundTab() {
                             {/* Media Info */}
                             <div className="flex gap-3">
                                 {result.data.thumbnail && (
-                                    <img src={result.data.thumbnail} alt="" className="w-20 h-20 rounded-lg object-cover" />
+                                    <img src={getProxiedThumbnail(result.data.thumbnail)} alt="" className="w-20 h-20 rounded-lg object-cover" />
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm truncate">{result.data.title || 'Untitled'}</p>
@@ -896,6 +975,48 @@ function DiscordWebhookTab() {
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Send Method for Large Files */}
+                <div className="space-y-3 pt-3 border-t border-[var(--border-color)]">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium">Video Send Method</p>
+                            <p className="text-xs text-[var(--text-muted)]">How to send large videos (&gt;10MB)</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {[
+                            { id: 'smart' as const, label: 'Smart (Recommended)', desc: 'Auto-detect: ≤10MB = 1x, >10MB = 2x' },
+                            { id: 'single' as const, label: 'Always 1x Send', desc: 'Link + embed in one message (large files may not embed)' },
+                            { id: 'double' as const, label: 'Always 2x Send', desc: '1st: plain URL (video), 2nd: rich embed (info)' },
+                        ].map(method => (
+                            <label
+                                key={method.id}
+                                className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                    settings.sendMethod === method.id 
+                                        ? 'bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30' 
+                                        : 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)]'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="sendMethod"
+                                    checked={settings.sendMethod === method.id}
+                                    onChange={() => updateSetting('sendMethod', method.id)}
+                                    className="mt-0.5"
+                                />
+                                <div>
+                                    <p className="text-sm font-medium">{method.label}</p>
+                                    <p className="text-xs text-[var(--text-muted)]">{method.desc}</p>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                    <p className="text-xs text-amber-400/80 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Discord doesn&apos;t auto-embed videos &gt;10MB when sent with rich embed
+                    </p>
                 </div>
             </div>
 

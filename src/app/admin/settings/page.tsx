@@ -44,9 +44,16 @@ function SettingsContent() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    
+    // Security settings (from service_config)
+    const [apiKeyRequired, setApiKeyRequired] = useState(false);
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
+    const [maintenanceMessage, setMaintenanceMessage] = useState('');
+    const [securitySaving, setSecuritySaving] = useState(false);
 
     // Load settings from DB
     useEffect(() => {
+        // Load global settings
         fetch('/api/admin/settings')
             .then(r => r.json())
             .then(data => {
@@ -54,9 +61,40 @@ function SettingsContent() {
                     setSettings(prev => ({ ...prev, ...data.data }));
                 }
             })
+            .catch(() => {});
+        
+        // Load service config (security settings)
+        fetch('/api/admin/services')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    setApiKeyRequired(data.data.apiKeyRequired ?? false);
+                    setMaintenanceMode(data.data.maintenanceMode ?? false);
+                    setMaintenanceMessage(data.data.maintenanceMessage ?? '');
+                }
+            })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
+    
+    const saveSecuritySettings = async (updates: { apiKeyRequired?: boolean; maintenanceMode?: boolean; maintenanceMessage?: string }) => {
+        setSecuritySaving(true);
+        try {
+            const res = await fetch('/api/admin/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'updateGlobal', ...updates })
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            }
+        } catch {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to save', showConfirmButton: false, timer: 2000 });
+        } finally {
+            setSecuritySaving(false);
+        }
+    };
 
     const updateSetting = (key: string, value: string) => {
         setSettings(prev => ({ ...prev, [key]: value }));
@@ -114,17 +152,36 @@ function SettingsContent() {
         });
         if (!result.isConfirmed) return;
 
-        // Note: Cache is in-memory, so this would need a dedicated endpoint
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'info',
-            title: 'Cache cleared on next restart',
-            showConfirmButton: false,
-            timer: 2000,
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-        });
+        try {
+            const res = await fetch('/api/admin/cache', { method: 'DELETE' });
+            const data = await res.json();
+            
+            if (data.success) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `Cache cleared (${data.cleared?.total || 0} entries)`,
+                    showConfirmButton: false,
+                    timer: 2000,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                });
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (err) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Failed to clear cache',
+                showConfirmButton: false,
+                timer: 2000,
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+            });
+        }
     };
 
     if (loading) {
@@ -286,8 +343,74 @@ function SettingsContent() {
                     </div>
                 </motion.div>
 
-                {/* Actions */}
+                {/* Security */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Shield className="w-4 h-4 text-amber-400" />
+                        <h2 className="font-semibold text-sm">Security & Access Control</h2>
+                    </div>
+                    <div className="space-y-4">
+                        {/* API Key Required Toggle */}
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                            <div>
+                                <p className="text-sm font-medium">Require API Key for Downloads</p>
+                                <p className="text-xs text-[var(--text-muted)]">When enabled, all download requests need valid API key</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const newValue = !apiKeyRequired;
+                                    setApiKeyRequired(newValue);
+                                    saveSecuritySettings({ apiKeyRequired: newValue });
+                                }}
+                                disabled={securitySaving}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${apiKeyRequired ? 'bg-amber-500' : 'bg-gray-600'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${apiKeyRequired ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+                        
+                        {/* Maintenance Mode Toggle */}
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                            <div>
+                                <p className="text-sm font-medium">Maintenance Mode</p>
+                                <p className="text-xs text-[var(--text-muted)]">Temporarily disable all services</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const newValue = !maintenanceMode;
+                                    setMaintenanceMode(newValue);
+                                    saveSecuritySettings({ maintenanceMode: newValue });
+                                }}
+                                disabled={securitySaving}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${maintenanceMode ? 'bg-red-500' : 'bg-gray-600'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${maintenanceMode ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+                        
+                        {/* Maintenance Message */}
+                        {maintenanceMode && (
+                            <div>
+                                <label className="block text-xs text-[var(--text-muted)] mb-1">Maintenance Message</label>
+                                <input
+                                    type="text"
+                                    value={maintenanceMessage}
+                                    onChange={e => setMaintenanceMessage(e.target.value)}
+                                    onBlur={() => saveSecuritySettings({ maintenanceMessage })}
+                                    placeholder="We're updating things..."
+                                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
+                                />
+                            </div>
+                        )}
+                        
+                        <p className="text-[10px] text-[var(--text-muted)] p-2 rounded bg-blue-500/10 border border-blue-500/20">
+                            API Key Required adds extra security layer. Public endpoints (/api, /api/playground) will require valid API key when enabled.
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Danger Zone */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card p-4">
                     <div className="flex items-center gap-2 mb-3">
                         <Shield className="w-4 h-4 text-red-400" />
                         <h2 className="font-semibold text-sm">Danger Zone</h2>

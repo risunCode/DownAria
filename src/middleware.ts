@@ -28,8 +28,8 @@ const SUSPICIOUS_PATTERNS = [
 ];
 
 function getClientIP(request: NextRequest): string {
-    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
-        || request.headers.get('x-real-ip') 
+    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
         || 'unknown';
 }
 
@@ -105,7 +105,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     response.headers.set('X-XSS-Protection', '1; mode=block');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    
+
     // HSTS (only in production)
     if (process.env.NODE_ENV === 'production') {
         response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -114,17 +114,21 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     return response;
 }
 
+// Strict localhost pattern - prevents bypass with domains like 'evil-localhost.com'
+const LOCALHOST_PATTERN = /^https?:\/\/localhost(:\d+)?$/;
+
 function handleCORS(request: NextRequest, response: NextResponse): NextResponse {
     const origin = request.headers.get('origin');
-    
-    if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.includes('localhost'))) {
+
+    // Check allowed origins with strict localhost validation
+    if (origin && (ALLOWED_ORIGINS.includes(origin) || LOCALHOST_PATTERN.test(origin))) {
         response.headers.set('Access-Control-Allow-Origin', origin);
     }
-    
+
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
     response.headers.set('Access-Control-Max-Age', '86400');
-    
+
     return response;
 }
 
@@ -150,7 +154,7 @@ export function middleware(request: NextRequest) {
         // Proxy already has SSRF protection via domain whitelist
         const isProxy = pathname.startsWith('/api/proxy');
         let remaining = RATE_LIMIT.maxRequests;
-        
+
         if (!isProxy) {
             // Stricter limit for auth endpoints
             const limit = pathname.includes('/auth') ? 10 : RATE_LIMIT.maxRequests;

@@ -1,56 +1,78 @@
 /**
- * Facebook Scraper Service
- * =========================
- * 
- * PUBLIC (No Cookie): /videos/, /watch/, /reel/, /share/r/, /posts/, /photos/, /share/p/
- * PRIVATE (Cookie Required): /groups/, /stories/, private posts
- * 
- * Cookie Format: JSON array (Cookie Editor) or string (name=value;)
- * Required Cookies: c_user, xs
- * 
- * KNOWN LIMITATION - LARGE CAROUSELS:
- * Facebook lazy-loads carousel images via JavaScript. Initial HTML only contains
- * the first ~5 images with their photo fbids. Remaining images are loaded dynamically
- * when user scrolls. Without a headless browser, we cannot extract all images from
- * carousels with >5 photos. This is a fundamental limitation of HTML scraping.
+ * Facebook Scraper Service (Optimized)
+ * =====================================
+ * Supports: /share/p|r|v/, /posts/, /reel/, /videos/, /watch/, /stories/, /groups/, /photos/
+ * Cookie Required: Stories, some group posts
  */
 
 import { MediaFormat } from '@/lib/types';
 import { decodeHtml, extractMeta, normalizeUrl, cleanTrackingParams, decodeUrl } from '@/lib/utils/http';
 import { parseCookie } from '@/lib/utils/cookie-parser';
 import { matchesPlatform } from './api-config';
-import { resolveUrl, BROWSER_HEADERS, ScraperResult, ScraperOptions, EngagementStats } from './fetch-helper';
+import { resolveUrlWithLog, BROWSER_HEADERS, ScraperResult, ScraperOptions, EngagementStats, fetchWithTimeout } from './fetch-helper';
 import { getCache, setCache } from './cache';
 import { createError, ScraperErrorCode } from './errors';
 import { logger } from './logger';
 
 // ============================================================================
-// HELPERS
+// CONSTANTS & HELPERS
 // ============================================================================
 
-const isValidMedia = (url: string) => url?.length > 30 && /fbcdn|scontent/.test(url) && !/<|>/.test(url);
-
 const SKIP_SIDS = ['bd9a62', '23dd7b', '50ce42', '9a7156', '1d2534', 'e99d92', 'a6c039', '72b077', 'ba09c1', 'f4d7c3', '0f7a8c', '3c5e9a', 'd41d8c'];
-
-const isSkipImage = (url: string) => {
-    if (SKIP_SIDS.some(sid => url.includes(`_nc_sid=${sid}`))) return true;
-    return /emoji|sticker|static|rsrc|profile|avatar|\/cp0\/|\/[ps]\d+x\d+\/|_s\d+x\d+|\.webp\?/i.test(url);
-};
-
-const getQuality = (h: number) => 
-    h >= 1080 ? 'HD 1080p' : h >= 720 ? 'HD 720p' : h >= 480 ? 'SD 480p' : `${h}p`;
-
-const getResValue = (q: string): number => {
-    const m = q.match(/(\d{3,4})/);
-    return m ? parseInt(m[1]) : 0;
-};
-
-const normalizePath = (url: string): string => {
-    try { return new URL(url).pathname.split('?')[0]; } 
-    catch { return url.split('?')[0]; }
-};
-
+const isValidMedia = (url: string) => url?.length > 30 && /fbcdn|scontent/.test(url) && !/<|>/.test(url);
+const isSkipImage = (url: string) => SKIP_SIDS.some(s => url.includes(`_nc_sid=${s}`)) || /emoji|sticker|static|rsrc|profile|avatar|\/cp0\/|\/[ps]\d+x\d+\/|_s\d+x\d+|\.webp\?/i.test(url);
 const clean = (s: string) => s.replace(/\\\//g, '/').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
+const getQuality = (h: number) => h >= 1080 ? 'HD 1080p' : h >= 720 ? 'HD 720p' : h >= 480 ? 'SD 480p' : `${h}p`;
+const getResValue = (q: string) => { const m = q.match(/(\d{3,4})/); return m ? parseInt(m[1]) : 0; };
+
+// Age-restricted / Content detection patterns
+const AGE_RESTRICTED_PATTERNS = [
+    'You must be 18 years or older',
+    'age-restricted',
+    'AdultContentWarning',
+    '"is_adult_content":true',
+    'content_age_gate',
+];
+
+const PRIVATE_CONTENT_PATTERNS = [
+    'This content isn\'t available',
+    'content isn\'t available right now',
+    'Sorry, this content isn\'t available',
+    'The link you followed may be broken',
+];
+
+/**
+ * Detect content issues - IMPROVED to avoid false positives
+ * Only flags as issue if no media patterns found
+ */
+const detectContentIssue = (html: string): ScraperErrorCode | null => {
+    const lower = html.toLowerCase();
+    const hasMediaPatterns = html.includes('browser_native') || 
+                             html.includes('all_subattachments') || 
+                             html.includes('viewer_image') ||
+                             html.includes('playable_url');
+    
+    // If we have media patterns, content is likely accessible
+    if (hasMediaPatterns) return null;
+    
+    // Check age-restricted first
+    for (const p of AGE_RESTRICTED_PATTERNS) {
+        if (html.includes(p) || lower.includes(p.toLowerCase())) {
+            return ScraperErrorCode.AGE_RESTRICTED;
+        }
+    }
+    
+    // Check private/unavailable - only in first 50KB (main content area)
+    // Facebook pages often have "content isn't available" for related/suggested posts
+    for (const p of PRIVATE_CONTENT_PATTERNS) {
+        const idx = html.indexOf(p);
+        if (idx > -1 && idx < 50000) {
+            return ScraperErrorCode.PRIVATE_CONTENT;
+        }
+    }
+    
+    return null;
+};
 
 type ContentType = 'post' | 'video' | 'reel' | 'story' | 'group' | 'unknown';
 
@@ -63,305 +85,240 @@ const detectType = (url: string): ContentType => {
     return 'unknown';
 };
 
-/**
- * Detect if URL ALWAYS requires cookie for access
- * Only return true for content that will NEVER work without cookie
- */
-const requiresCookie = (url: string): boolean => {
-    // Stories ALWAYS require cookie - no exception
-    if (/\/stories\//.test(url)) return true;
-    
-    // Everything else (groups, posts, etc) - try without cookie first
-    // Groups can be public or private, so don't fail fast
-    return false;
+// ============================================================================
+// ID EXTRACTION
+// ============================================================================
+
+const extractVideoId = (url: string): string | null => url.match(/\/(?:reel|videos?)\/(\d+)/)?.[1] || null;
+
+const extractPostId = (url: string): string | null => {
+    const patterns = [
+        /\/posts\/(pfbid[a-zA-Z0-9]+)/,
+        /\/posts\/(\d+)/,
+        /\/permalink\/(\d+)/,
+        /story_fbid=(pfbid[a-zA-Z0-9]+)/,  // pfbid in permalink.php
+        /story_fbid=(\d+)/,
+        /\/photos?\/[^/]+\/(\d+)/,
+        /\/share\/p\/([a-zA-Z0-9]+)/,
+        /fbid=(\d+)/,  // /photo/?fbid=xxx format
+    ];
+    for (const re of patterns) {
+        const m = url.match(re);
+        if (m) return m[1];
+    }
+    return null;
 };
 
 // ============================================================================
-// VIDEO EXTRACTION
+// TARGETED BLOCK FINDER (v3 - Precise isolation, no related content)
 // ============================================================================
 
 /**
- * Extract video ID from Facebook URL
- * /reel/1234567890 -> 1234567890
- * /videos/1234567890 -> 1234567890
+ * Find the exact JSON block for target content
+ * Strategy: Find post/video ID, then isolate its JSON object
  */
-function extractVideoId(url: string): string | null {
-    const m = url.match(/\/(?:reel|videos?)\/(\d+)/);
-    return m ? m[1] : null;
-}
+function findTargetBlock(html: string, id: string | null, type: 'post' | 'video'): string {
+    const MAX_SEARCH = type === 'video' ? 80000 : 100000;
+    
+    if (!id) {
+        // No ID - use first occurrence strategy
+        return html.length > MAX_SEARCH ? html.substring(0, MAX_SEARCH) : html;
+    }
 
-/**
- * Extract post identifier from Facebook URL
- * Returns pfbid, numeric post ID, or story_fbid
- */
-function extractPostId(url: string): string | null {
-    // pfbid format (new): /posts/pfbid02L3aX5...
-    const pfbidMatch = url.match(/\/posts\/(pfbid[a-zA-Z0-9]+)/);
-    if (pfbidMatch) return pfbidMatch[1];
+    // For pfbid, extract the unique part (skip 'pfbid' prefix)
+    const searchKey = id.startsWith('pfbid') ? id.substring(5, 30) : id;
     
-    // Numeric post ID: /posts/1234567890
-    const numericMatch = url.match(/\/posts\/(\d+)/);
-    if (numericMatch) return numericMatch[1];
-    
-    // story_fbid param
-    const storyMatch = url.match(/story_fbid=(\d+)/);
-    if (storyMatch) return storyMatch[1];
-    
-    // photo fbid
-    const photoMatch = url.match(/\/photos?\/[^/]+\/(\d+)/);
-    if (photoMatch) return photoMatch[1];
-    
-    // share/p/ short code (will be in HTML as identifier)
-    const shareMatch = url.match(/\/share\/p\/([a-zA-Z0-9]+)/);
-    if (shareMatch) return shareMatch[1];
-    
-    return null;
-}
-
-/**
- * Find the JSON block containing the target post
- * Facebook HTML contains multiple post blocks (related, sidebar, etc)
- * We need to find the one that matches our target post
- * 
- * Strategy:
- * 1. Find target pfbid position in HTML
- * 2. Find all_subattachments blocks and their nearby pfbids
- * 3. Return the block that belongs to target pfbid
- */
-function findTargetPostBlock(html: string, postId: string): string {
-    // For pfbid, extract the unique middle part for matching
-    const isPfbid = postId.startsWith('pfbid');
-    const searchKey = isPfbid ? postId.substring(5, 25) : postId;
-    
-    // Find target pfbid position
+    // STEP 1: Find exact position of target ID
     let targetPos = -1;
-    if (isPfbid) {
-        targetPos = html.indexOf(postId);
-        if (targetPos === -1) {
-            // Try partial match
-            targetPos = html.indexOf(searchKey);
+    const idPatterns = type === 'video'
+        ? [`"id":"${id}"`, `"video_id":"${id}"`, `/reel/${id}`, `/videos/${id}`, `"videoId":"${id}"`]
+        : [`/posts/${id}`, `story_fbid=${id}`, `/permalink/${id}`, `"post_id":"${id}"`, id];
+
+    for (const p of idPatterns) {
+        const pos = html.indexOf(p);
+        if (pos > -1) { 
+            targetPos = pos; 
+            break; 
         }
-    } else {
-        // Numeric ID
-        const patterns = [
-            new RegExp(`/posts/${postId}`),
-            new RegExp(`"id":"${postId}"`),
-            new RegExp(`story_fbid=${postId}`),
-        ];
-        for (const re of patterns) {
-            const m = html.match(re);
-            if (m?.index !== undefined) {
-                targetPos = m.index;
-                break;
+    }
+
+    // Try partial match for pfbid
+    if (targetPos === -1 && id.startsWith('pfbid')) {
+        targetPos = html.indexOf(searchKey);
+    }
+
+    // STEP 2: For posts, find the BEST all_subattachments (main post, not related)
+    // Strategy: Find all_subattachments after "comet_sections" or "creation_story" (main post markers)
+    if (type === 'post') {
+        const subKey = '"all_subattachments":{"count":';
+        
+        // Find main post marker first
+        const cometPos = html.indexOf('"comet_sections"');
+        const creationPos = html.indexOf('"creation_story"');
+        const mainPostPos = Math.min(
+            cometPos > -1 ? cometPos : Infinity,
+            creationPos > -1 ? creationPos : Infinity
+        );
+        
+        // Find all_subattachments AFTER main post marker (more accurate)
+        let bestSubPos = -1;
+        if (mainPostPos < Infinity) {
+            // Search in area after main post marker
+            const searchArea = html.substring(mainPostPos, mainPostPos + 300000);
+            const subInArea = searchArea.indexOf(subKey);
+            if (subInArea > -1) {
+                bestSubPos = mainPostPos + subInArea;
+            }
+        }
+        
+        // Fallback: use first occurrence
+        if (bestSubPos === -1) {
+            bestSubPos = html.indexOf(subKey);
+        }
+        
+        if (bestSubPos > -1) {
+            // Find the closing of this attachment block
+            let endPos = html.indexOf('"all_subattachments":', bestSubPos + 30);
+            if (endPos === -1 || endPos - bestSubPos > 30000) {
+                endPos = bestSubPos + 25000; // Increased for larger carousels
+            }
+            
+            // Extract tight block around best subattachments
+            const start = Math.max(0, bestSubPos - 500);
+            const end = Math.min(html.length, endPos);
+            return html.substring(start, end);
+        }
+        
+        // No all_subattachments found - use comet_sections area for single/dual image posts
+        if (mainPostPos < Infinity) {
+            return html.substring(mainPostPos, Math.min(html.length, mainPostPos + 100000));
+        }
+        
+        // Fallback: Find viewer_image near target
+        if (targetPos > -1) {
+            const viewerKey = '"viewer_image":';
+            let viewerPos = html.indexOf(viewerKey, Math.max(0, targetPos - 3000));
+            if (viewerPos === -1) viewerPos = html.indexOf(viewerKey);
+            
+            if (viewerPos > -1) {
+                return html.substring(Math.max(0, viewerPos - 500), Math.min(html.length, viewerPos + 15000));
             }
         }
     }
-    
-    if (targetPos === -1) {
-        logger.debug('facebook', `Post ID ${postId.substring(0, 20)}... not found in HTML`);
-        return html;
-    }
-    
-    logger.debug('facebook', `Target post ID found at pos ${targetPos}`);
-    
-    // Find all all_subattachments blocks
-    const subRe = /"all_subattachments":\{"count":(\d+)/g;
-    const blocks: { pos: number; count: number; nearbyPfbid: string | null }[] = [];
-    let m;
-    while ((m = subRe.exec(html)) !== null) {
-        // Look for pfbid in 10KB before this block
-        const lookbackStart = Math.max(0, m.index - 10000);
-        const lookback = html.substring(lookbackStart, m.index);
-        const pfbidMatch = lookback.match(/pfbid([a-zA-Z0-9]{30,})/);
-        blocks.push({
-            pos: m.index,
-            count: parseInt(m[1]),
-            nearbyPfbid: pfbidMatch ? 'pfbid' + pfbidMatch[1] : null
-        });
-    }
-    
-    // Find the block that belongs to target pfbid
-    let targetBlock = blocks.find(b => b.nearbyPfbid && b.nearbyPfbid.includes(searchKey));
-    
-    // Fallback: find block closest to (but after) target position
-    if (!targetBlock && blocks.length > 0) {
-        const afterTarget = blocks.filter(b => b.pos > targetPos);
-        if (afterTarget.length > 0) {
-            targetBlock = afterTarget[0]; // First block after target
-        } else {
-            targetBlock = blocks[0]; // Fallback to first block
+
+    // STEP 3: For videos/reels, find video URL patterns near target
+    if (type === 'video') {
+        // Include progressive_url - cookie mode often returns this instead of browser_native
+        const videoKeys = ['"browser_native_hd_url":', '"playable_url_quality_hd":', '"playable_url":', '"progressive_url":'];
+        
+        for (const key of videoKeys) {
+            let pos = targetPos > -1 ? html.indexOf(key, Math.max(0, targetPos - 2000)) : -1;
+            if (pos === -1) pos = html.indexOf(key);
+            
+            if (pos > -1) {
+                // Larger block for progressive_url (may have multiple qualities)
+                const blockSize = key.includes('progressive') ? 15000 : 10000;
+                return html.substring(Math.max(0, pos - 1000), Math.min(html.length, pos + blockSize));
+            }
         }
     }
-    
-    if (targetBlock) {
-        // Extract area around the target block: 5KB before + 50KB after
-        const start = Math.max(0, targetBlock.pos - 5000);
-        const end = Math.min(html.length, targetBlock.pos + 50000);
-        logger.debug('facebook', `Using all_subattachments block at pos ${targetBlock.pos} (count=${targetBlock.count})`);
-        return html.substring(start, end);
+
+    // STEP 4: Fallback - use target position with tight bounds
+    if (targetPos > -1) {
+        const before = type === 'video' ? 1500 : 5000;
+        const after = type === 'video' ? 10000 : 20000;
+        return html.substring(Math.max(0, targetPos - before), Math.min(html.length, targetPos + after));
     }
-    
-    // No all_subattachments found, use area around target position
-    const start = Math.max(0, targetPos - 50000);
-    const end = Math.min(html.length, targetPos + 100000);
-    logger.debug('facebook', `No all_subattachments found, using area around target pos ${targetPos}`);
-    return html.substring(start, end);
+
+    // No target found - return first chunk (main content usually at start)
+    return html.length > MAX_SEARCH ? html.substring(0, MAX_SEARCH) : html;
 }
 
-/**
- * Find the JSON block containing the target video ID
- * Facebook HTML contains multiple video blocks for related content
- * We need to find the one that matches our target reel/video
- */
-function findTargetVideoBlock(html: string, videoId: string): string {
-    // Try multiple patterns to find the video block
-    const patterns = [
-        new RegExp(`"id":"${videoId}"`, 'g'),
-        new RegExp(`"video_id":"${videoId}"`, 'g'),
-        new RegExp(`/reel/${videoId}`, 'g'),
-        new RegExp(`/videos/${videoId}`, 'g'),
-    ];
-    
-    for (const pattern of patterns) {
-        const match = pattern.exec(html);
-        if (match) {
-            // Extract larger area: 5KB before + 20KB after (video URLs can be far from ID)
-            const start = Math.max(0, match.index - 5000);
-            const end = Math.min(html.length, match.index + 20000);
-            logger.debug('facebook', `Found target video block for ID ${videoId} at pos ${match.index}`);
-            return html.substring(start, end);
-        }
-    }
-    
-    logger.debug('facebook', `Video ID ${videoId} not found, using full HTML`);
-    return html;
-}
+// ============================================================================
+// VIDEO EXTRACTION (v3 - Precise, target video only)
+// ============================================================================
 
-function extractVideos(html: string, seenUrls: Set<string>, targetVideoId?: string | null): MediaFormat[] {
+function extractVideos(html: string, seenUrls: Set<string>, targetId?: string | null): MediaFormat[] {
     const formats: MediaFormat[] = [];
     const found = new Set<string>();
     
-    // If we have a target video ID, narrow down the search area
-    const searchArea = targetVideoId ? findTargetVideoBlock(html, targetVideoId) : html;
-    
-    // Get thumbnail - try multiple patterns for different content types
-    const thumbPatterns = [
-        /"(?:previewImage|thumbnailImage|poster_image)":\{"uri":"(https:[^"]+)"/,
-        /"preferred_thumbnail":\{"image":\{"uri":"(https:[^"]+)"/,
-        /"cover_photo":\{"photo":\{"image":\{"uri":"(https:[^"]+)"/,
-        /"thumbnail_image":\{"uri":"(https:[^"]+)"/,
-        /"scrubber_preview_url":"(https:[^"]+)"/,
-        /"firstFrameImage":\{"uri":"(https:[^"]+)"/,
-        // Reel-specific patterns
-        /"story_thumbnail":\{"uri":"(https:[^"]+)"/,
-        /"image":\{"uri":"(https:\/\/scontent[^"]+)"/,
-    ];
-    let thumbnail: string | undefined;
-    // Try searchArea first, then full HTML as fallback
-    for (const re of thumbPatterns) {
-        const m = searchArea.match(re) || (searchArea !== html ? html.match(re) : null);
-        if (m && /scontent|fbcdn/.test(m[1])) {
-            thumbnail = clean(m[1]);
-            break;
-        }
-    }
-    
-    const add = (quality: string, url: string): boolean => {
-        if (!isValidMedia(url) || seenUrls.has(url) || found.has(quality)) return false;
-        seenUrls.add(url);
-        found.add(quality);
+    // Get precise target block
+    const area = findTargetBlock(html, targetId || null, 'video');
+
+    // Get thumbnail from target area first
+    const thumbRe = /"(?:previewImage|thumbnailImage|poster_image|preferred_thumbnail)"[^}]*?"uri":"(https:[^"]+)"/;
+    const thumbMatch = area.match(thumbRe);
+    const thumbnail = thumbMatch && /scontent|fbcdn/.test(thumbMatch[1]) ? clean(thumbMatch[1]) : undefined;
+
+    const add = (quality: string, url: string) => {
+        if (!url.includes('.mp4') && !isValidMedia(url)) return;
+        if (seenUrls.has(url) || found.has(quality)) return;
+        seenUrls.add(url); found.add(quality);
         formats.push({ quality, type: 'video', url, format: 'mp4', itemId: 'video-main', thumbnail });
-        return true;
     };
+
+    // METHOD 1: browser_native (new format) - MOST RELIABLE
+    // Search in target area first, then full HTML
+    const hdNative = area.match(/"browser_native_hd_url":"([^"]+)"/) || html.match(/"browser_native_hd_url":"([^"]+)"/);
+    const sdNative = area.match(/"browser_native_sd_url":"([^"]+)"/) || html.match(/"browser_native_sd_url":"([^"]+)"/);
     
-    // HD patterns - try first, early return if found
-    // Note: Facebook Reels may not have .mp4 in URL, so we accept any valid fbcdn/scontent URL
-    const hdPatterns = [/"playable_url_quality_hd":"([^"]+)"/, /"hd_src(?:_no_ratelimit)?":"([^"]+)"/, /"browser_native_hd_url":"([^"]+)"/];
-    for (const re of hdPatterns) {
-        const m = searchArea.match(re);
-        if (m) {
-            const url = decodeUrl(m[1]);
-            // Accept fbcdn/scontent URLs even without .mp4 extension (Reels use different format)
-            if (isValidMedia(url) || url.includes('.mp4')) add('HD', url);
+    if (hdNative) add('HD', decodeUrl(hdNative[1]));
+    if (sdNative) add('SD', decodeUrl(sdNative[1]));
+    if (found.size > 0) return formats;
+
+    // METHOD 2: playable_url (legacy format)
+    const hdPlay = area.match(/"playable_url_quality_hd":"([^"]+)"/);
+    const sdPlay = area.match(/"playable_url":"([^"]+)"/);
+    
+    if (hdPlay) add('HD', decodeUrl(hdPlay[1]));
+    if (sdPlay) add('SD', decodeUrl(sdPlay[1]));
+    if (found.size > 0) return formats;
+
+    // METHOD 3: hd_src/sd_src (older format)
+    const hdSrc = area.match(/"hd_src(?:_no_ratelimit)?":"([^"]+)"/);
+    const sdSrc = area.match(/"sd_src(?:_no_ratelimit)?":"([^"]+)"/);
+    
+    if (hdSrc) add('HD', decodeUrl(hdSrc[1]));
+    if (sdSrc) add('SD', decodeUrl(sdSrc[1]));
+    if (found.size > 0) return formats;
+
+    // METHOD 4: DASH manifest (for specific resolutions)
+    // Only search in target area to avoid related videos
+    const dashRe = /"height":(\d+)[^}]*?"base_url":"(https:[^"]+\.mp4[^"]*)"/g;
+    let m;
+    const dashVideos: { height: number; url: string }[] = [];
+    
+    while ((m = dashRe.exec(area)) !== null) {
+        const height = parseInt(m[1]);
+        if (height >= 360) {
+            dashVideos.push({ height, url: decodeUrl(m[2]) });
         }
     }
     
-    // SD patterns
-    const sdPatterns = [/"playable_url":"([^"]+)"/, /"sd_src(?:_no_ratelimit)?":"([^"]+)"/, /"browser_native_sd_url":"([^"]+)"/];
-    for (const re of sdPatterns) {
-        const m = searchArea.match(re);
-        if (m) {
-            const url = decodeUrl(m[1]);
-            // Accept fbcdn/scontent URLs even without .mp4 extension (Reels use different format)
-            if (isValidMedia(url) || url.includes('.mp4')) add('SD', url);
+    // Sort by height and pick best HD and SD
+    if (dashVideos.length > 0) {
+        dashVideos.sort((a, b) => b.height - a.height);
+        const hd = dashVideos.find(v => v.height >= 720);
+        const sd = dashVideos.find(v => v.height < 720 && v.height >= 360);
+        
+        if (hd) add('HD', hd.url);
+        if (sd) add('SD', sd.url);
+        if (found.size > 0) return formats;
+    }
+
+    // METHOD 5: Progressive URL (fallback)
+    // Handle both .mp4 extension and fbcdn video URLs without extension
+    const progRe = /"progressive_url":"(https:\/\/[^"]+)"/g;
+    let progMatch;
+    while ((progMatch = progRe.exec(area)) !== null && found.size < 2) {
+        const url = decodeUrl(progMatch[1]);
+        // Accept .mp4 or fbcdn/scontent video URLs
+        if (/\.mp4|scontent.*\/v\/|fbcdn.*\/v\//.test(url)) {
+            const quality = /720|1080|_hd/i.test(url) || found.size === 0 ? 'HD' : 'SD';
+            add(quality, url);
         }
     }
-    
-    // Early return if we have both HD and SD
-    if (found.has('HD') && found.has('SD')) return formats;
-    
-    // DASH manifest fallback
-    if (formats.length === 0) {
-        const dashRe = /"height":(\d+)[^}]*?"base_url":"(https:[^"]+\.mp4[^"]*)"/g;
-        let dm;
-        while ((dm = dashRe.exec(searchArea)) !== null) {
-            const h = parseInt(dm[1]);
-            if (h >= 360) add(getQuality(h), decodeUrl(dm[2]));
-        }
-    }
-    
-    // Progressive fallback (Facebook now uses URLs without .mp4 extension)
-    if (formats.length === 0) {
-        const progRe = /"progressive_url":"(https:\/\/[^"]+)"/g;
-        let m;
-        while ((m = progRe.exec(searchArea)) !== null) {
-            const url = decodeUrl(m[1]);
-            // Accept fbcdn/scontent URLs even without .mp4 extension
-            if (isValidMedia(url)) {
-                const isHD = /720|1080|_hd/i.test(url);
-                // Don't use add() here - it has quality dedup that blocks multiple videos
-                // For progressive URLs, we want HD and SD variants
-                if (!seenUrls.has(url)) {
-                    seenUrls.add(url);
-                    formats.push({ 
-                        quality: isHD ? 'HD' : 'SD', 
-                        type: 'video', 
-                        url, 
-                        format: 'mp4', 
-                        itemId: 'video-main', 
-                        thumbnail 
-                    });
-                }
-            }
-        }
-        // Dedupe: keep only best HD and best SD
-        if (formats.length > 2) {
-            const hd = formats.find(f => f.quality === 'HD');
-            const sd = formats.find(f => f.quality === 'SD');
-            formats.length = 0;
-            if (hd) formats.push(hd);
-            if (sd) formats.push(sd);
-        }
-    }
-    
-    // base_url fallback (for DASH segments without height info)
-    if (formats.length === 0) {
-        const baseRe = /"base_url":"(https:\/\/scontent[^"]+)"/g;
-        let m;
-        const baseUrls: string[] = [];
-        while ((m = baseRe.exec(searchArea)) !== null) {
-            const url = decodeUrl(m[1]);
-            if (!seenUrls.has(url) && isValidMedia(url)) {
-                baseUrls.push(url);
-                seenUrls.add(url);
-            }
-        }
-        // Take first few unique base_urls (usually sorted by quality)
-        baseUrls.slice(0, 3).forEach((url, i) => {
-            add(i === 0 ? 'HD' : i === 1 ? 'SD' : 'Low', url);
-        });
-    }
-    
+
     return formats;
 }
 
@@ -371,261 +328,242 @@ function extractVideos(html: string, seenUrls: Set<string>, targetVideoId?: stri
 
 function extractStories(html: string, seenUrls: Set<string>): MediaFormat[] {
     const formats: MediaFormat[] = [];
-    
-    // Get thumbnails
-    const thumbs: string[] = [];
-    const thumbRe = /"(?:previewImage|story_thumbnail|poster_image)":\{"uri":"(https:[^"]+)"/g;
-    let tm;
-    while ((tm = thumbRe.exec(html)) !== null) {
-        const url = clean(tm[1]);
-        if (isValidMedia(url) && !thumbs.includes(url)) thumbs.push(url);
-    }
-    
-    // Story videos with quality metadata
-    const storyRe = /"progressive_url":"(https:[^"]+\.mp4[^"]*)","failure_reason":null,"metadata":\{"quality":"(HD|SD)"\}/g;
-    const videos: { url: string; isHD: boolean }[] = [];
     let m;
+
+    // Method 1: Extract videos with HD/SD quality pairs (preferred - has quality info)
+    const storyRe = /"progressive_url":"(https:[^"]+\.mp4[^"]*)","failure_reason":null,"metadata":\{"quality":"(HD|SD)"\}/g;
+    const videoPairs: { url: string; isHD: boolean }[] = [];
     while ((m = storyRe.exec(html)) !== null) {
         const url = decodeUrl(m[1]);
-        if (!seenUrls.has(url)) {
-            seenUrls.add(url);
-            videos.push({ url, isHD: m[2] === 'HD' });
-        }
+        if (!seenUrls.has(url)) { seenUrls.add(url); videoPairs.push({ url, isHD: m[2] === 'HD' }); }
     }
-    
-    // Group pairs, keep HD
-    const count = Math.ceil(videos.length / 2);
-    for (let i = 0; i < count; i++) {
-        const pair = videos.slice(i * 2, i * 2 + 2);
-        const best = pair.find(v => v.isHD) || pair[0];
-        if (best) {
-            formats.push({
-                quality: `Story ${i + 1}`,
-                type: 'video',
-                url: best.url,
-                format: 'mp4',
-                itemId: `story-${i + 1}`,
-                thumbnail: thumbs[i]
-            });
-        }
-    }
-    
-    // Only extract story images if NO videos found (image-only stories)
-    // Otherwise the "images" are just video thumbnails
-    if (formats.length === 0) {
-        const imgRe = /https:\/\/scontent[^"'\s<>]+?\.jpg[^"'\s<>]*/gi;
-        const imgs: string[] = [];
-        while ((m = imgRe.exec(html)) !== null) {
-            const url = clean(m[0]);
-            // Only high-res story images (not thumbnails)
-            if (/t51\.82787/.test(url) && /s(1080|2048|1440)x/.test(url) && !seenUrls.has(url)) {
-                if (!imgs.includes(url)) imgs.push(url);
+
+    // Method 2: Fallback - progressive_url without quality metadata
+    if (videoPairs.length === 0) {
+        const fallbackRe = /"progressive_url":"(https:[^"]+\.mp4[^"]*)"/g;
+        while ((m = fallbackRe.exec(html)) !== null) {
+            const url = decodeUrl(m[1]);
+            if (!seenUrls.has(url)) {
+                seenUrls.add(url);
+                videoPairs.push({ url, isHD: /720p|1080p|_hd/.test(url) });
             }
         }
-        
-        imgs.forEach((url, i) => {
-            seenUrls.add(url);
-            formats.push({
-                quality: `Story Image ${i + 1}`,
-                type: 'image',
-                url,
-                format: 'jpg',
-                itemId: `story-img-${i + 1}`,
-                thumbnail: url
-            });
+    }
+
+    // Get thumbnails for videos
+    const thumbs: string[] = [];
+    const thumbRe = /"(?:previewImage|story_thumbnail|poster_image)":\{"uri":"(https:[^"]+)"/g;
+    while ((m = thumbRe.exec(html)) !== null) {
+        const url = clean(m[1]);
+        if (isValidMedia(url) && !thumbs.includes(url)) thumbs.push(url);
+    }
+
+    // Process video pairs (HD/SD) - keep best quality
+    let videoIdx = 0;
+    if (videoPairs.some(v => v.isHD) && videoPairs.some(v => !v.isHD)) {
+        const count = Math.ceil(videoPairs.length / 2);
+        for (let i = 0; i < count; i++) {
+            const pair = videoPairs.slice(i * 2, i * 2 + 2);
+            const best = pair.find(v => v.isHD) || pair[0];
+            if (best) {
+                seenUrls.add(best.url);
+                formats.push({ quality: `Story ${++videoIdx}`, type: 'video', url: best.url, format: 'mp4', itemId: `story-v-${videoIdx}`, thumbnail: thumbs[i] });
+            }
+        }
+    } else if (videoPairs.length > 0) {
+        videoPairs.forEach((v, i) => {
+            seenUrls.add(v.url);
+            formats.push({ quality: `Story ${++videoIdx}`, type: 'video', url: v.url, format: 'mp4', itemId: `story-v-${videoIdx}`, thumbnail: thumbs[i] });
         });
     }
-    
+
+
+
+    // Extract image stories (t51.82787 = story image type)
+    const imgRe = /https:\/\/scontent[^"'\s<>\\]+t51\.82787[^"'\s<>\\]+\.jpg[^"'\s<>\\]*/gi;
+    const storyImages: string[] = [];
+    while ((m = imgRe.exec(html)) !== null) {
+        const url = clean(decodeUrl(m[0]));
+        // Only high-res images (1080+), skip thumbnails
+        if (/s(1080|1440|2048)x/.test(url) && !seenUrls.has(url) && !storyImages.includes(url)) {
+            storyImages.push(url);
+        }
+    }
+
+    // Add image stories
+    storyImages.forEach((url, i) => {
+        seenUrls.add(url);
+        formats.push({ quality: `Story Image ${i + 1}`, type: 'image', url, format: 'jpg', itemId: `story-img-${i + 1}`, thumbnail: url });
+    });
+
     return formats;
 }
 
 // ============================================================================
-// IMAGE EXTRACTION
+// IMAGE EXTRACTION (v3 - Precise, no related content)
 // ============================================================================
 
-// Get expected carousel count from all_subattachments
-function getCarouselCount(decoded: string): number {
-    const match = decoded.match(/"all_subattachments":\s*\{[^}]*"count":\s*(\d+)/);
-    return match ? parseInt(match[1]) : 0;
-}
-
-function extractImages(html: string, decoded: string, seenUrls: Set<string>, url: string, meta: { title?: string }, targetPostId?: string | null): MediaFormat[] {
+function extractImages(html: string, decoded: string, seenUrls: Set<string>, targetPostId?: string | null): MediaFormat[] {
     const formats: MediaFormat[] = [];
     const seenPaths = new Set<string>();
     let idx = 0;
-    
-    const add = (imgUrl: string) => {
-        const norm = normalizePath(imgUrl);
-        if (isSkipImage(imgUrl) || seenPaths.has(norm)) return false;
-        seenPaths.add(norm);
-        seenUrls.add(imgUrl);
-        formats.push({
-            quality: `Image ${++idx}`,
-            type: 'image',
-            url: imgUrl,
-            format: 'jpg',
-            itemId: `img-${idx}`,
-            thumbnail: imgUrl
-        });
+
+    const add = (imgUrl: string, source: string = '') => {
+        const path = imgUrl.split('?')[0];
+        if (isSkipImage(imgUrl) || seenPaths.has(path)) return false;
+        // Skip profile pictures (t39.30808-1) - only accept post images (-6, -0)
+        if (/t39\.30808-1\//.test(imgUrl)) return false;
+        seenPaths.add(path); seenUrls.add(imgUrl);
+        formats.push({ quality: `Image ${++idx}`, type: 'image', url: imgUrl, format: 'jpg', itemId: `img-${idx}`, thumbnail: imgUrl });
         return true;
     };
-    
-    // If we have a target post ID, narrow down the search area first
-    let target = decoded;
-    if (targetPostId) {
-        target = findTargetPostBlock(decoded, targetPostId);
-        logger.debug('facebook', `Using targeted post block (${(target.length / 1024).toFixed(0)}KB) for image extraction`);
-    }
-    
-    // Fallback: Determine target area for group posts
-    if (target === decoded) {
-        const gmMatch = decoded.match(/set=gm\.(\d+)/);
-        if (gmMatch) {
-            const pos = decoded.indexOf(`gm.${gmMatch[1]}`);
-            if (pos > -1) {
-                // Use 200KB context (100KB before + 100KB after) for better coverage
-                target = decoded.substring(Math.max(0, pos - 100000), Math.min(decoded.length, pos + 100000));
-            }
-        }
-    }
-    
+
+    // Get precise target block
+    const target = findTargetBlock(decoded, targetPostId || null, 'post');
     let m;
-    
-    // Method 1: viewer_image from all_subattachments (best for carousels)
-    // IMPORTANT: Search in TARGET area only to avoid related posts
-    const subMatch = target.match(/"all_subattachments":\{"count":\d+,"nodes":\[[\s\S]*?\]\}/);
-    if (subMatch) {
-        const viewerInSubRe = /"viewer_image":\{"height":\d+,"width":\d+,"uri":"(https:[^"]+)"/g;
-        while ((m = viewerInSubRe.exec(subMatch[0])) !== null) {
-            const imgUrl = clean(m[1]);
-            if (/scontent|fbcdn/.test(imgUrl)) add(imgUrl);
-        }
-        // If we found images from all_subattachments, return early
-        // This is the most reliable source for carousel posts
-        if (idx > 0) {
-            logger.debug('facebook', `Found ${idx} images from all_subattachments`);
-            return formats;
-        }
-    }
-    
-    // Method 2: viewer_image (general - for non-carousel posts)
-    const viewerRe = /"viewer_image":\{"height":\d+,"width":\d+,"uri":"(https:[^"]+)"/g;
-    while ((m = viewerRe.exec(target)) !== null) {
-        const imgUrl = clean(m[1]);
-        if (/scontent|fbcdn/.test(imgUrl)) add(imgUrl);
-    }
-    
-    // Method 3: image with dimensions (common in group posts)
-    const imgDimRe = /"image":\{"height":\d+,"width":\d+,"uri":"(https:[^"]+)"/g;
-    while ((m = imgDimRe.exec(target)) !== null) {
-        const imgUrl = clean(m[1]);
-        if (/scontent|fbcdn/.test(imgUrl) && !isSkipImage(imgUrl)) add(imgUrl);
-    }
-    
-    // Method 4: Preload links - search in TARGET area only
-    const preloadRe = /<link[^>]+rel="preload"[^>]+href="(https:\/\/scontent[^"]+_nc_sid=127cfc[^"]+)"/gi;
-    while ((m = preloadRe.exec(target)) !== null) add(clean(m[1]));
-    
-    // Method 5: JSON patterns (photo_image, full_width_image)
-    const jsonRe = [/"photo_image":\{"uri":"(https:[^"]+)"/g, /"full_width_image":\{"uri":"(https:[^"]+)"/g];
-    for (const re of jsonRe) {
-        while ((m = re.exec(target)) !== null) {
-            const imgUrl = clean(m[1]);
-            if (!/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\//.test(imgUrl)) add(imgUrl);
+
+    // METHOD 1: all_subattachments (BEST - carousel/multi-image posts)
+    // This is the most accurate - contains only images from target post
+    const subStart = target.indexOf('"all_subattachments":{"count":');
+    if (subStart > -1) {
+        // Extract count to know expected images
+        const countMatch = target.substring(subStart, subStart + 50).match(/"count":(\d+)/);
+        const expectedCount = countMatch ? parseInt(countMatch[1]) : 0;
+        
+        // Find the nodes array within subattachments
+        const nodesStart = target.indexOf('"nodes":[', subStart);
+        if (nodesStart > -1 && nodesStart - subStart < 100) {
+            // Find matching closing bracket - careful not to go too far
+            let depth = 0;
+            let nodesEnd = nodesStart + 9;
+            for (let i = nodesStart + 8; i < target.length && i < nodesStart + 30000; i++) {
+                if (target[i] === '[') depth++;
+                if (target[i] === ']') {
+                    if (depth === 0) { nodesEnd = i + 1; break; }
+                    depth--;
+                }
+            }
+            
+            const nodesBlock = target.substring(nodesStart, nodesEnd);
+            
+            // Extract viewer_image from each node
+            // t39.30808 = regular post images, t51.82787 = story-type images shared as posts
+            const viewerRe = /"viewer_image":\{"height":(\d+),"width":(\d+),"uri":"(https:[^"]+)"/g;
+            while ((m = viewerRe.exec(nodesBlock)) !== null) {
+                const url = clean(m[3]);
+                if (/scontent|fbcdn/.test(url) && /t39\.30808|t51\.82787/.test(url)) {
+                    add(url, 'subattachments');
+                }
+            }
+            
+            // If we got expected count, we're done
+            if (idx >= expectedCount && idx > 0) return formats;
         }
     }
-    
-    // Method 6: Direct t39.30808 pattern - search in TARGET area only
-    const t39Re = /https:\/\/scontent[^"'\s<>\\]+t39\.30808[^"'\s<>\\]+\.jpg[^"'\s<>\\]*/gi;
-    while ((m = t39Re.exec(target)) !== null) {
-        const imgUrl = decodeUrl(m[0]);
-        if (!/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\/|_s\d+x\d+/.test(imgUrl)) add(imgUrl);
-    }
-    
-    // Method 7: Anchor-based fallback (only if nothing found)
+
+    // METHOD 2: Single image post - look for viewer_image near target
     if (idx === 0) {
-        const anchor = findAnchor(target, url, meta);
-        if (anchor > -1) {
-            const area = target.substring(anchor, Math.min(anchor + 15000, target.length));
-            const imgRe = /https:\/\/scontent[^"'\s<>\\]+\.(?:jpg|jpeg)[^"'\s<>\\]*/gi;
-            while ((m = imgRe.exec(area)) !== null) {
-                const imgUrl = decodeUrl(m[0]);
-                if (/t51\.82787|t39\.30808/.test(imgUrl) && !/\/[ps]\d{2,3}x\d{2,3}\//.test(imgUrl)) add(imgUrl);
+        // For single image, find the FIRST high-quality viewer_image
+        const viewerRe = /"viewer_image":\{"height":(\d+),"width":(\d+),"uri":"(https:[^"]+)"/g;
+        const candidates: { url: string; size: number }[] = [];
+        
+        while ((m = viewerRe.exec(target)) !== null) {
+            const height = parseInt(m[1]);
+            const width = parseInt(m[2]);
+            const url = clean(m[3]);
+            
+            // Only high-res images (not thumbnails)
+            // t39.30808 = regular, t51.82787 = story-type shared as post
+            if (/scontent|fbcdn/.test(url) && height >= 400 && width >= 400) {
+                if (/t39\.30808|t51\.82787/.test(url) && !/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\//.test(url)) {
+                    candidates.push({ url, size: height * width });
+                }
+            }
+        }
+        
+        // Sort by size (largest first) and take unique
+        candidates.sort((a, b) => b.size - a.size);
+        const addedUrls = new Set<string>();
+        for (const c of candidates) {
+            const basePath = c.url.split('?')[0].replace(/_n\.jpg$/, '');
+            if (!addedUrls.has(basePath)) {
+                addedUrls.add(basePath);
+                add(c.url, 'viewer_image');
             }
         }
     }
-    
-    // Log warning if carousel has more images than extracted (Facebook lazy-loads)
-    const expectedCount = getCarouselCount(decoded);
-    if (expectedCount > 0 && idx < expectedCount) {
-        logger.debug('facebook', `Carousel: extracted ${idx}/${expectedCount} images (Facebook lazy-loads remaining)`);
+
+    // METHOD 3: photo_image pattern (for single/dual image posts without subattachments)
+    if (idx === 0) {
+        const photoRe = /"photo_image":\{"uri":"(https:[^"]+)"/g;
+        const photoUrls: string[] = [];
+        while ((m = photoRe.exec(target)) !== null && photoUrls.length < 5) {
+            const url = clean(m[1]);
+            // Only high-res post images (t39.30808-6), skip profile pics (-1)
+            if (/scontent|fbcdn/.test(url) && /t39\.30808-6/.test(url)) {
+                if (!photoUrls.includes(url)) photoUrls.push(url);
+            }
+        }
+        // Dedupe and add
+        for (const url of photoUrls) {
+            add(url, 'photo_image');
+        }
     }
-    
+
+    // METHOD 4: Fallback - preload links (usually accurate for main content)
+    if (idx === 0) {
+        const preloadRe = /<link[^>]+rel="preload"[^>]+href="(https:\/\/scontent[^"]+_nc_sid=127cfc[^"]+)"/i;
+        const preloadMatch = html.match(preloadRe);
+        if (preloadMatch) {
+            add(clean(preloadMatch[1]), 'preload');
+        }
+    }
+
+    // METHOD 5: Single photo page - "image":{"uri":"..."} pattern
+    if (idx === 0) {
+        const imageUriRe = /"image":\{"uri":"(https:[^"]+t39\.30808[^"]+)"/g;
+        while ((m = imageUriRe.exec(html)) !== null && idx < 3) {
+            const url = clean(m[1]);
+            if (/scontent|fbcdn/.test(url) && !/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\//.test(url)) {
+                add(url, 'image_uri');
+            }
+        }
+    }
+
+    // METHOD 6: Last resort - t39.30808 pattern (limit to first few)
+    if (idx === 0) {
+        const t39Re = /https:\/\/scontent[^"'\s<>\\]+t39\.30808-6[^"'\s<>\\]+\.jpg/gi;
+        let count = 0;
+        while ((m = t39Re.exec(target)) !== null && count < 5) {
+            const url = decodeUrl(m[0]);
+            // Skip thumbnails and small images
+            if (!/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\/|_s\d+x\d+|\/s\d{2,3}x\d{2,3}\//.test(url)) {
+                if (add(url, 't39')) count++;
+            }
+        }
+    }
+
     return formats;
 }
 
-function findAnchor(decoded: string, url: string, meta: { title?: string }): number {
-    // Try story_fbid
-    const fbidMatch = url.match(/story_fbid=([^&]+)/);
-    if (fbidMatch) {
-        const pos = decoded.indexOf(fbidMatch[1]);
-        if (pos > -1) return pos;
-    }
-    // Try title
-    if (meta.title) {
-        const pos = decoded.indexOf(meta.title.substring(0, 20));
-        if (pos > -1) return pos;
-    }
-    // Try author from URL
-    const authorMatch = url.match(/facebook\.com\/([^/?]+)/);
-    if (authorMatch && !['share', 'watch', 'reel', 'www', 'web', 'groups'].includes(authorMatch[1])) {
-        const pos = decoded.indexOf(authorMatch[1]);
-        if (pos > -1) return pos;
-    }
-    return -1;
-}
-
 // ============================================================================
-// METADATA EXTRACTION
+// METADATA EXTRACTION (Compact)
 // ============================================================================
 
 function extractAuthor(html: string, url: string): string {
-    // Decode unicode escape sequences like \u82f1\u6797 -> 英林
-    const decodeUnicode = (s: string) => {
-        try {
-            return s.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-        } catch { return s; }
-    };
-    
+    const decode = (s: string) => s.replace(/\\u([\dA-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
     const patterns = [
         /"name":"([^"]+)","enable_reels_tab_deeplink":true/,
         /"owning_profile":\{"__typename":"(?:User|Page)","name":"([^"]+)"/,
         /"owner":\{"__typename":"(?:User|Page)"[^}]*"name":"([^"]+)"/,
         /"actors":\[\{"__typename":"User","name":"([^"]+)"/,
-        /"short_name":"([^"]+)"/,
     ];
     for (const re of patterns) {
         const m = html.match(re);
-        if (m?.[1] && m[1] !== 'Facebook' && !/^(User|Page|Video|Photo|Post)$/i.test(m[1])) {
-            return decodeUnicode(m[1]);
-        }
+        if (m?.[1] && m[1] !== 'Facebook' && !/^(User|Page|Video|Photo|Post)$/i.test(m[1])) return decode(m[1]);
     }
-    
-    // Fallback: extract author ID if name not found
-    const idPatterns = [
-        /"owning_profile":\{[^}]*"id":"(\d+)"/,
-        /"owner":\{[^}]*"id":"(\d+)"/,
-        /"actor_id":"(\d+)"/,
-    ];
-    for (const re of idPatterns) {
-        const m = html.match(re);
-        if (m?.[1]) return `User ${m[1]}`;
-    }
-    
     const urlMatch = url.match(/facebook\.com\/([^/?]+)/);
-    if (urlMatch && !['watch', 'reel', 'share', 'groups', 'www', 'web', 'stories'].includes(urlMatch[1])) {
-        return urlMatch[1];
-    }
+    if (urlMatch && !['watch', 'reel', 'share', 'groups', 'www', 'web', 'stories'].includes(urlMatch[1])) return urlMatch[1];
     return 'Facebook';
 }
 
@@ -633,124 +571,34 @@ function extractDescription(html: string): string {
     const patterns = [/"message":\{"text":"([^"]+)"/, /"content":\{"text":"([^"]+)"/, /"caption":"([^"]+)"/];
     for (const re of patterns) {
         const m = html.match(re);
-        if (m?.[1] && m[1] !== 'Public' && m[1].length > 2) {
-            return m[1].replace(/\\n/g, '\n').replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-        }
+        if (m?.[1] && m[1].length > 2) return m[1].replace(/\\n/g, '\n').replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
     }
     return '';
 }
 
-function extractPostDate(html: string): string | undefined {
+const extractPostDate = (html: string): string | undefined => {
     const m = html.match(/"(?:creation|created|publish)_time":(\d{10})/);
     return m ? new Date(parseInt(m[1]) * 1000).toISOString() : undefined;
-}
+};
 
 function extractEngagement(html: string): EngagementStats {
-    const engagement: EngagementStats = {};
-    
-    // Reaction count (likes) - multiple patterns for different content types
-    const likePatterns = [
-        /"reaction_count":\{"count":(\d+)/,
-        /"likecount":(\d+)/i,
-        /"like_count":(\d+)/,
-        /"reactors":\{"count":(\d+)/,
-        /"i18n_reaction_count":"([\d,\.KMkm]+)"/,
-        /"likers":\{"count":(\d+)/,
-    ];
-    for (const re of likePatterns) {
-        const m = html.match(re);
-        if (m) {
-            engagement.likes = parseEngagementNumber(m[1]);
-            logger.debug('facebook', `Engagement likes: ${m[1]} -> ${engagement.likes}`);
-            break;
-        }
-    }
-    
-    // Comment count
-    const commentPatterns = [
-        /"comment_count":\{"total_count":(\d+)/,
-        /"comments":\{"total_count":(\d+)/,
-        /"comment_rendering_instance"[^}]*"count":(\d+)/,
-        /"i18n_comment_count":"([\d,\.KMkm]+)"/,
-        // Text pattern: "467 comments" or "1.2K komentar"
-        /([\d,\.]+[KMkm]?)\s*(?:comments|komentar|bình luận)/i,
-    ];
-    for (const re of commentPatterns) {
-        const m = html.match(re);
-        if (m) {
-            engagement.comments = parseEngagementNumber(m[1]);
-            logger.debug('facebook', `Engagement comments: ${m[1]} -> ${engagement.comments}`);
-            break;
-        }
-    }
-    
-    // Share count
-    const sharePatterns = [
-        /"share_count":\{"count":(\d+)/,
-        /"reshares":\{"count":(\d+)/,
-        /"i18n_share_count":"([\d,\.KMkm]+)"/,
-        // Text pattern: "435 shares" or "1.2K bagikan"
-        /([\d,\.]+[KMkm]?)\s*(?:shares|bagikan|chia sẻ)/i,
-    ];
-    for (const re of sharePatterns) {
-        const m = html.match(re);
-        if (m) {
-            engagement.shares = parseEngagementNumber(m[1]);
-            logger.debug('facebook', `Engagement shares: ${m[1]} -> ${engagement.shares}`);
-            break;
-        }
-    }
-    
-    // View count (for videos/reels)
-    const viewPatterns = [
-        /"video_view_count":(\d+)/,
-        /"play_count":(\d+)/,
-        /"view_count":(\d+)/,
-        /"i18n_play_count":"([\d,\.KMkm]+)"/,
-    ];
-    for (const re of viewPatterns) {
-        const m = html.match(re);
-        if (m) {
-            engagement.views = parseEngagementNumber(m[1]);
-            logger.debug('facebook', `Engagement views: ${m[1]} -> ${engagement.views}`);
-            break;
-        }
-    }
-    
-    return engagement;
-}
-
-// Parse engagement numbers like "1.2K", "3.5M", "1,234"
-function parseEngagementNumber(str: string): number {
-    if (!str) return 0;
-    const clean = str.replace(/,/g, '').trim();
-    const num = parseFloat(clean);
-    if (isNaN(num)) return 0;
-    if (/[kK]$/.test(clean)) return Math.round(num * 1000);
-    if (/[mM]$/.test(clean)) return Math.round(num * 1000000);
-    return Math.round(num);
-}
-
-// ============================================================================
-// DEDUPLICATION
-// ============================================================================
-
-function dedupeFormats(formats: MediaFormat[]): MediaFormat[] {
-    const videos = formats.filter(f => f.type === 'video');
-    const images = formats.filter(f => f.type === 'image');
-    
-    // Dedupe videos
-    const seenUrls = new Set<string>();
-    const uniqueVideos = videos.filter(v => {
-        if (seenUrls.has(v.url)) return false;
-        seenUrls.add(v.url);
-        return true;
-    });
-    
-    // Sort videos by resolution
-    uniqueVideos.sort((a, b) => getResValue(b.quality) - getResValue(a.quality));
-    
-    return [...uniqueVideos, ...images];
+    const parse = (s: string) => {
+        const n = parseFloat(s.replace(/,/g, ''));
+        if (isNaN(n)) return 0;
+        if (/[kK]$/.test(s)) return Math.round(n * 1000);
+        if (/[mM]$/.test(s)) return Math.round(n * 1000000);
+        return Math.round(n);
+    };
+    const e: EngagementStats = {};
+    const likeM = html.match(/"reaction_count":\{"count":(\d+)/) || html.match(/"i18n_reaction_count":"([\d,\.KMkm]+)"/);
+    if (likeM) e.likes = parse(likeM[1]);
+    const commentM = html.match(/"comment_count":\{"total_count":(\d+)/) || html.match(/"comments":\{"total_count":(\d+)/);
+    if (commentM) e.comments = parse(commentM[1]);
+    const shareM = html.match(/"share_count":\{"count":(\d+)/) || html.match(/"reshares":\{"count":(\d+)/);
+    if (shareM) e.shares = parse(shareM[1]);
+    const viewM = html.match(/"video_view_count":(\d+)/) || html.match(/"play_count":(\d+)/);
+    if (viewM) e.views = parse(viewM[1]);
+    return e;
 }
 
 // ============================================================================
@@ -758,163 +606,86 @@ function dedupeFormats(formats: MediaFormat[]): MediaFormat[] {
 // ============================================================================
 
 export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions): Promise<ScraperResult> {
-    const cookie = options?.cookie;
-    
-    // Check cache
+    const startTime = Date.now();
+
+    // Cache check
     if (!options?.skipCache) {
-        const cached = getCache<ScraperResult>('facebook', inputUrl);
-        if (cached?.success) return { ...cached, cached: true };
+        const cached = await getCache<ScraperResult>('facebook', inputUrl);
+        if (cached?.success) { logger.cache('facebook', true); return { ...cached, cached: true }; }
     }
-    
-    if (!matchesPlatform(inputUrl, 'facebook')) {
-        return createError(ScraperErrorCode.INVALID_URL, 'Invalid Facebook URL');
+    logger.cache('facebook', false);
+
+    if (!matchesPlatform(inputUrl, 'facebook')) return createError(ScraperErrorCode.INVALID_URL, 'Invalid Facebook URL');
+
+    const parsedCookie = parseCookie(options?.cookie, 'facebook') || undefined;
+    const hasCookie = !!parsedCookie;
+
+    // Stories require cookie (check before resolve to fail fast)
+    if (/\/stories\//.test(inputUrl) && !parsedCookie) {
+        return createError(ScraperErrorCode.COOKIE_REQUIRED, 'Stories require login.');
     }
 
-    let fetchUrl = normalizeUrl(inputUrl, 'facebook');
-    const parsedCookie = parseCookie(cookie, 'facebook') || undefined;
-    
-    // Smart cookie strategy to avoid double-request pattern:
-    // 1. If cookie provided → always use it (single request)
-    // 2. If no cookie → try public, fail if login required
-    // This prevents the suspicious pattern of: no-cookie request → cookie request
-    const needsCookie = requiresCookie(fetchUrl);
-    const useCookie = !!parsedCookie; // Always use cookie if available
-    
-    // Stories ALWAYS require cookie - fail fast if not provided
-    if (needsCookie && !parsedCookie) {
-        return createError(ScraperErrorCode.COOKIE_REQUIRED, 'Stories require login. Please provide a cookie.');
-    }
-    
-    logger.url('facebook', inputUrl);
-    logger.debug('facebook', `Cookie: ${useCookie ? 'Yes' : 'No'}, Required: ${needsCookie ? 'Yes' : 'No'}`);
+    // Internal scrape function - can be called with or without cookie
+    const doScrape = async (useCookie: boolean): Promise<ScraperResult> => {
+      try {
+        const headers = useCookie && parsedCookie ? { ...BROWSER_HEADERS, Cookie: parsedCookie } : BROWSER_HEADERS;
 
-    try {
-        // Use cookie only when needed (smart decision) or for content that requires it
-        const headers = useCookie ? { ...BROWSER_HEADERS, Cookie: parsedCookie } : BROWSER_HEADERS;
-        
-        // Resolve short URLs and share links (3s timeout for speed)
-        // /share/p/ = post, /share/v/ = video, /share/r/ = reel - these need resolution
-        const needsResolve = /fb\.watch|fb\.me|l\.facebook|\/share\//.test(fetchUrl);
-        if (needsResolve) {
-            const resolved = await resolveUrl(fetchUrl, 3000);
-            fetchUrl = cleanTrackingParams(normalizeUrl(resolved, 'facebook'));
-            logger.debug('facebook', `Resolved: ${fetchUrl.substring(0, 80)}...`);
-        }
-        
-        // Convert permalink.php to /posts/ format for better HTML content
-        // permalink.php doesn't include image data in initial HTML
-        if (fetchUrl.includes('permalink.php')) {
-            const storyFbid = fetchUrl.match(/story_fbid=(pfbid[a-zA-Z0-9]+|[\d]+)/);
-            const userId = fetchUrl.match(/[?&]id=(\d+)/);
-            if (storyFbid && userId) {
-                const domain = fetchUrl.includes('www.facebook') ? 'www.facebook.com' : 'web.facebook.com';
-                fetchUrl = `https://${domain}/${userId[1]}/posts/${storyFbid[1]}`;
-                logger.debug('facebook', `Converted permalink to: ${fetchUrl}`);
-            }
-        }
-        
-        const contentType = detectType(fetchUrl);
-        
-        // Stories need www domain
-        if (contentType === 'story') {
-            fetchUrl = fetchUrl.replace('web.facebook.com', 'www.facebook.com');
-        }
-
-        let html: string;
-        let finalUrl: string;
-        
-        // Fetch with redirect handling
-        // - With cookie: manual redirect to preserve cookies across domain changes
-        // - Without cookie: auto redirect for speed
-        const fetchWithRedirect = async (url: string, maxRedirects = 10): Promise<{ html: string; finalUrl: string }> => {
-            // Fast path: no cookie = use auto redirect
-            if (!useCookie) {
-                const res = await fetch(url, { headers, redirect: 'follow' });
-                // Check for checkpoint in final URL
-                if (res.url.includes('/checkpoint/')) {
-                    throw new Error('CHECKPOINT_REQUIRED');
-                }
-                return { html: await res.text(), finalUrl: res.url };
-            }
-            
-            // With cookie: manual redirect to preserve cookies
-            let currentUrl = url;
-            for (let i = 0; i < maxRedirects; i++) {
-                const res = await fetch(currentUrl, { headers, redirect: 'manual' });
-                if (res.status === 301 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
-                    const location = res.headers.get('location');
-                    if (location) {
-                        currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
-                        logger.debug('facebook', `Redirect ${res.status} → ${currentUrl.substring(0, 80)}...`);
-                        if (currentUrl.includes('/checkpoint/')) {
-                            throw new Error('CHECKPOINT_REQUIRED');
-                        }
-                        continue;
-                    }
-                }
-                return { html: await res.text(), finalUrl: currentUrl };
-            }
-            throw new Error('Too many redirects');
+        // OPTIMIZED: Single fetch - resolve + get HTML in one request
+        // Use redirect:follow for both guest and cookie - works better with Facebook
+        const fetchAndResolve = async (url: string): Promise<{ html: string; finalUrl: string }> => {
+            logger.debug('facebook', `Fetching ${url.substring(0, 50)}... (cookie: ${useCookie})`);
+            const res = await fetchWithTimeout(url, { headers, redirect: 'follow', timeout: 15000 });
+            if (res.url.includes('/checkpoint/')) throw new Error('CHECKPOINT_REQUIRED');
+            const html = await res.text();
+            logger.debug('facebook', `Got ${(html.length/1024).toFixed(0)}KB from ${res.url.substring(0, 50)}...`);
+            return { html, finalUrl: res.url };
         };
+
+        // Single fetch: resolve + HTML in one call
+        let { html, finalUrl } = await fetchAndResolve(inputUrl);
         
-        // Stories need polling - Reels usually work on first try
-        const needsPolling = contentType === 'story' && useCookie;
-        if (needsPolling) {
-            // First fetch to initialize session
-            const initial = await fetchWithRedirect(fetchUrl);
-            html = initial.html;
-            finalUrl = initial.finalUrl;
-            
-            // Count media items to ensure we get all of them
-            const countMedia = (h: string) => {
-                // Videos: playable_url or progressive_url patterns
-                const videos = (h.match(/playable_url(?:_quality_hd)?":"https/g) || []).length +
-                              (h.match(/progressive_url":"https[^"]+\.mp4/g) || []).length;
-                // Images for stories
-                const images = (h.match(/t51\.82787.*?s(1080|2048|1440)x/g) || []).length;
-                return videos + images;
-            };
-            
-            let mediaCount = countMedia(html);
-            
-            if (mediaCount === 0) {
-                logger.debug('facebook', `Story detected, polling for content...`);
-                // Poll every 400ms, max 2s (5 attempts) - faster polling
-                for (let i = 0; i < 5; i++) {
-                    await new Promise(r => setTimeout(r, 400));
-                    const result = await fetchWithRedirect(fetchUrl);
-                    const newCount = countMedia(result.html);
-                    // Only update if we found more media
-                    if (newCount > mediaCount) {
-                        html = result.html;
-                        finalUrl = result.finalUrl;
-                        mediaCount = newCount;
-                        logger.debug('facebook', `Found ${mediaCount} media items after ${(i + 1) * 500}ms`);
-                    }
-                    // Early exit only if we have media AND count stabilized (same as previous)
-                    if (mediaCount > 0 && newCount === mediaCount && i >= 1) {
-                        logger.debug('facebook', `Media count stabilized at ${mediaCount}`);
-                        break;
-                    }
+        // Detect content type from resolved URL
+        const contentType = detectType(finalUrl);
+        logger.type('facebook', contentType);
+        logger.resolve('facebook', inputUrl, finalUrl);
+
+        // Story: retry if no media found (lazy loading)
+        if (contentType === 'story' && useCookie) {
+            const countMedia = (h: string) => (h.match(/progressive_url":"https[^"]+\.mp4/g) || []).length;
+            if (countMedia(html) === 0) {
+                for (let i = 0; i < 2; i++) {
+                    await new Promise(r => setTimeout(r, 200));
+                    const retry = await fetchAndResolve(finalUrl);
+                    if (countMedia(retry.html) > 0) { html = retry.html; break; }
                 }
-            } else {
-                logger.debug('facebook', `Story content found immediately (${mediaCount} items)`);
             }
-        } else {
-            // Single fetch for non-stories
-            const result = await fetchWithRedirect(fetchUrl);
-            html = result.html;
-            finalUrl = result.finalUrl;
         }
-        
 
-
-        if (html.length < 1000) {
+        // Check for error page (very small HTML)
+        if (html.length < 10000 && html.includes('Sorry, something went wrong')) {
             return createError(ScraperErrorCode.API_ERROR, 'Facebook returned error page');
         }
         
-        if ((html.includes('login_form') || html.includes('Log in to Facebook')) && html.length < 50000) {
-            return createError(ScraperErrorCode.COOKIE_REQUIRED, 'This content requires login. Please provide a cookie.');
+        // Check for login required - but only if no media patterns found
+        // Some pages show login form but still have media data
+        const hasMediaPatterns = html.includes('browser_native') || 
+                                 html.includes('all_subattachments') || 
+                                 html.includes('viewer_image');
+        if (!hasMediaPatterns && html.length < 500000 && 
+            (html.includes('login_form') || html.includes('Log in to Facebook'))) {
+            return createError(ScraperErrorCode.COOKIE_REQUIRED, 'This content requires login.');
+        }
+
+        // Detect content issues (age-restricted, private, etc.)
+        const contentIssue = detectContentIssue(html);
+        if (contentIssue && !useCookie) {
+            // Return specific error so client knows to retry with cookie
+            if (contentIssue === ScraperErrorCode.AGE_RESTRICTED) {
+                return createError(ScraperErrorCode.AGE_RESTRICTED, 'Age-restricted content. Cookie required.');
+            }
+            if (contentIssue === ScraperErrorCode.PRIVATE_CONTENT) {
+                return createError(ScraperErrorCode.PRIVATE_CONTENT, 'This content is private or unavailable.');
+            }
         }
 
         const decoded = decodeHtml(html);
@@ -923,113 +694,114 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
         let formats: MediaFormat[] = [];
 
         const actualType = detectType(finalUrl);
-        const isStory = actualType === 'story';
-        const isPost = actualType === 'post' || actualType === 'unknown';
+        const isVideo = actualType === 'video' || actualType === 'reel';
+        const isPost = actualType === 'post' || actualType === 'group' || actualType === 'unknown';
 
-
-
-        // Extract based on type
-        const isReel = actualType === 'reel';
-        const isVideo = actualType === 'video' || isReel;
-        
-        // Extract video ID and post ID from final URL for targeted extraction
-        const targetVideoId = extractVideoId(finalUrl);
-        const targetPostId = extractPostId(finalUrl);
-        if (targetVideoId) {
-            logger.debug('facebook', `Target video ID: ${targetVideoId}`);
-        }
-        if (targetPostId) {
-            logger.debug('facebook', `Target post ID: ${targetPostId.substring(0, 30)}...`);
-        }
-        
-        if (isStory) {
+        // Extract media
+        if (actualType === 'story') {
             formats = extractStories(decoded, seenUrls);
-        } else {
-            // For videos/reels: extract videos with targeting
-            // For posts: SKIP video extraction to avoid related content pollution
-            if (isVideo && targetVideoId) {
-                formats = extractVideos(decoded, seenUrls, targetVideoId);
-            } else if (isVideo) {
-                // Video/reel without ID - search full HTML (legacy behavior)
-                formats = extractVideos(decoded, seenUrls, null);
-            }
-            // For posts (isPost): don't extract videos - they're from related content
-            
-            // For reels/videos: if no video found, debug what patterns exist
-            if (isVideo && formats.length === 0) {
-                // Debug: check what video patterns exist in HTML
-                const debugPatterns = [
-                    { name: 'playable_url_quality_hd', re: /"playable_url_quality_hd":"([^"]{50,100})/ },
-                    { name: 'playable_url', re: /"playable_url":"([^"]{50,100})/ },
-                    { name: 'hd_src', re: /"hd_src":"([^"]{50,100})/ },
-                    { name: 'sd_src', re: /"sd_src":"([^"]{50,100})/ },
-                    { name: 'browser_native_hd', re: /"browser_native_hd_url":"([^"]{50,100})/ },
-                    { name: 'progressive_url', re: /"progressive_url":"([^"]{50,100})/ },
-                ];
-                for (const { name, re } of debugPatterns) {
-                    const m = decoded.match(re);
-                    if (m) logger.debug('facebook', `Found ${name}: ${m[1]}...`);
-                }
-                logger.debug('facebook', `${actualType}: No video found in HTML`);
-                // Don't fall back to images for video content
-            }
-            
-            // For posts or unknown: also extract images
-            if (isPost || (!isVideo && formats.length === 0)) {
-                formats.push(...extractImages(html, decoded, seenUrls, inputUrl, meta, targetPostId));
-                
-                // Check if carousel has more images than extracted
-                // NOTE: Facebook lazy-loads carousel images, we can only get ~5 from initial HTML
-                const expectedCount = getCarouselCount(decoded);
-                const imageCount = formats.filter(f => f.type === 'image').length;
-                
-                if (expectedCount > imageCount) {
-                    logger.debug('facebook', `Carousel: ${imageCount}/${expectedCount} images (Facebook lazy-loads remaining)`);
-                }
-            }
+        } else if (isVideo) {
+            formats = extractVideos(decoded, seenUrls, extractVideoId(finalUrl));
+        }
+        if (isPost || (isVideo && formats.length === 0)) {
+            formats.push(...extractImages(html, decoded, seenUrls, extractPostId(finalUrl)));
         }
 
+        // If no media found, check for specific issues
         if (formats.length === 0) {
-            return createError(ScraperErrorCode.NO_MEDIA, 'No media found. Post may be private.');
+            // Re-check content issues with cookie (might still be restricted)
+            if (contentIssue === ScraperErrorCode.AGE_RESTRICTED) {
+                return createError(ScraperErrorCode.AGE_RESTRICTED, 'Age-restricted content. Try with a different cookie.');
+            }
+            if (contentIssue === ScraperErrorCode.PRIVATE_CONTENT) {
+                return createError(ScraperErrorCode.PRIVATE_CONTENT, 'This content is private or has been removed.');
+            }
+            // Generic no media error
+            return createError(ScraperErrorCode.NO_MEDIA, 'No media found. Post may be text-only or private.');
         }
 
-        formats = dedupeFormats(formats);
+        // Dedupe & sort
+        const seen = new Set<string>();
+        formats = formats.filter(f => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
+        formats.sort((a, b) => (a.type === 'video' ? 0 : 1) - (b.type === 'video' ? 0 : 1) || getResValue(b.quality) - getResValue(a.quality));
 
         // Build result
-        let title = decodeHtml(meta.title || 'Facebook Post');
-        title = title.replace(/^[\d.]+K?\s*views.*?\|\s*/i, '').trim();
+        let title = decodeHtml(meta.title || 'Facebook Post').replace(/^[\d.]+K?\s*views.*?\|\s*/i, '').trim();
         if (title.length > 100) title = title.substring(0, 100) + '...';
-        
         const description = extractDescription(decoded);
         if ((title === 'Facebook' || title === 'Facebook Post') && description) {
             title = description.length > 80 ? description.substring(0, 80) + '...' : description;
         }
 
-        const engagement = extractEngagement(decoded);
-        const postedAt = extractPostDate(decoded);
-        
+        const videoCount = formats.filter(f => f.type === 'video').length;
+        const imageCount = formats.filter(f => f.type === 'image').length;
+        logger.media('facebook', { videos: videoCount, images: imageCount });
+        logger.complete('facebook', Date.now() - startTime);
+
         const result: ScraperResult = {
             success: true,
             data: {
                 title,
                 thumbnail: meta.thumbnail || formats.find(f => f.thumbnail)?.thumbnail || '',
-                author: extractAuthor(decoded, fetchUrl),
+                author: extractAuthor(decoded, finalUrl),
                 description,
-                postedAt,
-                engagement: Object.keys(engagement).length > 0 ? engagement : undefined,
+                postedAt: extractPostDate(decoded),
+                engagement: extractEngagement(decoded),
                 formats,
                 url: inputUrl
             }
         };
-        
+
         setCache('facebook', inputUrl, result);
         return result;
-        
-    } catch (e) {
+
+      } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to fetch';
-        if (msg === 'CHECKPOINT_REQUIRED') {
-            return createError(ScraperErrorCode.CHECKPOINT_REQUIRED);
-        }
+        if (msg === 'CHECKPOINT_REQUIRED') return createError(ScraperErrorCode.CHECKPOINT_REQUIRED);
         return createError(ScraperErrorCode.NETWORK_ERROR, msg);
+      }
+    }; // end doScrape
+
+    // SMART RETRY LOGIC:
+    // 1. Try WITHOUT cookie first (guest mode often has better video URLs)
+    // 2. If no media found AND cookie available → retry WITH cookie
+    // 3. Stories always use cookie (already checked above)
+    
+    const isStory = /\/stories\//.test(inputUrl);
+    
+    // Stories: always use cookie
+    if (isStory) {
+        return doScrape(true);
     }
+    
+    // Other content: try guest first
+    const guestResult = await doScrape(false);
+    
+    // Check if we need to retry with cookie
+    const shouldRetry = hasCookie && (
+        // No media found or failed
+        (!guestResult.success) ||
+        (guestResult.data?.formats?.length === 0) ||
+        // Specific retryable errors
+        (guestResult.errorCode === ScraperErrorCode.AGE_RESTRICTED) ||
+        (guestResult.errorCode === ScraperErrorCode.COOKIE_REQUIRED) ||
+        (guestResult.errorCode === ScraperErrorCode.PRIVATE_CONTENT) ||
+        (guestResult.errorCode === ScraperErrorCode.NO_MEDIA)
+    );
+    
+    if (shouldRetry) {
+        logger.debug('facebook', 'Retrying with cookie...');
+        const cookieResult = await doScrape(true);
+        
+        // Return cookie result if better, otherwise return guest result
+        if (cookieResult.success && (cookieResult.data?.formats?.length || 0) > 0) {
+            return cookieResult;
+        }
+        // If cookie also failed, return the more informative error
+        if (!guestResult.success && !cookieResult.success) {
+            return cookieResult; // Cookie error usually more specific
+        }
+    }
+    
+    return guestResult;
 }

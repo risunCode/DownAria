@@ -67,12 +67,12 @@ const DEFAULT_CONFIG: ServiceConfig = {
         weibo: { id: 'weibo', name: 'Weibo', enabled: true, method: 'Mobile API', rateLimit: 10, cacheTime: 300, disabledMessage: 'Weibo service is temporarily unavailable.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } },
         douyin: { id: 'douyin', name: 'Douyin', enabled: false, method: 'TikWM API (Offline)', rateLimit: 10, cacheTime: 300, disabledMessage: 'Douyin service is currently offline.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } }
     },
-    globalRateLimit: 60,
-    playgroundRateLimit: 5,
+    globalRateLimit: 15, // 15 req/min for public home
+    playgroundRateLimit: 5, // 5 req/2min for playground
     playgroundEnabled: true,
     maintenanceMode: false,
     maintenanceMessage: '🔧 XTFetch is under maintenance. Please try again later.',
-    apiKeyRequired: true,
+    apiKeyRequired: false, // Default: public access without API key
     lastUpdated: new Date().toISOString()
 };
 
@@ -222,6 +222,10 @@ export function isPlaygroundEnabled(): boolean {
 
 export function getPlaygroundRateLimit(): number {
     return serviceConfig.playgroundRateLimit;
+}
+
+export function getGlobalRateLimit(): number {
+    return serviceConfig.globalRateLimit;
 }
 
 export function getPlatformDisabledMessage(platformId: PlatformId): string {

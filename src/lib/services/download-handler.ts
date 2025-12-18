@@ -8,32 +8,34 @@ import { matchesPlatform } from '@/lib/services/api-config';
 import { scrapeFacebook } from '@/lib/services/facebook';
 import { scrapeInstagram } from '@/lib/services/instagram';
 import { scrapeTwitter } from '@/lib/services/twitter';
-import { fetchTikWM } from '@/lib/services/tiktok';
-import { scrapeYouTubeInnertube } from '@/lib/services/youtube-innertube';
+import { scrapeTikTok } from '@/lib/services/tiktok';
+import { scrapeCobalt } from '@/lib/services/cobalt';
 import { scrapeWeibo } from '@/lib/services/weibo';
 import { logger } from '@/lib/services/logger';
 import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
-import { 
-    isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, 
-    getPlatformDisabledMessage, recordRequest, isApiKeyRequired, 
-    type PlatformId 
+import {
+    isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage,
+    getPlatformDisabledMessage, recordRequest, isApiKeyRequired,
+    type PlatformId
 } from '@/lib/services/service-config';
 import { extractApiKey, validateApiKey, recordKeyUsage } from '@/lib/services/api-keys';
-import { getCached, setCache, getCacheKey } from '@/lib/utils/api-security';
+import { getCache, setCache } from '@/lib/services/cache';
 import { isValidSocialUrl, isValidCookie, detectAttackPatterns, validateRequestBody } from '@/lib/utils/security';
 
-type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'youtube' | 'weibo';
+type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'youtube' | 'weibo' | 'douyin';
 
 interface DownloadParams {
     url: string;
     cookie?: string;
     platform?: string; // If provided, skip auto-detect
+    skipCache?: boolean; // Skip both API and scraper cache
 }
 
 function detectPlatform(url: string): Platform | null {
     if (matchesPlatform(url, 'instagram')) return 'instagram';
     if (matchesPlatform(url, 'facebook')) return 'facebook';
     if (matchesPlatform(url, 'twitter')) return 'twitter';
+    if (matchesPlatform(url, 'douyin')) return 'douyin';
     if (matchesPlatform(url, 'tiktok')) return 'tiktok';
     if (matchesPlatform(url, 'youtube')) return 'youtube';
     if (matchesPlatform(url, 'weibo')) return 'weibo';
@@ -75,33 +77,33 @@ export function getApiInfo() {
 }
 
 export async function handleDownload(
-    request: NextRequest, 
+    request: NextRequest,
     params: DownloadParams
 ): Promise<NextResponse> {
     const startTime = Date.now();
-    const { url, cookie: userCookie, platform: forcePlatform } = params;
+    const { url, cookie: userCookie, platform: forcePlatform, skipCache = false } = params;
 
     // Maintenance check
     if (isMaintenanceMode()) {
-        return NextResponse.json({ 
-            success: false, 
-            error: getMaintenanceMessage() 
+        return NextResponse.json({
+            success: false,
+            error: getMaintenanceMessage()
         }, { status: 503 });
     }
 
     // URL validation
     if (!url) {
-        return NextResponse.json({ 
-            success: false, 
-            error: 'URL required' 
+        return NextResponse.json({
+            success: false,
+            error: 'URL required'
         }, { status: 400 });
     }
 
     const urlValidation = isValidSocialUrl(url);
     if (!urlValidation.valid) {
-        return NextResponse.json({ 
-            success: false, 
-            error: urlValidation.error || 'Invalid URL' 
+        return NextResponse.json({
+            success: false,
+            error: urlValidation.error || 'Invalid URL'
         }, { status: 400 });
     }
 
@@ -114,9 +116,9 @@ export async function handleDownload(
     if (userCookie) {
         const cookieValidation = isValidCookie(userCookie);
         if (!cookieValidation.valid) {
-            return NextResponse.json({ 
-                success: false, 
-                error: cookieValidation.error 
+            return NextResponse.json({
+                success: false,
+                error: cookieValidation.error
             }, { status: 400 });
         }
         if (detectAttackPatterns(userCookie)) {
@@ -132,15 +134,15 @@ export async function handleDownload(
 
     // API Key validation
     let validatedKey: { id: string } | null = null;
-    
+
     // NOTE: Admin bypass removed for security - all requests must use API key when required
     // Playground should use a valid API key for testing
-    
+
     if (isApiKeyRequired()) {
         const apiKey = extractApiKey(request);
         if (!apiKey) {
-            return NextResponse.json({ 
-                success: false, 
+            return NextResponse.json({
+                success: false,
                 error: 'API key required',
                 hint: 'Use header X-API-Key or Authorization: Bearer'
             }, { status: 401 });
@@ -148,8 +150,8 @@ export async function handleDownload(
 
         const validation = await validateApiKey(apiKey);
         if (!validation.valid) {
-            return NextResponse.json({ 
-                success: false, 
+            return NextResponse.json({
+                success: false,
                 error: validation.error,
                 remaining: validation.remaining
             }, { status: 401 });
@@ -160,8 +162,8 @@ export async function handleDownload(
     // Detect or use forced platform
     const platform = (forcePlatform as Platform) || detectPlatform(url);
     if (!platform) {
-        return NextResponse.json({ 
-            success: false, 
+        return NextResponse.json({
+            success: false,
             error: 'Unsupported URL. Use /api/download/{platform} for explicit routing.',
             supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo']
         }, { status: 400 });
@@ -169,28 +171,29 @@ export async function handleDownload(
 
     // Platform enabled check
     if (!isPlatformEnabled(platform as PlatformId)) {
-        return NextResponse.json({ 
-            success: false, 
+        return NextResponse.json({
+            success: false,
             error: getPlatformDisabledMessage(platform as PlatformId),
             platform
         }, { status: 503 });
     }
 
-    // Cache check
-    const cacheKey = getCacheKey(platform, url);
-    const cached = getCached<{ data: unknown; usedCookie?: boolean }>(cacheKey);
-    if (cached) {
-        logger.debug(platform, 'Cache hit');
-        recordRequest(platform as PlatformId, true, 0);
-        if (validatedKey) await recordKeyUsage(validatedKey.id, true);
-        const cachedData = typeof cached.data === 'object' && cached.data !== null 
-            ? { ...(cached.data as object), cached: true }
-            : { data: cached.data, cached: true };
-        return NextResponse.json({ 
-            success: true, 
-            platform,
-            data: cachedData
-        });
+    // Cache check (skip if skipCache is true)
+    if (!skipCache) {
+        const cached = await getCache<{ data: unknown; usedCookie?: boolean }>(platform as PlatformId, url);
+        if (cached) {
+            logger.debug(platform, 'Cache hit');
+            recordRequest(platform as PlatformId, true, 0);
+            if (validatedKey) await recordKeyUsage(validatedKey.id, true);
+            const cachedData = typeof cached.data === 'object' && cached.data !== null
+                ? { ...(cached.data as object), cached: true }
+                : { data: cached.data, cached: true };
+            return NextResponse.json({
+                success: true,
+                platform,
+                data: cachedData
+            });
+        }
     }
 
     logger.url(platform, url);
@@ -212,39 +215,44 @@ export async function handleDownload(
             case 'facebook':
             case 'instagram': {
                 const scraper = platform === 'instagram' ? scrapeInstagram : scrapeFacebook;
-                result = await scraper(url);
+                result = await scraper(url, { skipCache });
                 if (!result.success && cookie) {
                     logger.debug(platform, `Retrying with ${isAdminCookie ? 'admin' : 'user'} cookie`);
-                    result = await scraper(url, { cookie });
+                    result = await scraper(url, { cookie, skipCache });
                     if (result.success) usedCookie = true;
                 }
                 break;
             }
             case 'twitter': {
-                result = await scrapeTwitter(url);
+                result = await scrapeTwitter(url, { skipCache });
                 if (!result.success && cookie) {
                     logger.debug(platform, `Retrying with ${isAdminCookie ? 'admin' : 'user'} cookie`);
-                    result = await scrapeTwitter(url, { cookie });
+                    result = await scrapeTwitter(url, { cookie, skipCache });
                     if (result.success) usedCookie = true;
                 }
                 break;
             }
             case 'tiktok': {
-                const tikResult = await fetchTikWM(url);
+                const tikResult = await scrapeTikTok(url, { skipCache });
                 result = tikResult.success && tikResult.data
                     ? { success: true, data: { ...tikResult.data, url } }
                     : { success: false, error: tikResult.error || 'TikTok fetch failed' };
                 break;
             }
-            case 'youtube': {
-                result = await scrapeYouTubeInnertube(url);
+            case 'youtube':
+            case 'douyin': {
+                // YouTube & Douyin: Cobalt API (primary, no fallback)
+                const cobaltResult = await scrapeCobalt(url, { skipCache, quality: platform === 'youtube' ? 'max' : '1080' });
+                result = cobaltResult.success && cobaltResult.data
+                    ? { success: true, data: { ...cobaltResult.data, url } }
+                    : { success: false, error: cobaltResult.error || `${platform} fetch failed` };
                 break;
             }
             case 'weibo': {
                 if (!cookie) {
                     result = { success: false, error: 'Weibo requires cookie (SUB)' };
                 } else {
-                    result = await scrapeWeibo(url, { cookie });
+                    result = await scrapeWeibo(url, { cookie, skipCache });
                     usedCookie = true;
                 }
                 break;
@@ -260,16 +268,16 @@ export async function handleDownload(
 
     if (result.success && result.data) {
         // Cache successful response
-        setCache(cacheKey, { data: result.data, usedCookie });
+        setCache(platform as PlatformId, url, { data: result.data, usedCookie });
         recordRequest(platform as PlatformId, true, responseTime);
         if (validatedKey) await recordKeyUsage(validatedKey.id, true);
 
-        const responseData = typeof result.data === 'object' && result.data !== null 
+        const responseData = typeof result.data === 'object' && result.data !== null
             ? { ...result.data, usedCookie: usedCookie || undefined, cached: false, responseTime }
             : { data: result.data, usedCookie: usedCookie || undefined, cached: false, responseTime };
-            
-        return NextResponse.json({ 
-            success: true, 
+
+        return NextResponse.json({
+            success: true,
             platform,
             data: responseData
         });
@@ -279,8 +287,8 @@ export async function handleDownload(
     if (validatedKey) await recordKeyUsage(validatedKey.id, false);
     logger.error(platform, result.error || 'No media found');
 
-    return NextResponse.json({ 
-        success: false, 
+    return NextResponse.json({
+        success: false,
         platform,
         error: result.error || 'Could not extract media'
     }, { status: 400 });

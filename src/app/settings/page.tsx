@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload } from 'lucide-react';
+import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import { ThemeType, getTheme, saveTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus } from '@/lib/utils/storage';
+import { isPushSupported, getPermissionStatus, subscribeToPush, unsubscribeFromPush, isSubscribed } from '@/lib/utils/push-notifications';
 import { FacebookIcon, WeiboIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
 import Swal from 'sweetalert2';
 import Announcements from '@/components/Announcements';
@@ -28,6 +29,12 @@ export default function SettingsPage() {
     const [adminCookies, setAdminCookies] = useState<Record<string, boolean>>({});
     const [editPlatform, setEditPlatform] = useState<CookiePlatform | null>(null);
     const [editValue, setEditValue] = useState('');
+    
+    // Push notification states
+    const [pushSupported, setPushSupported] = useState(false);
+    const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default');
+    const [pushSubscribed, setPushSubscribed] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
 
     useEffect(() => {
         setCurrentTheme(getTheme());
@@ -40,6 +47,14 @@ export default function SettingsPage() {
                 setAdminCookies(status);
             }
         }).catch(() => {});
+        
+        // Check push notification status
+        const supported = isPushSupported();
+        setPushSupported(supported);
+        if (supported) {
+            setPushPermission(getPermissionStatus());
+            isSubscribed().then(setPushSubscribed).catch(() => {});
+        }
     }, []);
 
     const handleThemeChange = (theme: ThemeType) => {
@@ -66,6 +81,30 @@ export default function SettingsPage() {
     const handleClearCookie = (platform: CookiePlatform) => {
         clearPlatformCookie(platform);
         setUserCookies(getAllCookieStatus());
+    };
+
+    // Push notification handlers
+    const handlePushToggle = async () => {
+        if (!pushSupported) return;
+        setPushLoading(true);
+        try {
+            if (pushSubscribed) {
+                await unsubscribeFromPush();
+                setPushSubscribed(false);
+                Swal.fire({ icon: 'success', title: 'Unsubscribed', text: 'You will no longer receive notifications', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            } else {
+                await subscribeToPush();
+                setPushSubscribed(true);
+                setPushPermission('granted');
+                Swal.fire({ icon: 'success', title: 'Subscribed!', text: 'You will receive notifications from XTFetch', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Failed to update subscription';
+            if (msg.includes('denied')) setPushPermission('denied');
+            Swal.fire({ icon: 'error', title: 'Error', text: msg, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        } finally {
+            setPushLoading(false);
+        }
     };
 
     const clearAllCookies = async () => {
@@ -209,6 +248,57 @@ export default function SettingsPage() {
                                 </div>
                             </motion.section>
 
+                            {/* Notifications Section */}
+                            <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Bell className="w-5 h-5 text-amber-400" />
+                                    <h2 className="font-semibold">Notifications</h2>
+                                </div>
+                                <div className="glass-card p-5">
+                                    {/* Push Notifications */}
+                                    {!pushSupported ? (
+                                        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                            <p className="text-xs text-amber-400 flex items-center gap-2">
+                                                <BellOff className="w-4 h-4" />
+                                                Push notifications not supported in this browser
+                                            </p>
+                                        </div>
+                                    ) : pushPermission === 'denied' ? (
+                                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                                            <p className="text-xs text-red-400 flex items-center gap-2">
+                                                <BellOff className="w-4 h-4" />
+                                                Notifications blocked. Enable in browser settings.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                                            <div className="flex items-center gap-3">
+                                                {pushSubscribed ? (
+                                                    <Bell className="w-5 h-5 text-green-400" />
+                                                ) : (
+                                                    <BellOff className="w-5 h-5 text-[var(--text-muted)]" />
+                                                )}
+                                                <div>
+                                                    <p className="text-sm font-medium">Push Notifications</p>
+                                                    <p className="text-xs text-[var(--text-muted)]">
+                                                        {pushSubscribed ? 'Receiving updates' : 'Get notified about updates'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button 
+                                                variant={pushSubscribed ? 'secondary' : 'primary'} 
+                                                size="sm" 
+                                                onClick={handlePushToggle}
+                                                disabled={pushLoading}
+                                                leftIcon={pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (pushSubscribed ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />)}
+                                            >
+                                                {pushSubscribed ? 'Disable' : 'Enable'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.section>
+
                             {/* Data & Storage Section */}
                             <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                                 <div className="flex items-center gap-2 mb-4">
@@ -282,6 +372,7 @@ export default function SettingsPage() {
                                     <StorageInfo />
                                 </div>
                             </motion.section>
+
                         </div>
 
                         {/* Right Column - Cookies Section */}

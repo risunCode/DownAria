@@ -77,11 +77,31 @@
   
   --success: #16a34a;
   --error: #dc2626;
-  --warning: #d97706;
+  --warning: #b45309; /* Darker amber for solarized - better contrast */
   
   --border-color: #d6d3d1;
   --glass-bg: rgba(28, 25, 23, 0.03);
   --glass-border: rgba(28, 25, 23, 0.12);
+}
+
+/* Solarized-specific color overrides for better contrast */
+.theme-solarized .text-yellow-400,
+.theme-solarized .text-amber-400 {
+  color: #b45309 !important; /* amber-700 - much better contrast on cream */
+}
+
+.theme-solarized .bg-yellow-500\/10,
+.theme-solarized .bg-yellow-500\/20,
+.theme-solarized .bg-amber-500\/10,
+.theme-solarized .bg-amber-500\/20 {
+  background-color: rgba(180, 83, 9, 0.15) !important;
+}
+
+.theme-solarized .border-yellow-500\/20,
+.theme-solarized .border-yellow-500\/30,
+.theme-solarized .border-amber-500\/20,
+.theme-solarized .border-amber-500\/30 {
+  border-color: rgba(180, 83, 9, 0.3) !important;
 }
 
 /* Dark Theme - Solid teal/cyan style */
@@ -400,4 +420,37 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+
+/* Shiny border animation for preview cards */
+.shiny-border {
+  position: relative;
+  overflow: visible;
+}
+
+.shiny-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 25%,
+    transparent 50%,
+    var(--accent-secondary) 75%,
+    var(--accent-primary) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: spin-border 4s linear infinite;
+  opacity: 0.6;
+}
+
+.shiny-border:hover::before {
+  opacity: 1;
 }

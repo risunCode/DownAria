@@ -94,7 +94,7 @@ export function isValidSocialUrl(url: string): { valid: boolean; error?: string 
         const hostname = parsed.hostname.toLowerCase();
 
         // Check if domain is allowed
-        const isAllowed = ALLOWED_DOMAINS.some(domain => 
+        const isAllowed = ALLOWED_DOMAINS.some(domain =>
             hostname === domain || hostname.endsWith('.' + domain)
         );
 
@@ -144,35 +144,76 @@ export function isValidCookie(cookie: string): { valid: boolean; error?: string 
 // ENCRYPTION (for sensitive data in DB)
 // ═══════════════════════════════════════════════════════════════
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-change-in-production-32';
 const ALGORITHM = 'aes-256-gcm';
+const SALT_LENGTH = 16;
 
-export function encrypt(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    
-    const authTag = cipher.getAuthTag();
-    
-    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+// Get encryption key - MUST be set in production
+function getEncryptionKey(): string {
+    const key = process.env.ENCRYPTION_KEY;
+    if (!key && process.env.NODE_ENV === 'production') {
+        throw new Error('ENCRYPTION_KEY environment variable is required in production');
+    }
+    return key || 'default-key-for-development-only';
 }
 
+/**
+ * Encrypt text with AES-256-GCM
+ * Format: salt:iv:authTag:encrypted (all hex encoded)
+ * Uses random salt per encryption for better security
+ */
+export function encrypt(text: string): string {
+    const salt = crypto.randomBytes(SALT_LENGTH);
+    const iv = crypto.randomBytes(16);
+    const key = crypto.scryptSync(getEncryptionKey(), salt, 32);
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    const authTag = cipher.getAuthTag();
+
+    // Include salt in output for decryption
+    return salt.toString('hex') + ':' + iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+}
+
+/**
+ * Decrypt text encrypted with encrypt()
+ * Supports both new format (salt:iv:authTag:encrypted) and legacy format (iv:authTag:encrypted)
+ */
 export function decrypt(encryptedText: string): string {
     try {
-        const [ivHex, authTagHex, encrypted] = encryptedText.split(':');
+        const parts = encryptedText.split(':');
+
+        // Support legacy format (without salt) for backward compatibility
+        if (parts.length === 3) {
+            // Legacy format: iv:authTag:encrypted (using hardcoded salt)
+            const [ivHex, authTagHex, encrypted] = parts;
+            const iv = Buffer.from(ivHex, 'hex');
+            const authTag = Buffer.from(authTagHex, 'hex');
+            const key = crypto.scryptSync(getEncryptionKey(), 'salt', 32);
+
+            const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+            decipher.setAuthTag(authTag);
+
+            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+
+            return decrypted;
+        }
+
+        // New format: salt:iv:authTag:encrypted
+        const [saltHex, ivHex, authTagHex, encrypted] = parts;
+        const salt = Buffer.from(saltHex, 'hex');
         const iv = Buffer.from(ivHex, 'hex');
         const authTag = Buffer.from(authTagHex, 'hex');
-        const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-        
+        const key = crypto.scryptSync(getEncryptionKey(), salt, 32);
+
         const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
         decipher.setAuthTag(authTag);
-        
+
         let decrypted = decipher.update(encrypted, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
-        
+
         return decrypted;
     } catch {
         return '';
@@ -214,7 +255,7 @@ export function validateRequestBody(body: unknown, maxSize = 10000): { valid: bo
     if (!body) return { valid: true };
 
     const str = typeof body === 'string' ? body : JSON.stringify(body);
-    
+
     if (str.length > maxSize) {
         return { valid: false, error: 'Request body too large' };
     }
@@ -236,4 +277,28 @@ export function detectAttackPatterns(input: string): boolean {
     ];
 
     return patterns.some(p => p.test(input));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT IP EXTRACTION (Centralized)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Extract client IP from request headers
+ * Supports both NextRequest and standard Request types
+ */
+export function getClientIP(request: Request): string {
+    // Try x-forwarded-for header (set by proxies/load balancers)
+    const forwarded = request.headers.get('x-forwarded-for');
+    if (forwarded) {
+        // Take first IP in case of multiple proxies
+        return forwarded.split(',')[0].trim();
+    }
+
+    // Try x-real-ip header (set by some reverse proxies)
+    const realIP = request.headers.get('x-real-ip');
+    if (realIP) return realIP;
+
+    // Fallback
+    return 'unknown';
 }

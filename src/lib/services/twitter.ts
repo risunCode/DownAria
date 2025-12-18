@@ -15,7 +15,7 @@
 import { MediaFormat } from '@/lib/types';
 import { addFormat } from '@/lib/utils/http';
 import { matchesPlatform, getApiEndpoint } from './api-config';
-import { fetchWithTimeout, apiFetch, BROWSER_HEADERS, ScraperResult, ScraperOptions, EngagementStats } from './fetch-helper';
+import { fetchWithTimeout, apiFetch, BROWSER_HEADERS, ScraperResult, ScraperOptions, EngagementStats, resolveUrlWithLog } from './fetch-helper';
 import { getCache, setCache } from './cache';
 import { createError, ScraperErrorCode } from './errors';
 import { logger } from './logger';
@@ -295,20 +295,9 @@ function parseMedia(data: TweetData, username: string): { formats: MediaFormat[]
 
 export async function scrapeTwitter(url: string, options?: ScraperOptions): Promise<ScraperResult> {
     const { cookie, skipCache = false } = options || {};
-    let twitterUrl = url;
-
-    // Resolve t.co short links
-    if (url.includes('t.co/')) {
-        try {
-            const res = await fetchWithTimeout(url, { 
-                method: 'GET', 
-                redirect: 'follow', 
-                timeout: 5000, 
-                headers: BROWSER_HEADERS 
-            });
-            if (res.url && res.url !== url) twitterUrl = res.url;
-        } catch { /* use original */ }
-    }
+    
+    // Resolve t.co short links using centralized resolver
+    const { resolved: twitterUrl } = await resolveUrlWithLog(url, 'twitter', 3000);
 
     if (!matchesPlatform(twitterUrl, 'twitter')) {
         return createError(ScraperErrorCode.INVALID_URL, 'Invalid Twitter/X URL');
@@ -320,17 +309,16 @@ export async function scrapeTwitter(url: string, options?: ScraperOptions): Prom
     }
 
     const [, username, tweetId] = match;
+    logger.type('twitter', 'tweet');
     
     // Check cache
     if (!skipCache) {
-        const cached = getCache<ScraperResult>('twitter', twitterUrl);
+        const cached = await getCache<ScraperResult>('twitter', twitterUrl);
         if (cached?.success) {
-            logger.debug('twitter', 'Cache hit');
+            logger.cache('twitter', true);
             return { ...cached, cached: true };
         }
     }
-    
-    logger.debug('twitter', `Tweet: ${tweetId} by @${username} | Cookie: ${cookie ? 'Yes' : 'No'}`);
 
     // ─────────────────────────────────────────────────────────────────
     // Step 1: Try Syndication API (public content)
@@ -381,6 +369,10 @@ export async function scrapeTwitter(url: string, options?: ScraperOptions): Prom
                     type: unique.some(f => f.type === 'video') ? 'video' : 'image',
                 }
             };
+            
+            const videoCount = unique.filter(f => f.type === 'video').length;
+            const imageCount = unique.filter(f => f.type === 'image').length;
+            logger.media('twitter', { videos: videoCount, images: imageCount });
             
             setCache('twitter', twitterUrl, result);
             return result;

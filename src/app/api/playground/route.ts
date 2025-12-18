@@ -13,14 +13,14 @@ import { scrapeTikTok } from '@/lib/services/tiktok';
 import { scrapeYouTube } from '@/lib/services/youtube-innertube';
 import { scrapeWeibo } from '@/lib/services/weibo';
 import { logger } from '@/lib/services/logger';
-import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, isPlaygroundEnabled, getPlaygroundRateLimit, type PlatformId } from '@/lib/services/service-config';
+import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, getPlaygroundRateLimit, loadConfigFromDB, getServiceConfig, type PlatformId } from '@/lib/services/service-config';
 import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
 import { isValidSocialUrl, detectAttackPatterns } from '@/lib/utils/security';
 
 type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'youtube' | 'weibo';
 
-// Rate limit window (1 minute)
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+// Rate limit window (2 minutes for playground)
+const RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
 
 // In-memory rate limit store (per IP)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
@@ -89,7 +89,7 @@ function checkGuestRateLimit(ip: string): { allowed: boolean; remaining: number;
     
     if (!entry || now >= entry.resetAt) {
         rateLimitStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-        return { allowed: true, remaining: maxRequests - 1, resetIn: 60, limit: maxRequests };
+        return { allowed: true, remaining: maxRequests - 1, resetIn: 120, limit: maxRequests };
     }
     
     if (entry.count >= maxRequests) {
@@ -116,15 +116,20 @@ function detectPlatform(url: string): Platform | null {
     return null;
 }
 
-export async function POST(request: NextRequest) {
+// Shared handler for both GET and POST
+async function handlePlaygroundRequest(request: NextRequest, url: string): Promise<NextResponse> {
     const startTime = Date.now();
     const clientIP = getClientIP(request);
     
+    // Force refresh config from DB for accurate playground status
+    await loadConfigFromDB();
+    const config = getServiceConfig();
+    
     // Check if playground is enabled
-    if (!isPlaygroundEnabled()) {
+    if (!config.playgroundEnabled) {
         return NextResponse.json({ 
             success: false, 
-            error: 'Guest playground is currently disabled. Please use API key authentication.' 
+            error: 'Guest playground is currently disabled.' 
         }, { status: 503 });
     }
     
@@ -136,168 +141,170 @@ export async function POST(request: NextRequest) {
         }, { status: 503 });
     }
     
-    try {
-        const body = await request.json();
-        const { url } = body;
+    // Get current rate limit status (without deducting)
+    const maxRequests = getPlaygroundRateLimit();
+    const currentEntry = rateLimitStore.get(clientIP);
+    const now = Date.now();
+    const currentRemaining = (!currentEntry || now >= currentEntry.resetAt) 
+        ? maxRequests 
+        : Math.max(0, maxRequests - currentEntry.count);
+    
+    if (!url) {
+        return NextResponse.json({ 
+            success: false, 
+            error: 'URL required',
+            rateLimit: { remaining: currentRemaining, limit: maxRequests }
+        }, { status: 400 });
+    }
+    
+    // Validate URL BEFORE rate limit check (don't waste limit on invalid URLs)
+    const urlValidation = isValidSocialUrl(url);
+    if (!urlValidation.valid) {
+        return NextResponse.json({ 
+            success: false, 
+            error: urlValidation.error || 'Invalid URL',
+            rateLimit: { remaining: currentRemaining, limit: maxRequests }
+        }, { status: 400 });
+    }
+    
+    // Check for attack patterns (don't deduct rate limit)
+    if (detectAttackPatterns(url)) {
+        logger.error('security', `Attack pattern in playground from ${clientIP}`);
+        return NextResponse.json({ 
+            success: false, 
+            error: 'Invalid URL',
+            rateLimit: { remaining: currentRemaining, limit: maxRequests }
+        }, { status: 400 });
+    }
+    
+    // Detect platform (don't deduct rate limit for unsupported)
+    const platform = detectPlatform(url);
+    if (!platform) {
+        return NextResponse.json({ 
+            success: false, 
+            error: 'Unsupported URL. Supported: Facebook, Instagram, Twitter, TikTok, YouTube, Weibo',
+            supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'],
+            rateLimit: { remaining: currentRemaining, limit: maxRequests }
+        }, { status: 400 });
+    }
+    
+    // NOW check rate limit (only for valid URLs that will actually be processed)
+    const isCached = isUrlCached(clientIP, url);
+    const rateCheck = isCached 
+        ? { allowed: true, remaining: currentRemaining, resetIn: 60, limit: maxRequests }
+        : checkGuestRateLimit(clientIP);
         
-        // Get current rate limit status (without deducting)
-        const maxRequests = getPlaygroundRateLimit();
-        const currentEntry = rateLimitStore.get(clientIP);
-        const now = Date.now();
-        const currentRemaining = (!currentEntry || now >= currentEntry.resetAt) 
-            ? maxRequests 
-            : Math.max(0, maxRequests - currentEntry.count);
-        
-        if (!url) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'URL required',
-                rateLimit: { remaining: currentRemaining, limit: maxRequests }
-            }, { status: 400 });
-        }
-        
-        // Validate URL BEFORE rate limit check (don't waste limit on invalid URLs)
-        const urlValidation = isValidSocialUrl(url);
-        if (!urlValidation.valid) {
-            return NextResponse.json({ 
-                success: false, 
-                error: urlValidation.error || 'Invalid URL',
-                rateLimit: { remaining: currentRemaining, limit: maxRequests }
-            }, { status: 400 });
-        }
-        
-        // Check for attack patterns (don't deduct rate limit)
-        if (detectAttackPatterns(url)) {
-            logger.error('security', `Attack pattern in playground from ${clientIP}`);
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Invalid URL',
-                rateLimit: { remaining: currentRemaining, limit: maxRequests }
-            }, { status: 400 });
-        }
-        
-        // Detect platform (don't deduct rate limit for unsupported)
-        const platform = detectPlatform(url);
-        if (!platform) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'Unsupported URL. Supported: Facebook, Instagram, Twitter, TikTok, YouTube, Weibo',
-                supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'],
-                rateLimit: { remaining: currentRemaining, limit: maxRequests }
-            }, { status: 400 });
-        }
-        
-        // NOW check rate limit (only for valid URLs that will actually be processed)
-        const isCached = isUrlCached(clientIP, url);
-        const rateCheck = isCached 
-            ? { allowed: true, remaining: currentRemaining, resetIn: 60, limit: maxRequests }
-            : checkGuestRateLimit(clientIP);
-            
-        if (!rateCheck.allowed) {
-            return NextResponse.json({ 
-                success: false, 
-                error: `Rate limit exceeded. Try again in ${rateCheck.resetIn}s`,
-                rateLimit: {
-                    remaining: 0,
-                    resetIn: rateCheck.resetIn,
-                    limit: rateCheck.limit
-                }
-            }, { status: 429 });
-        }
-        
-        // Check if platform is enabled
-        if (!isPlatformEnabled(platform as PlatformId)) {
-            return NextResponse.json({ 
-                success: false, 
-                error: getPlatformDisabledMessage(platform as PlatformId),
-                platform,
-                rateLimit: { remaining: rateCheck.remaining, limit: rateCheck.limit }
-            }, { status: 503 });
-        }
-        
-        logger.debug('playground', `Guest request: ${platform} from ${clientIP}`);
-        
-        // Get admin cookie for platforms that need it
-        const cookiePlatforms: CookiePlatform[] = ['facebook', 'instagram', 'twitter', 'weibo'];
-        let cookie: string | undefined;
-        if (cookiePlatforms.includes(platform as CookiePlatform)) {
-            cookie = await getAdminCookie(platform as CookiePlatform) || undefined;
-        }
-        
-        // Execute scraper
-        let result;
-        let usedCookie = false;
-        
-        switch (platform) {
-            case 'facebook':
-                result = await scrapeFacebook(url);
-                if (!result.success && cookie) {
-                    result = await scrapeFacebook(url, { cookie });
-                    if (result.success) usedCookie = true;
-                }
-                break;
-            case 'instagram':
-                result = await scrapeInstagram(url);
-                if (!result.success && cookie) {
-                    result = await scrapeInstagram(url, { cookie });
-                    if (result.success) usedCookie = true;
-                }
-                break;
-            case 'twitter':
-                result = await scrapeTwitter(url);
-                if (!result.success && cookie) {
-                    result = await scrapeTwitter(url, { cookie });
-                    if (result.success) usedCookie = true;
-                }
-                break;
-            case 'tiktok':
-                result = await scrapeTikTok(url);
-                break;
-            case 'youtube':
-                result = await scrapeYouTube(url);
-                break;
-            case 'weibo':
-                if (!cookie) {
-                    result = { success: false, error: 'Weibo requires cookie' };
-                } else {
-                    result = await scrapeWeibo(url, { cookie });
-                    usedCookie = true;
-                }
-                break;
-        }
-        
-        const responseTime = Date.now() - startTime;
-        
-        if (result?.success && result.data) {
-            // Cache URL so same request doesn't count against rate limit
-            cacheUrl(clientIP, url);
-            
-            return NextResponse.json({
-                success: true,
-                platform,
-                data: {
-                    ...result.data,
-                    usedCookie,
-                    responseTime,
-                },
-                rateLimit: {
-                    remaining: rateCheck.remaining,
-                    limit: rateCheck.limit
-                }
-            });
-        }
+    if (!rateCheck.allowed) {
+        return NextResponse.json({ 
+            success: false, 
+            error: `Rate limit exceeded. Try again in ${rateCheck.resetIn}s`,
+            rateLimit: {
+                remaining: 0,
+                resetIn: rateCheck.resetIn,
+                limit: rateCheck.limit
+            }
+        }, { status: 429 });
+    }
+    
+    // Check if platform is enabled
+    if (!isPlatformEnabled(platform as PlatformId)) {
+        return NextResponse.json({ 
+            success: false, 
+            error: getPlatformDisabledMessage(platform as PlatformId),
+            platform,
+            rateLimit: { remaining: rateCheck.remaining, limit: rateCheck.limit }
+        }, { status: 503 });
+    }
+    
+    logger.debug('playground', `Guest request: ${platform} from ${clientIP}`);
+    
+    // Get admin cookie for platforms that need it
+    const cookiePlatforms: CookiePlatform[] = ['facebook', 'instagram', 'twitter', 'weibo'];
+    let cookie: string | undefined;
+    if (cookiePlatforms.includes(platform as CookiePlatform)) {
+        cookie = await getAdminCookie(platform as CookiePlatform) || undefined;
+    }
+    
+    // Execute scraper
+    let result;
+    let usedCookie = false;
+    
+    switch (platform) {
+        case 'facebook':
+            result = await scrapeFacebook(url);
+            if (!result.success && cookie) {
+                result = await scrapeFacebook(url, { cookie });
+                if (result.success) usedCookie = true;
+            }
+            break;
+        case 'instagram':
+            result = await scrapeInstagram(url);
+            if (!result.success && cookie) {
+                result = await scrapeInstagram(url, { cookie });
+                if (result.success) usedCookie = true;
+            }
+            break;
+        case 'twitter':
+            result = await scrapeTwitter(url);
+            if (!result.success && cookie) {
+                result = await scrapeTwitter(url, { cookie });
+                if (result.success) usedCookie = true;
+            }
+            break;
+        case 'tiktok':
+            result = await scrapeTikTok(url);
+            break;
+        case 'youtube':
+            result = await scrapeYouTube(url);
+            break;
+        case 'weibo':
+            if (!cookie) {
+                result = { success: false, error: 'Weibo requires cookie' };
+            } else {
+                result = await scrapeWeibo(url, { cookie });
+                usedCookie = true;
+            }
+            break;
+    }
+    
+    const responseTime = Date.now() - startTime;
+    
+    if (result?.success && result.data) {
+        // Cache URL so same request doesn't count against rate limit
+        cacheUrl(clientIP, url);
         
         return NextResponse.json({
-            success: false,
+            success: true,
             platform,
-            error: result?.error || 'Could not extract media',
-            responseTime,
+            data: {
+                ...result.data,
+                usedCookie,
+                responseTime,
+            },
             rateLimit: {
                 remaining: rateCheck.remaining,
                 limit: rateCheck.limit
             }
-        }, { status: 400 });
-        
+        });
+    }
+    
+    return NextResponse.json({
+        success: false,
+        platform,
+        error: result?.error || 'Could not extract media',
+        responseTime,
+        rateLimit: {
+            remaining: rateCheck.remaining,
+            limit: rateCheck.limit
+        }
+    }, { status: 400 });
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { url } = body;
+        return handlePlaygroundRequest(request, url);
     } catch (error) {
         const limit = getPlaygroundRateLimit();
         return NextResponse.json({
@@ -311,9 +318,19 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function GET() {
-    const limit = getPlaygroundRateLimit();
-    const enabled = isPlaygroundEnabled();
+export async function GET(request: NextRequest) {
+    const url = request.nextUrl.searchParams.get('url');
+    
+    // If URL provided, process the request (same as POST)
+    if (url) {
+        return handlePlaygroundRequest(request, url);
+    }
+    
+    // No URL - return API info
+    await loadConfigFromDB();
+    const config = getServiceConfig();
+    const limit = config.playgroundRateLimit;
+    const enabled = config.playgroundEnabled;
     
     return NextResponse.json({
         name: 'XTFetch Guest Playground API',
@@ -322,13 +339,15 @@ export async function GET() {
         rateLimit: {
             maxRequests: limit,
             windowMs: RATE_LIMIT_WINDOW_MS,
+            windowMinutes: 2,
             note: 'Per IP address'
         },
         usage: {
-            method: 'POST',
-            body: { url: 'string (required)' },
+            get: 'GET /api/playground?url=<social_media_url>',
+            post: 'POST /api/playground with body { "url": "<social_media_url>" }',
             note: 'No API key required, uses admin cookies as fallback'
         },
+        example: '/api/playground?url=https://www.instagram.com/reel/C6O6Wp-yXHy/',
         supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo']
     });
 }

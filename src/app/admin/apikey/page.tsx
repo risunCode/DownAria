@@ -249,6 +249,9 @@ export default function ApiKeyPage() {
                     </div>
                 </div>
 
+                {/* Guest Playground Section */}
+                <PlaygroundSettings />
+
                 {/* API Docs (Collapsible) */}
                 <AnimatePresence>
                     {showDocs && (
@@ -605,5 +608,123 @@ export default function ApiKeyPage() {
                 </AnimatePresence>
             </div>
         </div>
+    );
+}
+
+// Guest Playground Settings Component
+function PlaygroundSettings() {
+    const [enabled, setEnabled] = useState(true);
+    const [rateLimit, setRateLimit] = useState(5);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        // Fetch current playground settings
+        fetch('/api/admin/services')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    setEnabled(data.data.playgroundEnabled ?? true);
+                    setRateLimit(data.data.playgroundRateLimit ?? 5);
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, []);
+
+    const saveSettings = async (newEnabled?: boolean, newRateLimit?: number) => {
+        setSaving(true);
+        try {
+            const res = await fetch('/api/admin/services', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'updateGlobal',
+                    playgroundEnabled: newEnabled ?? enabled,
+                    playgroundRateLimit: newRateLimit ?? rateLimit
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            }
+        } catch {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to save', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleToggle = () => {
+        const newEnabled = !enabled;
+        setEnabled(newEnabled);
+        saveSettings(newEnabled, undefined);
+    };
+
+    const handleRateLimitChange = (value: number) => {
+        setRateLimit(value);
+    };
+
+    const handleRateLimitBlur = () => {
+        saveSettings(undefined, rateLimit);
+    };
+
+    if (loading) {
+        return (
+            <div className="glass-card p-4">
+                <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--text-muted)]" />
+                    <span className="text-sm text-[var(--text-muted)]">Loading playground settings...</span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-purple-400" />
+                    <div>
+                        <h3 className="font-semibold text-sm">Guest Playground</h3>
+                        <p className="text-[10px] text-[var(--text-muted)]">/api/playground - No API key required</p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleToggle}
+                    disabled={saving}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${enabled ? 'bg-green-500' : 'bg-gray-600'}`}
+                >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? 'left-7' : 'left-1'}`} />
+                </button>
+            </div>
+
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-[var(--bg-secondary)]">
+                <div className="flex-1">
+                    <label className="text-xs text-[var(--text-muted)] block mb-1">Rate Limit</label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            value={rateLimit}
+                            onChange={e => handleRateLimitChange(Math.max(1, Math.min(100, parseInt(e.target.value) || 5)))}
+                            onBlur={handleRateLimitBlur}
+                            min={1}
+                            max={100}
+                            className="w-20 px-2 py-1 rounded bg-[var(--bg-card)] border border-[var(--border-color)] text-sm text-center"
+                        />
+                        <span className="text-xs text-[var(--text-muted)]">requests / 2 minutes</span>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <div className={`text-xs px-2 py-1 rounded-full ${enabled ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {enabled ? 'Enabled' : 'Disabled'}
+                    </div>
+                </div>
+            </div>
+
+            <p className="text-[10px] text-[var(--text-muted)] mt-2">
+                Allows users to test API at /advanced without authentication. Uses admin cookies as fallback.
+            </p>
+        </motion.div>
     );
 }

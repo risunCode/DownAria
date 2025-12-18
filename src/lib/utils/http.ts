@@ -1,25 +1,15 @@
 /**
  * HTTP Utilities for Social Downloader
- * Compact, smart helpers for URL validation, caching, extraction, and responses
+ * Compact, smart helpers for URL validation, extraction, and responses
+ * 
+ * NOTE: Cache moved to src/lib/services/cache.ts (Supabase-backed)
+ * NOTE: User-Agents centralized in src/lib/services/fetch-helper.ts
  */
 
 import { NextResponse } from 'next/server';
 import { DownloadResponse, MediaFormat } from '@/lib/types';
 import { PlatformId, getReferer, getPlatformConfig } from '@/lib/services/api-config';
-import { USER_AGENT } from '@/lib/services/fetch-helper';
-
-// ========== CACHE ==========
-const cache = new Map<string, { data: unknown; ts: number }>();
-const CACHE_TTL = 15 * 60 * 1000;
-
-export const getCache = <T>(key: string, ttl = CACHE_TTL): T | null => {
-    const e = cache.get(key);
-    if (e && Date.now() - e.ts < ttl) return e.data as T;
-    if (e) cache.delete(key);
-    return null;
-};
-
-export const setCache = <T>(key: string, data: T) => cache.set(key, { data, ts: Date.now() });
+import { getUserAgent, DESKTOP_USER_AGENT } from '@/lib/services/fetch-helper';
 
 // ========== URL VALIDATION ==========
 const TRUSTED_CDNS: Record<string, string[]> = {
@@ -32,10 +22,8 @@ export async function validateMediaUrl(url: string, platform: PlatformId, timeou
     try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), timeout);
-        // Use Safari macOS UA for TikTok/Douyin (from Burp capture)
-        const ua = (platform === 'tiktok' || platform === 'douyin') 
-            ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15'
-            : USER_AGENT;
+        // Use platform-specific UA from centralized fetch-helper
+        const ua = (platform === 'tiktok' || platform === 'douyin') ? DESKTOP_USER_AGENT : getUserAgent(platform);
         const res = await fetch(url, {
             method: 'HEAD',
             signal: ctrl.signal,

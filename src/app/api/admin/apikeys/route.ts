@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 import {
     getAllApiKeys,
     createApiKey,
@@ -14,9 +15,12 @@ import {
     resetKeyStats,
 } from '@/lib/services/api-keys';
 
-// GET - List all API keys (personal use - no auth)
+// GET - List all API keys
 export async function GET(request: NextRequest) {
-    void request;
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
     
     try {
         const keys = await getAllApiKeys();
@@ -29,8 +33,13 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST - Create, update, delete, regenerate keys (personal use - no auth)
+// POST - Create, update, delete, regenerate keys
 export async function POST(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     try {
         const body = await request.json();
         const { action, id, name, enabled, rateLimit, isTest, keyLength, keyFormat, validityDays, prefix } = body;

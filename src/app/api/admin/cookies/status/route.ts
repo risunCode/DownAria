@@ -4,12 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
 
 const PLATFORMS: CookiePlatform[] = ['facebook', 'instagram', 'twitter', 'weibo'];
 
 export async function GET(request: NextRequest) {
-    void request; // Personal use - no auth required
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
     
     const status: Record<string, boolean> = {};
     

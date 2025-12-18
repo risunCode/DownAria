@@ -5,14 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-    YoutubeIcon, 
-    FacebookIcon, 
-    InstagramIcon, 
-    XTwitterIcon, 
-    TiktokIcon, 
-    WeiboIcon, 
-    DouyinIcon 
+import {
+    YoutubeIcon,
+    FacebookIcon,
+    InstagramIcon,
+    XTwitterIcon,
+    TiktokIcon,
+    WeiboIcon,
+    DouyinIcon
 } from '@/components/ui/Icons';
 import { ThemeType, saveTheme, initTheme } from '@/lib/utils/storage';
 
@@ -44,14 +44,14 @@ export function SidebarLayout({ children }: SidebarProps) {
     useEffect(() => {
         const theme = initTheme();
         setCurrentTheme(theme);
-        
+
         // Fetch platform status from API
         fetch('/api/status')
             .then(res => res.json())
             .then(data => {
                 if (data.platforms) setPlatformStatus(data.platforms);
             })
-            .catch(() => {}); // Silently fail
+            .catch(() => { }); // Silently fail
     }, []);
 
     useEffect(() => {
@@ -90,7 +90,7 @@ export function SidebarLayout({ children }: SidebarProps) {
         { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
         { id: 'douyin', icon: DouyinIcon, label: 'Douyin', color: 'text-[var(--text-muted)]' },
     ];
-    
+
     // Merge with API status
     const platforms = platformsConfig.map(p => {
         const apiStatus = platformStatus.find(s => s.id === p.id);
@@ -123,7 +123,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                             </div>
                         </Link>
                     </div>
-                    
+
                     {/* Right: Theme, Home & Settings */}
                     <div className="flex items-center gap-1">
                         {/* Theme Dropdown */}
@@ -147,11 +147,10 @@ export function SidebarLayout({ children }: SidebarProps) {
                                             <button
                                                 key={theme.id}
                                                 onClick={() => handleThemeChange(theme.id)}
-                                                className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                                                    currentTheme === theme.id
+                                                className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${currentTheme === theme.id
                                                         ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
                                                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-                                                }`}
+                                                    }`}
                                             >
                                                 <theme.icon className="w-4 h-4" />
                                                 <span>{theme.label}</span>
@@ -166,21 +165,19 @@ export function SidebarLayout({ children }: SidebarProps) {
                         </div>
                         <Link
                             href="/"
-                            className={`p-2 rounded-lg transition-colors ${
-                                pathname === '/' 
-                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
+                            className={`p-2 rounded-lg transition-colors ${pathname === '/'
+                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
-                            }`}
+                                }`}
                         >
                             <Home className="w-5 h-5" />
                         </Link>
                         <Link
                             href="/settings"
-                            className={`p-2 rounded-lg transition-colors ${
-                                pathname === '/settings' 
-                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10' 
+                            className={`p-2 rounded-lg transition-colors ${pathname === '/settings'
+                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
-                            }`}
+                                }`}
                         >
                             <Settings className="w-5 h-5" />
                         </Link>
@@ -239,8 +236,8 @@ export function SidebarLayout({ children }: SidebarProps) {
 }
 
 interface SidebarContentProps {
-    navLinks: { href: string; label: string; icon: any }[];
-    platforms: { id: string; icon: any; label: string; color: string; status: 'active' | 'maintenance' | 'offline' }[];
+    navLinks: { href: string; label: string; icon: React.FC<{ className?: string }> }[];
+    platforms: { id: string; icon: React.FC<{ className?: string }>; label: string; color: string; status: 'active' | 'maintenance' | 'offline' }[];
     isActive: (href: string) => boolean;
     onLinkClick?: () => void;
 }
@@ -294,25 +291,23 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                         {platforms
                             .filter(p => p.id !== 'youtube' && p.id !== 'douyin')
                             .map((platform, index) => (
-                            <div
-                                key={index}
-                                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${
-                                    platform.status === 'offline' ? 'opacity-50' : ''
-                                }`}
-                            >
-                                <platform.icon className={`w-5 h-5 ${platform.color}`} />
-                                <span className="text-sm text-[var(--text-secondary)] flex-1">{platform.label}</span>
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                    platform.status === 'active' 
-                                        ? 'bg-green-500/20 text-green-400' 
-                                        : platform.status === 'maintenance'
-                                        ? 'bg-yellow-500/20 text-yellow-400'
-                                        : 'bg-red-500/20 text-red-400'
-                                }`}>
-                                    {platform.status === 'active' ? 'Active' : platform.status === 'maintenance' ? 'Maintenance' : 'Offline'}
-                                </span>
-                            </div>
-                        ))}
+                                <div
+                                    key={index}
+                                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${platform.status === 'offline' ? 'opacity-50' : ''
+                                        }`}
+                                >
+                                    <platform.icon className={`w-5 h-5 ${platform.color}`} />
+                                    <span className="text-sm text-[var(--text-secondary)] flex-1">{platform.label}</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${platform.status === 'active'
+                                            ? 'bg-green-500/20 text-green-400'
+                                            : platform.status === 'maintenance'
+                                                ? 'bg-yellow-500/20 text-yellow-400'
+                                                : 'bg-red-500/20 text-red-400'
+                                        }`}>
+                                        {platform.status === 'active' ? 'Active' : platform.status === 'maintenance' ? 'Maintenance' : 'Offline'}
+                                    </span>
+                                </div>
+                            ))}
                     </div>
                 </div>
             </nav>
@@ -322,8 +317,8 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                 <div className="px-4">
                     <p className="text-xs text-[var(--text-muted)]">
                         © 2025{' '}
-                        <Link 
-                            href="/admin" 
+                        <Link
+                            href="/auth"
                             onClick={onLinkClick}
                             className="hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
                             title="🔐"

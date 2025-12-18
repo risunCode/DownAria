@@ -113,9 +113,9 @@ export default function Home() {
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
 
-  // Fetch Weibo with cookie
-  const fetchWeibo = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string }> => {
-    const response = await fetch('/api/weibo', {
+  // Unified fetch for all platforms
+  const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; platform?: string }> => {
+    const response = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, cookie }),
@@ -159,27 +159,30 @@ export default function Home() {
     consumeRateLimit(detectedPlatform);
 
     try {
-      // Special handling for Weibo - needs cookie
+      // Get platform cookie if available
+      let platformCookie: string | undefined;
       if (detectedPlatform === 'weibo') {
-        // Get user cookie from localStorage (if any)
-        const userCookie = getWeiboCookie();
-        
-        // Try fetch - backend will use admin cookie as fallback if no user cookie
-        const result = await fetchWeibo(sanitizedUrl, userCookie || undefined);
-        
-        if (result.success && result.data) {
-          const mediaResult = { ...result.data, usedCookie: !!userCookie || result.data.usedCookie };
-          setMediaData(mediaResult);
-          cacheResponse(sanitizedUrl, detectedPlatform, mediaResult);
-          return;
-        }
-        
-        // Failed - check if cookie issue
+        platformCookie = getWeiboCookie() || undefined;
+      } else if (['facebook', 'instagram'].includes(detectedPlatform)) {
+        platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
+      }
+      
+      // Unified API call for all platforms
+      const result = await fetchMedia(sanitizedUrl, platformCookie);
+      
+      if (result.success && result.data) {
+        const mediaResult = { ...result.data, usedCookie: result.data.usedCookie || !!platformCookie };
+        setMediaData(mediaResult);
+        cacheResponse(sanitizedUrl, detectedPlatform, mediaResult);
+        return;
+      }
+      
+      // Handle Weibo cookie errors
+      if (detectedPlatform === 'weibo') {
         if (result.error === 'COOKIE_EXPIRED') {
           clearWeiboCookie();
         }
         
-        // Cookie required but neither user nor admin has it
         if (result.error?.includes('cookie') || result.error?.includes('Cookie') || result.error === 'COOKIE_REQUIRED') {
           setIsLoading(false);
           
@@ -204,35 +207,9 @@ export default function Home() {
           }
           return;
         }
-        
-        throw new Error(result.error || 'Failed to fetch');
       }
       
-      // Other platforms - normal flow
-      const apiEndpoint = (detectedPlatform === 'facebook' || detectedPlatform === 'instagram') 
-        ? 'meta' 
-        : detectedPlatform;
-      
-      // Get platform cookie if available (for Facebook Stories, Instagram private posts)
-      const platformCookie = ['facebook', 'instagram'].includes(detectedPlatform)
-        ? getPlatformCookie(detectedPlatform as 'facebook' | 'instagram')
-        : undefined;
-      
-      const response = await fetch(`/api/${apiEndpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sanitizedUrl, cookie: platformCookie }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch');
-      }
-
-      const mediaResult = { ...data.data, usedCookie: !!platformCookie };
-      setMediaData(mediaResult);
-      cacheResponse(sanitizedUrl, detectedPlatform, mediaResult);
+      throw new Error(result.error || 'Failed to fetch');
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;

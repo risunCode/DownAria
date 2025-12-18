@@ -4,9 +4,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 
 export async function GET(request: NextRequest) {
-    void request; // Personal use - no auth required
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
     
     const db = supabaseAdmin || supabase;
     if (!db) {

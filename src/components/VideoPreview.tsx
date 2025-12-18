@@ -18,13 +18,15 @@ import {
     MessageCircle,
     Repeat2,
     Share2,
-    Bookmark
+    Bookmark,
+    Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { MediaData, MediaFormat, Platform, HistoryItem } from '@/lib/types';
 import { addToHistory } from '@/lib/utils/storage';
 import { VideoIcon, ImageIcon, MusicIcon, LayersIcon, CheckCircleIcon } from '@/components/ui/Icons';
-import { sendDiscordNotification } from '@/lib/utils/discord-webhook';
+import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/discord-webhook';
+import Swal from 'sweetalert2';
 
 interface VideoPreviewProps {
     data: MediaData;
@@ -107,6 +109,9 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
     
     // State for caption modal
     const [showCaptionModal, setShowCaptionModal] = useState(false);
+    
+    // State for webhook sent tracking (prevent duplicates)
+    const [sentToWebhook, setSentToWebhook] = useState<Record<string, boolean>>({});
 
     // Get current gallery item info
     const getCurrentGalleryItem = () => {
@@ -191,6 +196,135 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
             return `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)} (${progress.percent}%)`;
         }
         return `${formatBytes(progress.loaded)} downloaded`;
+    };
+
+    // Send to webhook with SweetAlert confirmation
+    const handleSendToWebhook = async (format: MediaFormat, itemId: string) => {
+        const settings = getUserDiscordSettings();
+        if (!settings?.webhookUrl) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Webhook Not Configured',
+                text: 'Please configure Discord webhook in Settings first.',
+                confirmButtonText: 'Go to Settings',
+                showCancelButton: true,
+                customClass: { popup: 'glass-card' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '/settings';
+                }
+            });
+            return;
+        }
+
+        const thumbnail = itemThumbnails[itemId] || data.thumbnail;
+        const itemIndex = itemIds.indexOf(itemId) + 1;
+        const isVideo = format.type === 'video';
+
+        // Check if file is large for warning
+        const isLargeFile = format.fileSize && parseFloat(format.fileSize) > 10;
+        const sendMethodNote = isLargeFile 
+            ? `<div class="mt-2 p-2 rounded bg-amber-500/10 text-amber-400 text-xs">⚠️ Large file (${format.fileSize}) - will send as 2 messages</div>`
+            : '';
+
+        const result = await Swal.fire({
+            title: 'Send to Discord?',
+            html: `
+                <div class="text-left space-y-2 text-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[var(--text-muted)]">Platform:</span>
+                        <span class="font-medium">${platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[var(--text-muted)]">Type:</span>
+                        <span class="font-medium">${isVideo ? '🎬 Video' : '🖼️ Image'} ${isMultiItem ? `#${itemIndex}` : ''}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[var(--text-muted)]">Quality:</span>
+                        <span class="font-medium">${format.quality}${format.fileSize ? ` (${format.fileSize})` : ''}</span>
+                    </div>
+                    ${data.author ? `<div class="flex items-center gap-2"><span class="text-[var(--text-muted)]">Author:</span><span class="font-medium">${data.author}</span></div>` : ''}
+                </div>
+                ${sendMethodNote}
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '📤 Send',
+            cancelButtonText: 'Cancel',
+            customClass: { popup: 'glass-card' }
+        });
+
+        if (!result.isConfirmed) return;
+
+        // Show loading
+        Swal.fire({
+            title: 'Sending...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+            customClass: { popup: 'glass-card' }
+        });
+
+        // Parse file size from format (e.g. "24.3 MB" -> bytes)
+        let fileSizeBytes: number | undefined;
+        if (format.fileSize) {
+            const match = format.fileSize.match(/([\d.]+)\s*(KB|MB|GB)/i);
+            if (match) {
+                const num = parseFloat(match[1]);
+                const unit = match[2].toUpperCase();
+                fileSizeBytes = unit === 'GB' ? num * 1024 * 1024 * 1024 
+                              : unit === 'MB' ? num * 1024 * 1024 
+                              : num * 1024;
+            }
+        }
+
+        const sendResult = await sendDiscordNotification({
+            platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+            title: data.title || 'Untitled',
+            quality: format.quality,
+            thumbnail,
+            mediaUrl: format.url,
+            mediaType: format.type,
+            sourceUrl: data.url,
+            author: data.author,
+            engagement: data.engagement ? {
+                views: data.engagement.views,
+                likes: data.engagement.likes,
+                comments: data.engagement.comments,
+                shares: data.engagement.shares,
+            } : undefined,
+            fileSize: fileSizeBytes, // Pass file size for smart send method
+        }, true); // manual=true to bypass autoSend check
+
+        if (sendResult.sent) {
+            setSentToWebhook(prev => ({ ...prev, [itemId]: true }));
+            Swal.fire({
+                icon: 'success',
+                title: 'Sent!',
+                text: 'Content sent to Discord successfully.',
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: { popup: 'glass-card' }
+            });
+        } else {
+            // Better error messages
+            let errorMsg = 'Failed to send';
+            if (sendResult.details) {
+                errorMsg = sendResult.details;
+            } else if (sendResult.reason === 'duplicate') {
+                errorMsg = 'Already sent in the last minute!';
+            } else if (sendResult.reason === 'rate_limited') {
+                errorMsg = 'Discord rate limited. Please wait a moment.';
+            } else if (sendResult.reason?.startsWith('error_')) {
+                errorMsg = `Discord error: ${sendResult.reason.replace('error_', '')}`;
+            }
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Failed',
+                text: errorMsg,
+                customClass: { popup: 'glass-card' }
+            });
+        }
     };
 
     const triggerDownload = async (format: MediaFormat, itemId: string) => {
@@ -339,23 +473,43 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
             });
             if (onDownloadComplete) onDownloadComplete(historyItem);
 
-            // Send Discord notification
-            sendDiscordNotification({
-                platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-                title: data.title || filename,
-                quality: format.quality,
-                thumbnail: data.thumbnail,
-                mediaUrl: format.url, // Direct media URL
-                mediaType: format.type, // video, image, or audio
-                sourceUrl: data.url,
-                author: data.author,
-                engagement: data.engagement ? {
-                    views: data.engagement.views,
-                    likes: data.engagement.likes,
-                    comments: data.engagement.comments,
-                    shares: data.engagement.shares || data.engagement.reposts,
-                } : undefined,
-            });
+            // Send Discord notification only if not already sent via webhook button
+            if (!sentToWebhook[itemId]) {
+                // Get file size from download progress or format info
+                const progress = downloadProgress[itemId];
+                let fileSizeBytes: number | undefined = progress?.loaded || progress?.total;
+                
+                // Fallback: parse from format.fileSize string (e.g. "24.3 MB")
+                if (!fileSizeBytes && format.fileSize) {
+                    const match = format.fileSize.match(/([\d.]+)\s*(KB|MB|GB)/i);
+                    if (match) {
+                        const num = parseFloat(match[1]);
+                        const unit = match[2].toUpperCase();
+                        fileSizeBytes = unit === 'GB' ? num * 1024 * 1024 * 1024 
+                                      : unit === 'MB' ? num * 1024 * 1024 
+                                      : num * 1024;
+                    }
+                }
+                
+                sendDiscordNotification({
+                    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+                    title: data.title || filename,
+                    quality: format.quality,
+                    thumbnail: data.thumbnail,
+                    mediaUrl: format.url,
+                    mediaType: format.type,
+                    sourceUrl: data.url,
+                    author: data.author,
+                    engagement: data.engagement ? {
+                        views: data.engagement.views,
+                        likes: data.engagement.likes,
+                        comments: data.engagement.comments,
+                        shares: data.engagement.shares,
+                    } : undefined,
+                    fileSize: fileSizeBytes, // Pass file size for smart send method
+                });
+                setSentToWebhook(prev => ({ ...prev, [itemId]: true }));
+            }
 
             setDownloadStatus(prev => ({ ...prev, [itemId]: 'success' }));
             setTimeout(() => setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' })), 5000);
@@ -429,7 +583,7 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="glass-card p-3 sm:p-4 overflow-hidden"
+            className="glass-card p-3 sm:p-4 overflow-hidden shiny-border"
         >
             {/* Compact Header */}
             <div className="mb-3 sm:mb-4">
@@ -548,6 +702,14 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
                                     leftIcon={<ZoomIn className="w-4 h-4" />}>
                                     Preview
                                 </Button>
+                                <Button size="sm" variant="secondary" onClick={() => {
+                                    const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
+                                    if (format) handleSendToWebhook(format, selectedItemId);
+                                }}
+                                    disabled={sentToWebhook[selectedItemId]}
+                                    leftIcon={sentToWebhook[selectedItemId] ? <CheckCircleIcon className="w-4 h-4 text-green-400" /> : <Send className="w-4 h-4" />}>
+                                    {sentToWebhook[selectedItemId] ? 'Sent' : 'Webhook'}
+                                </Button>
                                 <Button size="sm" onClick={() => {
                                     const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
                                     if (format) triggerDownload(format, selectedItemId);
@@ -592,6 +754,11 @@ export function VideoPreview({ data, platform, onDownloadComplete }: VideoPrevie
                             <Button size="sm" variant="secondary" onClick={() => openGallery(0)}
                                 leftIcon={<ZoomIn className="w-4 h-4" />}>
                                 Preview
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => handleSendToWebhook(selectedFormats[itemIds[0]], itemIds[0])}
+                                disabled={sentToWebhook[itemIds[0]]}
+                                leftIcon={sentToWebhook[itemIds[0]] ? <CheckCircleIcon className="w-4 h-4 text-green-400" /> : <Send className="w-4 h-4" />}>
+                                {sentToWebhook[itemIds[0]] ? 'Sent' : 'Webhook'}
                             </Button>
                             <Button size="sm" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
                                 disabled={downloadStatus[itemIds[0]] === 'downloading'}

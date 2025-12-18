@@ -1,6 +1,19 @@
 // Platform types
 export type Platform = 'youtube' | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'douyin';
 
+/**
+ * Unified Engagement Stats
+ * Normalized across all platforms for consistent display
+ */
+export interface UnifiedEngagement {
+    views?: number;       // View/play count
+    likes?: number;       // Like/favorite/heart count
+    comments?: number;    // Comment count
+    shares?: number;      // Unified: retweets, reposts, shares
+    bookmarks?: number;   // Save/bookmark count
+    replies?: number;     // Reply count (Twitter)
+}
+
 // Media format interface
 export interface MediaFormat {
     quality: string;
@@ -44,15 +57,7 @@ export interface MediaData {
     usedCookie?: boolean; // Whether cookie was used to fetch this media (indicates private/authenticated content)
     cached?: boolean; // Whether this response was served from cache
     responseTime?: number; // API response time in milliseconds
-    engagement?: {
-        views?: number;       // View count
-        likes?: number;       // Like/favorite count
-        comments?: number;    // Comment count
-        reposts?: number;     // Twitter retweets, Weibo reposts
-        shares?: number;      // TikTok shares
-        bookmarks?: number;   // Twitter bookmarks
-        replies?: number;     // Twitter replies
-    };
+    engagement?: UnifiedEngagement;
 }
 
 // History item stored in localStorage

@@ -14,7 +14,7 @@ import Swal from 'sweetalert2';
 function ShareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const [platform, setPlatform] = useState<Platform>('youtube');
   const [isLoading, setIsLoading] = useState(false);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
@@ -27,10 +27,10 @@ function ShareContent() {
     const url = searchParams.get('url');
     const text = searchParams.get('text');
     const title = searchParams.get('title');
-    
+
     // Try to extract URL from params
     let extractedUrl = '';
-    
+
     if (url) {
       extractedUrl = url;
     } else if (text) {
@@ -46,7 +46,7 @@ function ShareContent() {
         extractedUrl = urlMatch[0];
       }
     }
-    
+
     if (extractedUrl) {
       setSharedUrl(extractedUrl);
       const detected = detectPlatform(extractedUrl);
@@ -77,9 +77,26 @@ function ShareContent() {
 
     try {
       // Special handling for Weibo
+      // Get platform cookie if available
+      let platformCookie: string | undefined;
       if (detectedPlatform === 'weibo') {
-        const cookie = getWeiboCookie();
-        if (!cookie) {
+        platformCookie = getWeiboCookie() || undefined;
+      } else if (['facebook', 'instagram'].includes(detectedPlatform)) {
+        platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
+      }
+
+      // Unified API call
+      const response = await fetch('/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sanitizedUrl, cookie: platformCookie }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        // Handle Weibo cookie error
+        if (detectedPlatform === 'weibo' && (data.error?.includes('cookie') || data.error?.includes('Cookie'))) {
           setIsLoading(false);
           Swal.fire({
             icon: 'warning',
@@ -91,39 +108,6 @@ function ShareContent() {
           });
           return;
         }
-        
-        const response = await fetch('/api/weibo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: sanitizedUrl, cookie }),
-        });
-        const data = await response.json();
-        
-        if (data.success && data.data) {
-          setMediaData(data.data);
-          return;
-        }
-        throw new Error(data.error || 'Failed to fetch');
-      }
-      
-      // Other platforms
-      const apiEndpoint = (detectedPlatform === 'facebook' || detectedPlatform === 'instagram') 
-        ? 'meta' 
-        : detectedPlatform;
-      
-      const platformCookie = ['facebook', 'instagram'].includes(detectedPlatform)
-        ? getPlatformCookie(detectedPlatform as 'facebook' | 'instagram')
-        : undefined;
-      
-      const response = await fetch(`/api/${apiEndpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sanitizedUrl, cookie: platformCookie }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
         throw new Error(data.error || 'Failed to fetch');
       }
 

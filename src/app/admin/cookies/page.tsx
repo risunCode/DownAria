@@ -1,28 +1,34 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Cookie, RefreshCw, Save, Trash2, Power, PowerOff, Plus, X, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Cookie, RefreshCw, Plus, Info, ChevronRight, Zap, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faWeibo, faTwitter } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import AdminGuard from '@/components/AdminGuard';
+import CookiePoolModal from './CookiePoolModal';
 
 type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter';
 
-interface AdminCookie {
+interface CookiePoolStats {
     platform: string;
-    cookie: string;
-    enabled: boolean;
-    note: string | null;
-    updated_at: string;
+    total: number;
+    enabled_count: number;
+    healthy_count: number;
+    cooldown_count: number;
+    expired_count: number;
+    disabled_count: number;
+    total_uses: number;
+    total_success: number;
+    total_errors: number;
 }
 
-const PLATFORMS: { id: CookiePlatform; name: string; icon: IconDefinition; color: string; required: string }[] = [
-    { id: 'facebook', name: 'Facebook', icon: faFacebook, color: 'text-blue-500', required: 'c_user, xs' },
-    { id: 'instagram', name: 'Instagram', icon: faInstagram, color: 'text-pink-500', required: 'sessionid' },
-    { id: 'weibo', name: 'Weibo', icon: faWeibo, color: 'text-orange-500', required: 'SUB' },
-    { id: 'twitter', name: 'Twitter', icon: faTwitter, color: 'text-sky-400', required: 'auth_token' },
+const PLATFORMS: { id: CookiePlatform; name: string; icon: IconDefinition; color: string; bgColor: string; required: string }[] = [
+    { id: 'facebook', name: 'Facebook', icon: faFacebook, color: 'text-blue-500', bgColor: 'bg-blue-500/10', required: 'c_user, xs' },
+    { id: 'instagram', name: 'Instagram', icon: faInstagram, color: 'text-pink-500', bgColor: 'bg-pink-500/10', required: 'sessionid' },
+    { id: 'twitter', name: 'Twitter', icon: faTwitter, color: 'text-sky-400', bgColor: 'bg-sky-400/10', required: 'auth_token, ct0' },
+    { id: 'weibo', name: 'Weibo', icon: faWeibo, color: 'text-orange-500', bgColor: 'bg-orange-500/10', required: 'SUB' },
 ];
 
 export default function AdminCookiesPage() {
@@ -34,24 +40,21 @@ export default function AdminCookiesPage() {
 }
 
 function CookiesContent() {
-    const [cookies, setCookies] = useState<AdminCookie[]>([]);
+    const [stats, setStats] = useState<CookiePoolStats[]>([]);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState<string | null>(null);
-    const [editPlatform, setEditPlatform] = useState<CookiePlatform | null>(null);
-    const [editValue, setEditValue] = useState('');
-    const [editNote, setEditNote] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [selectedPlatform, setSelectedPlatform] = useState<CookiePlatform | null>(null);
 
-    const loadCookies = useCallback(async () => {
+    const loadStats = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('/api/admin/cookies');
+            const res = await fetch('/api/admin/cookies/pool?stats=true');
             const data = await res.json();
             if (data.success) {
-                setCookies(data.data || []);
+                setStats(data.data || []);
             } else {
-                setError(data.error || 'Failed to load cookies');
+                setError(data.error || 'Failed to load stats');
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Network error');
@@ -61,79 +64,29 @@ function CookiesContent() {
     }, []);
 
     useEffect(() => {
-        loadCookies();
-    }, [loadCookies]);
+        loadStats();
+    }, [loadStats]);
 
-    const handleSave = async (platform: CookiePlatform) => {
-        if (!editValue.trim()) return;
-        
-        setSaving(platform);
-        setError(null);
-        
-        try {
-            const res = await fetch('/api/admin/cookies', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ platform, cookie: editValue, note: editNote || undefined })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                await loadCookies();
-                setEditPlatform(null);
-                setEditValue('');
-                setEditNote('');
-            } else {
-                setError(data.error || 'Failed to save');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Network error');
-        } finally {
-            setSaving(null);
-        }
+    const getStats = (platform: string): CookiePoolStats => {
+        return stats.find(s => s.platform === platform) || {
+            platform,
+            total: 0,
+            enabled_count: 0,
+            healthy_count: 0,
+            cooldown_count: 0,
+            expired_count: 0,
+            disabled_count: 0,
+            total_uses: 0,
+            total_success: 0,
+            total_errors: 0
+        };
     };
 
-    const handleToggle = async (platform: CookiePlatform, enabled: boolean) => {
-        setSaving(platform);
-        try {
-            const res = await fetch('/api/admin/cookies', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ platform, enabled })
-            });
-            const data = await res.json();
-            if (data.success) {
-                await loadCookies();
-            } else {
-                setError(data.error);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Network error');
-        } finally {
-            setSaving(null);
-        }
+    const getSuccessRate = (s: CookiePoolStats) => {
+        const total = s.total_success + s.total_errors;
+        if (total === 0) return 0;
+        return Math.round((s.total_success / total) * 100);
     };
-
-    const handleDelete = async (platform: CookiePlatform) => {
-        if (!confirm(`Delete ${platform} cookie?`)) return;
-        
-        setSaving(platform);
-        try {
-            const res = await fetch(`/api/admin/cookies?platform=${platform}`, { method: 'DELETE' });
-            const data = await res.json();
-            if (data.success) {
-                await loadCookies();
-            } else {
-                setError(data.error);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Network error');
-        } finally {
-            setSaving(null);
-        }
-    };
-
-    const getCookie = (platform: string) => cookies.find(c => c.platform === platform);
 
     return (
         <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -142,14 +95,14 @@ function CookiesContent() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <Cookie className="w-6 h-6 text-[var(--accent-primary)]" />
-                        Admin Cookies
+                        Cookie Pool
                     </h1>
                     <p className="text-sm text-[var(--text-muted)]">
-                        Global cookies for platforms. Users can override with their own.
+                        Multi-cookie rotation with health tracking & rate limiting
                     </p>
                 </div>
                 <button
-                    onClick={loadCookies}
+                    onClick={loadStats}
                     disabled={loading}
                     className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
                     title="Refresh"
@@ -165,144 +118,92 @@ function CookiesContent() {
                 </div>
             )}
 
-            {/* Grid Layout */}
+            {/* Platform Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {PLATFORMS.map((platform, idx) => {
-                    const cookie = getCookie(platform.id);
-                    const isEditing = editPlatform === platform.id;
-                    const isSaving = saving === platform.id;
+                    const s = getStats(platform.id);
+                    const successRate = getSuccessRate(s);
                     
                     return (
-                        <motion.div
+                        <motion.button
                             key={platform.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.05 }}
-                            className="glass-card p-5"
+                            onClick={() => setSelectedPlatform(platform.id)}
+                            className="glass-card p-5 text-left hover:border-[var(--accent-primary)]/50 transition-all group"
                         >
                             {/* Platform Header */}
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <FontAwesomeIcon icon={platform.icon} className={`w-6 h-6 ${platform.color}`} />
+                                    <div className={`w-12 h-12 rounded-xl ${platform.bgColor} flex items-center justify-center`}>
+                                        <FontAwesomeIcon icon={platform.icon} className={`w-6 h-6 ${platform.color}`} />
+                                    </div>
                                     <div>
-                                        <span className="font-semibold">{platform.name}</span>
-                                        {cookie && (
-                                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                                                cookie.enabled 
-                                                    ? 'bg-green-500/20 text-green-400' 
-                                                    : 'bg-red-500/20 text-red-400'
-                                            }`}>
-                                                {cookie.enabled ? 'Active' : 'Disabled'}
-                                            </span>
-                                        )}
-                                        {!cookie && (
-                                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-muted)]">
-                                                Not set
-                                            </span>
-                                        )}
+                                        <span className="font-semibold text-lg">{platform.name}</span>
+                                        <div className="text-xs text-[var(--text-muted)]">
+                                            {s.total} cookie{s.total !== 1 ? 's' : ''}
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div className="flex items-center gap-1">
-                                    {cookie && !isEditing && (
-                                        <>
-                                            <button
-                                                onClick={() => handleToggle(platform.id, !cookie.enabled)}
-                                                disabled={isSaving}
-                                                className="p-1.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
-                                                title={cookie.enabled ? 'Disable' : 'Enable'}
-                                            >
-                                                {cookie.enabled ? <PowerOff className="w-4 h-4 text-yellow-400" /> : <Power className="w-4 h-4 text-green-400" />}
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(platform.id)}
-                                                disabled={isSaving}
-                                                className="p-1.5 rounded hover:bg-[var(--bg-secondary)] transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-400" />
-                                            </button>
-                                        </>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            if (isEditing) {
-                                                setEditPlatform(null);
-                                                setEditValue('');
-                                                setEditNote('');
-                                            } else {
-                                                setEditPlatform(platform.id);
-                                                setEditValue(cookie?.cookie || '');
-                                                setEditNote(cookie?.note || '');
-                                            }
-                                        }}
-                                        className={`p-1.5 rounded transition-colors ${isEditing ? 'bg-red-500/20 text-red-400' : 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]'}`}
-                                    >
-                                        {isEditing ? <X className="w-4 h-4" /> : cookie ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                                    </button>
-                                </div>
+                                <ChevronRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
                             </div>
 
-                            {/* Required cookies info */}
-                            <div className="text-xs text-[var(--text-muted)] mb-3">
-                                Required: <span className="font-mono text-[var(--text-secondary)]">{platform.required}</span>
-                            </div>
-
-                            {/* Cookie Info (not editing) */}
-                            {cookie && !isEditing && (
-                                <div className="space-y-2">
-                                    <div className="font-mono text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] px-3 py-2 rounded-lg truncate">
-                                        {cookie.cookie.length > 60 ? cookie.cookie.substring(0, 60) + '...' : cookie.cookie}
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-                                        {cookie.note && <span className="truncate">📝 {cookie.note}</span>}
-                                        <span className="shrink-0">Updated: {new Date(cookie.updated_at).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* No cookie (not editing) */}
-                            {!cookie && !isEditing && (
-                                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] text-center">
-                                    <p className="text-sm text-[var(--text-muted)]">No cookie configured</p>
-                                    <p className="text-xs text-[var(--text-muted)] mt-1">Click + to add</p>
-                                </div>
-                            )}
-
-                            {/* Edit Form */}
-                            {isEditing && (
+                            {/* Stats */}
+                            {s.total > 0 ? (
                                 <div className="space-y-3">
-                                    <div>
-                                        <label className="text-xs text-[var(--text-muted)] mb-1 block">
-                                            Cookie (JSON array or string)
-                                        </label>
-                                        <textarea
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            placeholder='[{"name":"c_user","value":"xxx"}] or c_user=xxx; xs=xxx'
-                                            className="w-full h-20 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg font-mono resize-none"
+                                    {/* Health Status */}
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <div className="flex items-center gap-1.5">
+                                            <CheckCircle className="w-4 h-4 text-green-400" />
+                                            <span className="text-green-400">{s.healthy_count}</span>
+                                            <span className="text-[var(--text-muted)]">healthy</span>
+                                        </div>
+                                        {s.cooldown_count > 0 && (
+                                            <div className="flex items-center gap-1.5">
+                                                <Clock className="w-4 h-4 text-yellow-400" />
+                                                <span className="text-yellow-400">{s.cooldown_count}</span>
+                                                <span className="text-[var(--text-muted)]">cooldown</span>
+                                            </div>
+                                        )}
+                                        {s.expired_count > 0 && (
+                                            <div className="flex items-center gap-1.5">
+                                                <AlertTriangle className="w-4 h-4 text-red-400" />
+                                                <span className="text-red-400">{s.expired_count}</span>
+                                                <span className="text-[var(--text-muted)]">expired</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Usage Stats */}
+                                    <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                                            <Zap className="w-3.5 h-3.5" />
+                                            <span>{s.total_uses.toLocaleString()} uses</span>
+                                        </div>
+                                        <div className={`font-medium ${successRate >= 90 ? 'text-green-400' : successRate >= 70 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {successRate}% success
+                                        </div>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all"
+                                            style={{ width: `${(s.healthy_count / s.total) * 100}%` }}
                                         />
                                     </div>
-                                    <div>
-                                        <label className="text-xs text-[var(--text-muted)] mb-1 block">Note (optional)</label>
-                                        <input
-                                            type="text"
-                                            value={editNote}
-                                            onChange={(e) => setEditNote(e.target.value)}
-                                            placeholder="e.g., Account: myaccount"
-                                            className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg"
-                                        />
+                                </div>
+                            ) : (
+                                <div className="text-center py-4">
+                                    <div className="text-[var(--text-muted)] text-sm mb-2">No cookies configured</div>
+                                    <div className="flex items-center justify-center gap-1 text-xs text-[var(--accent-primary)]">
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>Click to add</span>
                                     </div>
-                                    <button
-                                        onClick={() => handleSave(platform.id)}
-                                        disabled={isSaving || !editValue.trim()}
-                                        className="w-full px-4 py-2 text-sm rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 text-white font-medium disabled:opacity-50 transition-colors"
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Cookie'}
-                                    </button>
                                 </div>
                             )}
-                        </motion.div>
+                        </motion.button>
                     );
                 })}
             </div>
@@ -312,15 +213,30 @@ function CookiesContent() {
                 <div className="flex items-start gap-3">
                     <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                     <div className="text-sm">
-                        <p className="font-medium text-[var(--text-secondary)] mb-2">How it works</p>
+                        <p className="font-medium text-[var(--text-secondary)] mb-2">Cookie Pool System</p>
                         <ul className="space-y-1 text-xs text-[var(--text-muted)]">
-                            <li>• Admin cookies are fallback when users don&apos;t have their own</li>
-                            <li>• User cookies (Settings page) take priority over admin cookies</li>
-                            <li>• Cookies are cached 5 minutes server-side for performance</li>
+                            <li>• <span className="text-green-400">Rotation</span> - Cookies are rotated automatically to avoid rate limits</li>
+                            <li>• <span className="text-yellow-400">Cooldown</span> - Rate-limited cookies rest for 30 min before reuse</li>
+                            <li>• <span className="text-red-400">Expired</span> - Session expired, needs re-login</li>
+                            <li>• User cookies still take priority over admin pool</li>
                         </ul>
                     </div>
                 </div>
             </div>
+
+            {/* Cookie Pool Modal */}
+            <AnimatePresence>
+                {selectedPlatform && (
+                    <CookiePoolModal
+                        platform={selectedPlatform}
+                        platformInfo={PLATFORMS.find(p => p.id === selectedPlatform)!}
+                        onClose={() => {
+                            setSelectedPlatform(null);
+                            loadStats(); // Refresh stats after modal closes
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

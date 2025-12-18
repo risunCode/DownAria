@@ -4,7 +4,7 @@ import { logger } from '@/lib/services/logger';
 import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
 
-async function handleRequest(url: string) {
+async function handleRequest(url: string, skipCache = false) {
     const startTime = Date.now();
     
     if (isMaintenanceMode()) {
@@ -17,7 +17,7 @@ async function handleRequest(url: string) {
     
     logger.url('tiktok', url);
     
-    const result = await fetchTikWM(url);
+    const result = await fetchTikWM(url, { skipCache });
     const responseTime = Date.now() - startTime;
     
     if (result.success && result.data) {
@@ -64,9 +64,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { url } = await request.json();
+        const { url, skipCache } = await request.json();
         if (!url) return missingUrlResponse('tiktok');
-        return handleRequest(url);
+        return handleRequest(url, skipCache);
     } catch (error) {
         logger.error('tiktok', error);
         return errorResponse('tiktok', error instanceof Error ? error.message : 'Failed', 500);

@@ -10,7 +10,7 @@ import { ScraperResult, ScraperOptions } from '@/lib/services/fetch-helper';
 import { PlatformId } from '@/lib/services/api-config';
 import { trackDownload, trackError, getCountryFromHeaders, Platform, Quality } from '@/lib/supabase';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest, type PlatformId as ServicePlatformId } from '@/lib/services/service-config';
-import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
+import { getAdminCookie, markCookieSuccess, markCookieCooldown, type CookiePlatform } from '@/lib/utils/admin-cookie';
 
 type ScrapeFunction = (url: string, options?: ScraperOptions) => Promise<ScraperResult>;
 
@@ -71,8 +71,8 @@ export function createScrapeHandler({ platform, scraper, handleError }: RouteOpt
             
             // SAFE COOKIE LOGIC: Try without cookie first, then with cookie if fails
             // This prevents shadow bans from overusing cookies
-            // Only applies to: Facebook, Instagram, Twitter/X, Weibo
-            const cookiePlatforms = ['facebook', 'instagram', 'twitter', 'weibo'];
+            // Applies to: Facebook, Instagram, Twitter/X, Weibo, YouTube
+            const cookiePlatforms = ['facebook', 'instagram', 'twitter', 'weibo', 'youtube'];
             const useSafeCookie = cookiePlatforms.includes(platform);
             
             // Get effective cookie: user cookie > admin cookie
@@ -85,6 +85,8 @@ export function createScrapeHandler({ platform, scraper, handleError }: RouteOpt
             }
             
             let result: ScraperResult;
+            let usedAdminCookie = false;
+            
             if (useSafeCookie && effectiveCookie) {
                 // Try without cookie first
                 result = await scraper(url);
@@ -93,13 +95,19 @@ export function createScrapeHandler({ platform, scraper, handleError }: RouteOpt
                 if (!result.success) {
                     logger.debug(platform, 'Retrying with cookie...');
                     result = await scraper(url, { cookie: effectiveCookie });
+                    usedAdminCookie = !cookie && !!effectiveCookie; // Only if using admin cookie
                 }
             } else {
                 // For other platforms or no cookie provided, use directly
                 result = await scraper(url, effectiveCookie ? { cookie: effectiveCookie } : undefined);
+                usedAdminCookie = !cookie && !!effectiveCookie;
             }
 
             if (result.success && result.data) {
+                // Mark admin cookie as successful if used
+                if (usedAdminCookie) {
+                    markCookieSuccess().catch(() => {});
+                }
                 const responseTime = Date.now() - startTime;
                 logger.meta(platform, {
                     title: result.data.title,
@@ -125,6 +133,14 @@ export function createScrapeHandler({ platform, scraper, handleError }: RouteOpt
             // Record failed request stats
             const responseTime = Date.now() - startTime;
             recordRequest(platform as ServicePlatformId, false, responseTime);
+            
+            // Mark admin cookie as rate limited if applicable
+            if (usedAdminCookie && result.error) {
+                const errorLower = result.error.toLowerCase();
+                if (errorLower.includes('rate limit') || errorLower.includes('too many') || errorLower.includes('429')) {
+                    markCookieCooldown(30, result.error).catch(() => {});
+                }
+            }
             
             // Track failed download
             trackDownload({

@@ -200,16 +200,19 @@ export async function scrapeYouTube(url: string, options?: ScraperOptions): Prom
         return createError(ScraperErrorCode.INVALID_URL, 'Could not extract video ID');
     }
     
+    // Detect type from URL
+    const isShort = url.includes('/shorts/');
+    const isMusic = url.includes('music.youtube');
+    logger.type('youtube', isShort ? 'short' : isMusic ? 'music' : 'video');
+    
     // Check cache
     if (!skipCache) {
-        const cached = getCache<ScraperResult>('youtube', url);
+        const cached = await getCache<ScraperResult>('youtube', url);
         if (cached?.success) {
-            logger.debug('youtube', 'Cache hit');
+            logger.cache('youtube', true);
             return { ...cached, cached: true };
         }
     }
-
-    logger.debug('youtube', `Fetching ${videoId}...`);
 
     // Try Android client first (best for direct URLs)
     let data = await fetchWithClient(videoId, 'ANDROID');
@@ -272,8 +275,8 @@ export async function scrapeYouTube(url: string, options?: ScraperOptions): Prom
         }
     };
     
+    logger.media('youtube', { videos: formats.length });
     setCache('youtube', url, result);
-    logger.success('youtube', formats.length);
     
     return result;
 }

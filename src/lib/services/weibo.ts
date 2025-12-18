@@ -13,6 +13,7 @@ import { createError, ScraperErrorCode } from './errors';
 import { logger } from './logger';
 
 export async function scrapeWeibo(url: string, options?: ScraperOptions): Promise<ScraperResult> {
+    const startTime = Date.now();
     const cookie = options?.cookie;
     
     if (!matchesPlatform(url, 'weibo')) {
@@ -21,9 +22,13 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
     
     // Check cache
     if (!options?.skipCache) {
-        const cached = getCache<ScraperResult>('weibo', url);
-        if (cached?.success) return { ...cached, cached: true };
+        const cached = await getCache<ScraperResult>('weibo', url);
+        if (cached?.success) {
+            logger.cache('weibo', true);
+            return { ...cached, cached: true };
+        }
     }
+    logger.cache('weibo', false);
 
     const formats: MediaFormat[] = [];
     let title = 'Weibo Video', thumbnail = '', author = '';
@@ -44,6 +49,10 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
     else if (mobileDetailMatch) postId = mobileDetailMatch[1];
     else if (detailMatch) postId = detailMatch[1];
     else if (statusMatch) postId = statusMatch[1];
+
+    // Detect content type
+    const contentType = isTvUrl ? 'tv' : (postId ? 'post' : 'unknown');
+    logger.type('weibo', contentType);
 
     if (!cookie) return createError(ScraperErrorCode.COOKIE_REQUIRED);
 
@@ -127,6 +136,11 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
         if (isTvUrl && formats.length) {
             const seen = new Set<string>(), unique = formats.filter(f => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
             const hasEngagement = engagement.likes || engagement.comments || engagement.shares;
+            
+            // Log media found
+            logger.media('weibo', { videos: unique.length });
+            logger.complete('weibo', Date.now() - startTime);
+            
             const result: ScraperResult = { 
                 success: true, 
                 data: { 
@@ -236,6 +250,12 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
         const hasVideo = unique.some(f => f.type === 'video');
         const hasImage = unique.some(f => f.type === 'image');
         
+        // Log media found
+        const videoCount = unique.filter(f => f.type === 'video').length;
+        const imageCount = unique.filter(f => f.type === 'image').length;
+        logger.media('weibo', { videos: videoCount, images: imageCount });
+        logger.complete('weibo', Date.now() - startTime);
+        
         const result: ScraperResult = { 
             success: true, 
             data: { 
@@ -251,6 +271,7 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
         setCache('weibo', url, result);
         return result;
     } catch (e) {
+        logger.error('weibo', e);
         return createError(ScraperErrorCode.NETWORK_ERROR, e instanceof Error ? e.message : 'Failed to fetch');
     }
 }

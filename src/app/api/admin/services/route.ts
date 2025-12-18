@@ -3,11 +3,10 @@
  * GET: Get all platform configs (from Supabase)
  * POST: Update platform config (syncs to Supabase)
  * PUT: Toggle maintenance mode (syncs to Supabase)
- * 
- * Personal use - no auth required
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminSession } from '@/lib/utils/admin-auth';
 import {
     getServiceConfigAsync,
     updatePlatformConfig,
@@ -15,6 +14,8 @@ import {
     setMaintenanceMessage,
     setGlobalRateLimit,
     setApiKeyRequired,
+    setPlaygroundEnabled,
+    setPlaygroundRateLimit,
     resetPlatformStats,
     resetAllStats,
     resetToDefaults,
@@ -24,7 +25,10 @@ import {
 
 // GET - Get all service configs
 export async function GET(request: NextRequest) {
-    void request;
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
     
     try {
         // Force refresh from DB
@@ -44,6 +48,11 @@ export async function GET(request: NextRequest) {
 
 // POST - Update platform config
 export async function POST(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     try {
         const body = await request.json();
         const { action, platformId, ...updates } = body;
@@ -75,6 +84,32 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ success: true, message: 'Reset to defaults' });
             }
 
+            case 'updateGlobal': {
+                const { playgroundEnabled, playgroundRateLimit, maintenanceMode, maintenanceMessage, globalRateLimit, apiKeyRequired } = updates;
+                
+                if (playgroundEnabled !== undefined) {
+                    await setPlaygroundEnabled(playgroundEnabled);
+                }
+                if (playgroundRateLimit !== undefined) {
+                    await setPlaygroundRateLimit(playgroundRateLimit);
+                }
+                if (maintenanceMode !== undefined) {
+                    await setMaintenanceMode(maintenanceMode);
+                }
+                if (maintenanceMessage !== undefined) {
+                    await setMaintenanceMessage(maintenanceMessage);
+                }
+                if (globalRateLimit !== undefined) {
+                    await setGlobalRateLimit(globalRateLimit);
+                }
+                if (apiKeyRequired !== undefined) {
+                    await setApiKeyRequired(apiKeyRequired);
+                }
+                
+                const config = await getServiceConfigAsync();
+                return NextResponse.json({ success: true, message: 'Global settings updated', data: config });
+            }
+
             default:
                 return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
         }
@@ -88,6 +123,11 @@ export async function POST(request: NextRequest) {
 
 // PUT - Global settings (maintenance mode, global rate limit, messages, apiKeyRequired)
 export async function PUT(request: NextRequest) {
+    const auth = await verifyAdminSession(request);
+    if (!auth.valid) {
+        return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
+    }
+    
     try {
         const body = await request.json();
         const { maintenanceMode, maintenanceMessage, globalRateLimit, apiKeyRequired } = body;
