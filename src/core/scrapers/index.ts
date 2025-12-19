@@ -3,41 +3,27 @@
  * ==============================
  * Central export point for all platform scrapers.
  * 
- * Usage:
- *   import { scrapeFacebook, scrapeTwitter, getScraper } from '@/core/scrapers';
- * 
- * Migration Strategy:
- *   Phase 1: Re-export from existing lib/services (current)
- *   Phase 2: Gradually move scrapers here with updated imports
+ * Supported: Facebook, Instagram, Twitter/X, TikTok, Weibo
  */
 
 // Re-export types
 export * from './types';
 
-// Re-export scrapers from existing locations (temporary, for backward compatibility)
+// Re-export scrapers
 export { scrapeFacebook } from '@/lib/services/facebook';
 export { scrapeInstagram } from '@/lib/services/instagram';
 export { scrapeTwitter } from '@/lib/services/twitter';
 export { scrapeTikTok } from '@/lib/services/tiktok';
-export { scrapeYouTube } from '@/lib/services/youtube-innertube';
-export { scrapeYouTubeYtdl, isValidYouTubeUrl, getYouTubeVideoId } from '@/lib/services/youtube-ytdl';
 export { scrapeWeibo } from '@/lib/services/weibo';
 
-// Cobalt API (for Douyin and as YouTube backup)
-export { scrapeCobalt, scrapeDouyin, scrapeYouTubeCobalt } from '@/lib/services/cobalt';
+// Types
+import type { ScraperResult, ScraperOptions, ScraperFn, PlatformId } from './types';
 
-// Types re-export for convenience
-import type { ScraperResult, ScraperOptions, ScraperFn, PlatformId, ScraperErrorCode } from './types';
-
-// ═══════════════════════════════════════════════════════════════
-// SCRAPER FACTORY
-// ═══════════════════════════════════════════════════════════════
-
+// Imports for factory
 import { scrapeFacebook } from '@/lib/services/facebook';
 import { scrapeInstagram } from '@/lib/services/instagram';
 import { scrapeTwitter } from '@/lib/services/twitter';
 import { scrapeTikTok } from '@/lib/services/tiktok';
-import { scrapeYouTube } from '@/lib/services/youtube-innertube';
 import { scrapeWeibo } from '@/lib/services/weibo';
 import { ScraperErrorCode as ErrorCode } from './types';
 
@@ -50,9 +36,7 @@ export function getScraper(platform: PlatformId): ScraperFn | null {
         instagram: scrapeInstagram,
         twitter: scrapeTwitter,
         tiktok: scrapeTikTok,
-        youtube: scrapeYouTube,
         weibo: scrapeWeibo,
-        douyin: scrapeTikTok, // Douyin uses same TikWM API
     };
     return scrapers[platform] || null;
 }
@@ -84,9 +68,7 @@ export const SUPPORTED_PLATFORMS: PlatformId[] = [
     'instagram',
     'twitter',
     'tiktok',
-    'youtube',
     'weibo',
-    'douyin',
 ];
 
 /**

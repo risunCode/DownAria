@@ -30,7 +30,7 @@ export default function Announcements({ page }: { page: string }) {
 
     useEffect(() => {
         // Load dismissed announcements from localStorage
-        const stored = localStorage.getItem('xtf_dismissed_announcements');
+        const stored = localStorage.getItem('ann_read_v1_z9x');
         if (stored) {
             try {
                 const parsed: DismissedAnnouncement[] = JSON.parse(stored);
@@ -40,7 +40,7 @@ export default function Announcements({ page }: { page: string }) {
                 setDismissed(valid);
                 // Update storage with only valid ones
                 if (valid.length !== parsed.length) {
-                    localStorage.setItem('xtf_dismissed_announcements', JSON.stringify(valid));
+                    localStorage.setItem('ann_read_v1_z9x', JSON.stringify(valid));
                 }
             } catch {
                 setDismissed([]);
@@ -53,12 +53,12 @@ export default function Announcements({ page }: { page: string }) {
             try {
                 const res = await fetch(`/api/announcements?page=${page}`);
                 const json = await res.json();
-                
+
                 if (!json.success || !json.data?.length) return;
 
                 const announcements: Announcement[] = json.data;
                 const now = Date.now();
-                
+
                 // Filter out dismissed (if show_once and within 12 hours)
                 const toShow = announcements.filter(a => {
                     if (a.show_once) {
@@ -74,13 +74,13 @@ export default function Announcements({ page }: { page: string }) {
 
                 // Show first announcement
                 const ann = toShow[0];
-                
+
                 const result = await Swal.fire({
                     title: ann.title,
                     html: ann.message,
                     icon: ICON_MAP[ann.type] || 'info',
                     confirmButtonText: 'OK',
-                    showDenyButton: ann.show_once,
+                    showDenyButton: true,
                     denyButtonText: "Don't show today",
                     denyButtonColor: '#6b7280',
                     background: 'var(--bg-card)',
@@ -88,14 +88,14 @@ export default function Announcements({ page }: { page: string }) {
                     confirmButtonColor: 'var(--accent-primary)',
                 });
 
-                // Mark as dismissed if show_once AND user clicked "Don't show today"
-                if (ann.show_once && result.isDenied) {
+                // Mark as dismissed if user clicked "Don't show today"
+                if (result.isDenied) {
                     const newDismissed = [
                         ...dismissed.filter(d => d.id !== ann.id), // Remove old entry if exists
                         { id: ann.id, dismissedAt: Date.now() }
                     ];
                     setDismissed(newDismissed);
-                    localStorage.setItem('xtf_dismissed_announcements', JSON.stringify(newDismissed));
+                    localStorage.setItem('ann_read_v1_z9x', JSON.stringify(newDismissed));
                 }
             } catch {
                 // Failed to fetch announcements

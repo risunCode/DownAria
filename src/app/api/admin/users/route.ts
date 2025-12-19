@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { supabase, supabaseAdmin } from '@/core/database';
+import { verifyAdminSession } from '@/core/security';
 
 // GET - List all users
 export async function GET(request: NextRequest) {

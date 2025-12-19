@@ -5,8 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { supabase, supabaseAdmin } from '@/core/database';
+import { verifyAdminSession } from '@/core/security';
 
 const getDb = () => supabaseAdmin || supabase;
 

@@ -5,13 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { verifyAdminSession } from '@/core/security';
 import {
-    getCookiesByPlatform,
     getCookiePoolStats,
+    getCookiesByPlatform,
     addCookieToPool,
     type CookiePoolStats
-} from '@/lib/utils/cookie-pool';
+} from '@/lib/cookies';
 
 export async function GET(req: NextRequest) {
     const auth = await verifyAdminSession(req);

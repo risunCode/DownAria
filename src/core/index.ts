@@ -73,5 +73,35 @@ export {
     type PlatformConfig,
 } from './database';
 
-// Config
-export * from './config';
+// Config (exclude PlatformId to avoid conflict with scrapers/types)
+export {
+    matchesPlatform,
+    detectPlatform,
+    isPlatformUrl,
+    getPlatformRegex,
+    getPlatformAliases,
+    PLATFORM_CONFIGS,
+    getApiPlatformConfig,
+    getBaseUrl,
+    getReferer,
+    getOrigin,
+    getApiEndpoint,
+    type ApiPlatformConfig,
+    // Env helpers
+    getEnv,
+    getEnvOptional,
+    isProduction,
+    isDevelopment,
+    // Constants
+    APP_NAME,
+    APP_VERSION,
+    APP_DESCRIPTION,
+    CACHE_TTL,
+    TIMEOUTS,
+    RATE_LIMIT_WINDOWS,
+    ALLOWED_SOCIAL_DOMAINS,
+    ALLOWED_CDN_DOMAINS,
+} from './config';
+
+// Logger
+export { logger } from '@/lib/services/helper/logger';

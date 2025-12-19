@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DownloadForm } from '@/components/DownloadForm';
-import { VideoPreview } from '@/components/VideoPreview';
+import { DownloadPreview } from '@/components/DownloadPreview';
 import { HistoryList } from '@/components/HistoryList';
 import { CardSkeleton } from '@/components/ui/Card';
-import { Platform, MediaData, HistoryItem, detectPlatform, sanitizeUrl } from '@/lib/types';
+import { Platform, MediaData, detectPlatform, sanitizeUrl } from '@/lib/types';
+import type { HistoryEntry } from '@/lib/storage';
 import { MagicIcon, BoltIcon, LayersIcon, LockIcon } from '@/components/ui/Icons';
-import { getWeiboCookie, clearWeiboCookie, getPlatformCookie, getCachedResponse, cacheResponse } from '@/lib/utils/storage';
-import { checkRateLimit, consumeRateLimit } from '@/lib/utils/rate-limit';
+import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
 import Swal from 'sweetalert2';
 import Announcements from '@/components/Announcements';
 
@@ -21,9 +21,9 @@ import Announcements from '@/components/Announcements';
 const TITLE_VARIANTS = ['Social Media', 'Facebook', 'Instagram', 'TikTok', 'Twitter', 'Weibo'];
 
 const SWAL_CONFIG = {
-  background: '#1a1a1a',
-  color: '#fff',
-  confirmButtonColor: '#6366f1',
+  background: 'var(--bg-card)',
+  color: 'var(--text-primary)',
+  confirmButtonColor: 'var(--accent-primary)',
 };
 
 // ============================================================================
@@ -64,14 +64,14 @@ function AnimatedTitle() {
 // ERROR HANDLERS
 // ============================================================================
 
-function showError(title: string, message: string, options?: { 
-  showSettings?: boolean; 
+function showError(title: string, message: string, options?: {
+  showSettings?: boolean;
   showAdvanced?: boolean;
   icon?: 'error' | 'warning' | 'info';
   buttonColor?: string;
 }) {
   const { showSettings, showAdvanced, icon = 'error', buttonColor } = options || {};
-  
+
   Swal.fire({
     icon,
     title,
@@ -92,11 +92,11 @@ function showError(title: string, message: string, options?: {
 function handleMetaError(errorMsg: string, platform: 'facebook' | 'instagram') {
   const hasCookie = !!getPlatformCookie(platform);
   const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
-  
+
   if (hasCookie) {
     showError('Extraction Failed', `
       <p style="margin-bottom: 12px;">${displayMsg}</p>
-      <p style="font-size: 12px; color: #fbbf24; margin-bottom: 8px;">⚠️ Cookie is set but extraction still failed.</p>
+      <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">⚠️ Cookie is set but extraction still failed.</p>
       <p style="font-size: 11px; color: #a1a1aa;">Try: Refresh cookie, use HTML extractor in Advanced, or the post may be restricted.</p>
     `, { showAdvanced: true });
   } else {
@@ -108,7 +108,7 @@ function handleMetaError(errorMsg: string, platform: 'facebook' | 'instagram') {
 }
 
 export default function Home() {
-  const [platform, setPlatform] = useState<Platform>('youtube');
+  const [platform, setPlatform] = useState<Platform>('facebook');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
@@ -134,29 +134,8 @@ export default function Home() {
       setPlatform(detectedPlatform);
     }
 
-    // Check client-side cache first (1 day retention)
-    const cached = getCachedResponse(sanitizedUrl);
-    if (cached) {
-      setMediaData({ ...cached.data, cached: true });
-      setIsLoading(false);
-      return;
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(detectedPlatform);
-    if (!rateCheck.allowed) {
-      setIsLoading(false);
-      Swal.fire({
-        icon: 'warning',
-        title: 'Rate Limited',
-        text: `Too many requests. Please wait ${rateCheck.resetIn}s before trying again.`,
-        background: '#1a1a1a',
-        color: '#fff',
-        confirmButtonColor: '#6366f1',
-      });
-      return;
-    }
-    consumeRateLimit(detectedPlatform);
+    // Rate limiting handled by server API
+    // Client-side caching moved to IndexedDB (handled by HistoryList)
 
     try {
       // Get platform cookie if available
@@ -166,32 +145,32 @@ export default function Home() {
       } else if (['facebook', 'instagram'].includes(detectedPlatform)) {
         platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
       }
-      
+
       // Unified API call for all platforms
       const result = await fetchMedia(sanitizedUrl, platformCookie);
-      
+
       if (result.success && result.data) {
         const mediaResult = { ...result.data, usedCookie: result.data.usedCookie || !!platformCookie };
         setMediaData(mediaResult);
-        cacheResponse(sanitizedUrl, detectedPlatform, mediaResult);
+        // Caching handled by IndexedDB when download completes
         return;
       }
-      
+
       // Handle Weibo cookie errors
       if (detectedPlatform === 'weibo') {
         if (result.error === 'COOKIE_EXPIRED') {
           clearWeiboCookie();
         }
-        
+
         if (result.error?.includes('cookie') || result.error?.includes('Cookie') || result.error === 'COOKIE_REQUIRED') {
           setIsLoading(false);
-          
+
           const { isConfirmed } = await Swal.fire({
             icon: 'warning',
             title: 'Weibo Cookie Required',
             html: `
               <p style="margin-bottom: 8px;">Weibo requires a cookie to access videos.</p>
-              <p style="font-size: 12px; color: #fbbf24; margin-bottom: 8px;">⚠️ Your previous cookie has expired or not set.</p>
+              <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">⚠️ Your previous cookie has expired or not set.</p>
               <p style="font-size: 13px; color: #a1a1aa;">Go to <b>Settings</b> → <b>Weibo</b> and paste a new guest cookie.</p>
             `,
             showCancelButton: true,
@@ -201,19 +180,19 @@ export default function Home() {
             color: '#fff',
             confirmButtonColor: '#6366f1',
           });
-          
+
           if (isConfirmed) {
             window.location.href = '/settings';
           }
           return;
         }
       }
-      
+
       throw new Error(result.error || 'Failed to fetch');
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
-      
+
       // Handle different error types
       if (errorMsg.includes('CHECKPOINT_REQUIRED')) {
         showError('🚫 Cookie Blocked', `
@@ -223,12 +202,11 @@ export default function Home() {
         `, { icon: 'warning', buttonColor: '#ef4444', showSettings: true });
       } else if (errorMsg.includes('maintenance')) {
         showError('🔧 Under Maintenance', `
-          <p style="font-size: 14px; color: #fbbf24;">We're working on improvements. Check back soon!</p>
+          <p style="font-size: 14px; color: #facc15;">We're working on improvements. Check back soon!</p>
         `, { icon: 'warning', buttonColor: '#f59e0b' });
       } else if (errorMsg.includes('disabled') || errorMsg.includes('unavailable')) {
         showError('⏸️ Service Paused', `
           <p style="margin-bottom: 12px;">${displayMsg}</p>
-          <p style="font-size: 12px; color: #60a5fa;">This platform is temporarily disabled by admin.</p>
         `, { icon: 'info', buttonColor: '#3b82f6' });
       } else if (detectedPlatform === 'facebook' || detectedPlatform === 'instagram') {
         handleMetaError(errorMsg, detectedPlatform);
@@ -240,7 +218,7 @@ export default function Home() {
     }
   };
 
-  const handleDownloadComplete = (item: HistoryItem) => {
+  const handleDownloadComplete = (_entry: HistoryEntry) => {
     setHistoryRefresh(prev => prev + 1);
   };
 
@@ -291,7 +269,7 @@ export default function Home() {
           {/* Preview */}
           <AnimatePresence mode="wait">
             {!isLoading && mediaData && (
-              <VideoPreview
+              <DownloadPreview
                 data={mediaData}
                 platform={platform}
                 onDownloadComplete={handleDownloadComplete}

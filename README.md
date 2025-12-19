@@ -78,6 +78,8 @@
 | 🌙 **3 Themes** | Dark, Light, Solarized |
 | 📜 **History** | Track your downloads locally |
 | ⚡ **Fast** | Direct scraping, no middleman |
+| 🛡️ **Anti-Ban** | Smart header rotation with 6 browser profiles |
+| 💾 **Storage Viewer** | View and manage cached data by platform |
 | 🔑 **API Keys** | Rate-limited API access with key management |
 | 🛡️ **Admin Panel** | Service control, analytics, cookie management |
 

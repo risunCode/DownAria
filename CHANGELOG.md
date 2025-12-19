@@ -2,6 +2,28 @@
 
 All notable changes to XTFetch will be documented in this file.
 
+## [1.0.3] - December 20, 2025
+
+### ✨ What's New
+- **Anti-Ban System** - Smart header rotation with 6 browser profiles (Chrome 143, Firefox 134, Safari 18.2, Edge 143)
+- **Storage Viewer Modal** - View and manage IndexedDB data with platform filtering
+- **Centralized Error UI** - User-friendly error messages with icons, colors, and actions
+- **Retry Logic** - Smart retry with exponential backoff and cookie fallback
+
+### 🔧 What's Improved
+- Updated browser profiles to December 2025 versions
+- Added 3 new error codes: `COOKIE_BANNED`, `CONTENT_REMOVED`, `GEO_BLOCKED`
+- Facebook latency reduced: Reels ~1.9s, Posts ~3.2s, Stories ~2.6s (from ~3-8s)
+- All 14 Facebook test cases pass (100%)
+
+### 📁 New Files
+- `src/lib/http/anti-ban.ts` - Anti-ban system with UA rotation
+- `src/lib/utils/error-ui.ts` - Error display with icons/colors
+- `src/lib/utils/retry.ts` - Smart retry utility
+- `src/components/StorageViewerModal.tsx` - IndexedDB viewer UI
+
+---
+
 ## [1.0.2] - December 18, 2025
 
 ### ✨ What's New

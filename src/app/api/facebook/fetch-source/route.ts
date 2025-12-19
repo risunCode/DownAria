@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/lib/services/logger';
+import { logger } from '@/core';
 
 // Only allow Facebook domains (SSRF prevention)
 function isAllowedUrl(url: string): boolean {

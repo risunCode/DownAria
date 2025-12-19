@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchTikWM } from '@/lib/services/tiktok';
-import { logger } from '@/lib/services/logger';
-import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
-import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
+import { fetchTikWM } from '@/lib/services';
+import { logger } from '@/core';
+import { successResponse, errorResponse, missingUrlResponse } from '@/lib/http';
+import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/core/database';
 
 async function handleRequest(url: string, skipCache = false) {
     const startTime = Date.now();

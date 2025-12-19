@@ -10,9 +10,10 @@ import { useDownloadManager } from '@/components/DownloadManager';
 import Announcements from '@/components/Announcements';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFacebook, faInstagram, faYoutube, faWeibo, faTwitter, faTiktok } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faInstagram, faWeibo, faTwitter, faTiktok, IconDefinition } from '@fortawesome/free-brands-svg-icons';
+import { PLATFORMS as TYPE_PLATFORMS, Platform } from '@/lib/types';
 
-type TabType = 'playground' | 'facebook-html' | 'proxy' | 'discord';
+type TabType = 'playground' | 'facebook-html' | 'proxy';
 
 // Proxy thumbnail URL for CORS-blocked CDNs (Instagram, Facebook, etc.)
 function getProxiedThumbnail(url: string | undefined): string | undefined {
@@ -50,7 +51,7 @@ export default function AdvancedPage() {
                         <TabButton active={activeTab === 'playground'} onClick={() => setActiveTab('playground')} icon={<Play className="w-4 h-4" />} label="API Playground" />
                         <TabButton active={activeTab === 'facebook-html'} onClick={() => setActiveTab('facebook-html')} icon={<Code className="w-4 h-4" />} label="FB HTML Extractor" />
                         <TabButton active={activeTab === 'proxy'} onClick={() => setActiveTab('proxy')} icon={<Cloud className="w-4 h-4" />} label="Direct Proxy" />
-                        <TabButton active={activeTab === 'discord'} onClick={() => setActiveTab('discord')} icon={<Webhook className="w-4 h-4" />} label="Discord Webhook" />
+
                     </div>
 
                     <AnimatePresence mode="wait">
@@ -62,7 +63,6 @@ export default function AdvancedPage() {
                                 </Suspense>
                             )}
                             {activeTab === 'proxy' && <DirectProxyTab />}
-                            {activeTab === 'discord' && <DiscordWebhookTab />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
@@ -75,11 +75,10 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
     return (
         <button
             onClick={onClick}
-            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-all ${
-                active
-                    ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)]'
-            }`}
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-all ${active
+                ? 'bg-[var(--accent-primary)] text-white'
+                : 'bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)]'
+                }`}
         >
             {icon}
             {label}
@@ -95,14 +94,21 @@ function LoadingCard() {
 // API PLAYGROUND TAB (Guest - Rate Limited)
 // ═══════════════════════════════════════════════════════════════
 
-const PLATFORMS = [
-    { id: 'facebook', name: 'Facebook', icon: faFacebook, color: 'text-blue-500', placeholder: 'https://www.facebook.com/share/p/...' },
-    { id: 'instagram', name: 'Instagram', icon: faInstagram, color: 'text-pink-500', placeholder: 'https://www.instagram.com/p/...' },
-    { id: 'twitter', name: 'Twitter/X', icon: faTwitter, color: 'text-sky-400', placeholder: 'https://x.com/user/status/...' },
-    { id: 'tiktok', name: 'TikTok', icon: faTiktok, color: 'text-pink-400', placeholder: 'https://www.tiktok.com/@user/video/...' },
-    { id: 'youtube', name: 'YouTube', icon: faYoutube, color: 'text-red-500', placeholder: 'https://www.youtube.com/watch?v=...' },
-    { id: 'weibo', name: 'Weibo', icon: faWeibo, color: 'text-orange-500', placeholder: 'https://weibo.com/...' },
-];
+// Platform icon mapping for advanced page
+const PLATFORM_ICONS: Record<Platform, { icon: IconDefinition; color: string }> = {
+    facebook: { icon: faFacebook, color: 'text-blue-500' },
+    instagram: { icon: faInstagram, color: 'text-pink-500' },
+    twitter: { icon: faTwitter, color: 'text-sky-400' },
+    tiktok: { icon: faTiktok, color: 'text-pink-400' },
+    weibo: { icon: faWeibo, color: 'text-orange-500' },
+};
+
+// Get platforms with icons for display
+const PLATFORMS = TYPE_PLATFORMS.map(p => ({
+    ...p,
+    icon: PLATFORM_ICONS[p.id].icon,
+    iconColor: PLATFORM_ICONS[p.id].color,
+}));
 
 interface PlaygroundResult {
     success: boolean;
@@ -137,7 +143,7 @@ function ApiPlaygroundTab() {
                     setRateLimit({ remaining: data.rateLimit.maxRequests, limit: data.rateLimit.maxRequests });
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     // Simple URL validation (client-side)
@@ -153,10 +159,10 @@ function ApiPlaygroundTab() {
                 return false;
             }
             // Check if it's a supported platform
-            const supportedDomains = ['facebook.com', 'fb.com', 'fb.watch', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'weibo.com', 'weibo.cn'];
+            const supportedDomains = ['facebook.com', 'fb.com', 'fb.watch', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'weibo.com', 'weibo.cn'];
             const isSupported = supportedDomains.some(d => parsed.hostname.includes(d));
             if (!isSupported) {
-                setUrlError('Unsupported platform. Try Facebook, Instagram, Twitter, TikTok, YouTube, or Weibo');
+                setUrlError('Unsupported platform. Try Facebook, Instagram, Twitter, TikTok, or Weibo');
                 return false;
             }
             setUrlError('');
@@ -172,7 +178,7 @@ function ApiPlaygroundTab() {
         if (!validateUrl(url)) return;
         setLoading(true);
         setResult(null);
-        
+
         try {
             const res = await fetch('/api/playground', {
                 method: 'POST',
@@ -226,7 +232,7 @@ function ApiPlaygroundTab() {
                         </div>
                     </div>
                 </div>
-                
+
                 {/* API Endpoint Info */}
                 <details className="mt-3 pt-3 border-t border-[var(--border-color)]">
                     <summary className="text-xs text-[var(--accent-primary)] cursor-pointer hover:underline flex items-center gap-1">
@@ -247,14 +253,14 @@ function ApiPlaygroundTab() {
                             <span className="text-purple-400 font-bold">POST</span> <span className="text-[var(--text-primary)]">/api/playground</span>
                             <p className="text-[var(--text-muted)] text-[10px] mt-1 font-sans">For programmatic use - send URL in request body</p>
                         </div>
-                        
+
                         {/* Request Body */}
                         <div>
                             <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
                                 <Code className="w-3 h-3" /> POST Body:
                             </p>
                             <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto">
-{`{
+                                {`{
   "url": "https://www.instagram.com/reel/C6O6Wp-yXHy/"
 }`}
                             </pre>
@@ -266,7 +272,7 @@ function ApiPlaygroundTab() {
                                 <Code className="w-3 h-3" /> cURL:
                             </p>
                             <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
-{`curl -X POST https://xt-fetch.vercel.app/api/playground \\
+                                {`curl -X POST https://xt-fetch.vercel.app/api/playground \\
   -H "Content-Type: application/json" \\
   -d '{"url":"https://www.instagram.com/reel/C6O6Wp-yXHy/"}'`}
                             </pre>
@@ -278,7 +284,7 @@ function ApiPlaygroundTab() {
                                 <Code className="w-3 h-3" /> JavaScript:
                             </p>
                             <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
-{`const response = await fetch('/api/playground', {
+                                {`const response = await fetch('/api/playground', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 
@@ -301,7 +307,7 @@ console.log(data);`}
             <div className="flex flex-wrap gap-2 justify-center">
                 {PLATFORMS.map(p => (
                     <div key={p.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)]">
-                        <FontAwesomeIcon icon={p.icon} className={`w-4 h-4 ${p.color}`} />
+                        <FontAwesomeIcon icon={p.icon} className={`w-4 h-4 ${p.iconColor}`} />
                         <span className="text-xs">{p.name}</span>
                     </div>
                 ))}
@@ -331,8 +337,8 @@ console.log(data);`}
                         <AlertCircle className="w-3 h-3" /> {urlError}
                     </p>
                 )}
-                <Button 
-                    onClick={executeRequest} 
+                <Button
+                    onClick={executeRequest}
                     disabled={loading || !url.trim() || !!urlError || rateLimit.remaining === 0}
                     className="w-full"
                     leftIcon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -407,7 +413,7 @@ console.log(data);`}
                                             <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)]">
                                                 {fmt.type === 'video' ? <Film className="w-4 h-4 text-purple-400" /> : <Image className="w-4 h-4 text-blue-400" />}
                                                 <span className="text-xs flex-1 truncate">{fmt.quality || fmt.type || 'Media'}</span>
-                                                <button 
+                                                <button
                                                     onClick={() => startDownload(fmt.url, `${result.platform}_${Date.now()}.${fmt.type === 'video' ? 'mp4' : 'jpg'}`, result.platform || 'generic')}
                                                     className="p-1.5 rounded hover:bg-green-500/20 text-green-400"
                                                 >
@@ -498,22 +504,71 @@ function FacebookHtmlTab() {
             const found: ExtractedMedia[] = [];
             const decoded = decodeUrl(htmlContent);
             const seenUrls = new Set<string>();
+            const foundQualities = new Set<string>();
 
-            const patterns = [
-                { re: /"playable_url_quality_hd":"([^"]+)"/g, q: 'HD Video' },
-                { re: /"hd_src":"([^"]+)"/g, q: 'HD Video' },
-                { re: /"playable_url":"([^"]+)"/g, q: 'SD Video' },
-                { re: /"sd_src":"([^"]+)"/g, q: 'SD Video' },
-            ];
+            const addVideo = (url: string, quality: string) => {
+                const cleanUrl = decodeUrl(url);
+                // Accept .mp4 or fbcdn/scontent video URLs
+                if (!cleanUrl || seenUrls.has(cleanUrl)) return;
+                if (!/\.mp4|scontent.*\/v\/|fbcdn.*\/v\//.test(cleanUrl)) return;
+                seenUrls.add(cleanUrl);
+                foundQualities.add(quality);
+                found.push({ url: cleanUrl, quality, type: 'video' });
+            };
 
-            for (const { re, q } of patterns) {
-                re.lastIndex = 0;
+            // METHOD 1: browser_native (newest format - most reliable)
+            const hdNative = decoded.match(/"browser_native_hd_url":"([^"]+)"/);
+            const sdNative = decoded.match(/"browser_native_sd_url":"([^"]+)"/);
+            if (hdNative) addVideo(hdNative[1], 'HD Video');
+            if (sdNative) addVideo(sdNative[1], 'SD Video');
+
+            // METHOD 2: playable_url (legacy format)
+            if (!foundQualities.has('HD Video')) {
+                const hdPlay = decoded.match(/"playable_url_quality_hd":"([^"]+)"/);
+                if (hdPlay) addVideo(hdPlay[1], 'HD Video');
+            }
+            if (!foundQualities.has('SD Video')) {
+                const sdPlay = decoded.match(/"playable_url":"([^"]+)"/);
+                if (sdPlay) addVideo(sdPlay[1], 'SD Video');
+            }
+
+            // METHOD 3: hd_src/sd_src (older format)
+            if (!foundQualities.has('HD Video')) {
+                const hdSrc = decoded.match(/"hd_src(?:_no_ratelimit)?":"([^"]+)"/);
+                if (hdSrc) addVideo(hdSrc[1], 'HD Video');
+            }
+            if (!foundQualities.has('SD Video')) {
+                const sdSrc = decoded.match(/"sd_src(?:_no_ratelimit)?":"([^"]+)"/);
+                if (sdSrc) addVideo(sdSrc[1], 'SD Video');
+            }
+
+            // METHOD 4: DASH manifest (for specific resolutions)
+            if (found.length === 0) {
+                const dashRe = /"height":(\d+)[^}]*?"base_url":"(https:[^"]+\.mp4[^"]*)"/g;
+                const dashVideos: { height: number; url: string }[] = [];
                 let m;
-                while ((m = re.exec(decoded)) !== null) {
-                    const url = decodeUrl(m[1]);
-                    if (url.includes('.mp4') && !seenUrls.has(url)) {
-                        seenUrls.add(url);
-                        found.push({ url, quality: q, type: 'video' });
+                while ((m = dashRe.exec(decoded)) !== null) {
+                    const height = parseInt(m[1]);
+                    if (height >= 360) dashVideos.push({ height, url: decodeUrl(m[2]) });
+                }
+                if (dashVideos.length > 0) {
+                    dashVideos.sort((a, b) => b.height - a.height);
+                    const hd = dashVideos.find(v => v.height >= 720);
+                    const sd = dashVideos.find(v => v.height < 720 && v.height >= 360);
+                    if (hd) addVideo(hd.url, `HD ${hd.height}p`);
+                    if (sd) addVideo(sd.url, `SD ${sd.height}p`);
+                }
+            }
+
+            // METHOD 5: progressive_url (fallback)
+            if (found.length === 0) {
+                const progRe = /"progressive_url":"(https:\/\/[^"]+)"/g;
+                let progMatch;
+                while ((progMatch = progRe.exec(decoded)) !== null && found.length < 2) {
+                    const url = decodeUrl(progMatch[1]);
+                    if (/\.mp4|scontent.*\/v\/|fbcdn.*\/v\//.test(url)) {
+                        const quality = /720|1080|_hd/i.test(url) || found.length === 0 ? 'HD Video' : 'SD Video';
+                        if (!foundQualities.has(quality)) addVideo(url, quality);
                     }
                 }
             }
@@ -578,7 +633,7 @@ function FacebookHtmlTab() {
                         <label className="text-sm font-medium">Paste HTML Source</label>
                         {html.length > 0 && <span className="text-xs text-[var(--text-muted)]">({(html.length / 1024).toFixed(0)} KB)</span>}
                     </div>
-                    
+
                     {isLoading ? (
                         <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--bg-secondary)]">
                             <Loader2 className="w-5 h-5 animate-spin text-[var(--accent-primary)]" />
@@ -598,14 +653,14 @@ function FacebookHtmlTab() {
                                 className="w-full h-32 px-3 py-2 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg font-mono resize-none focus:outline-none focus:border-[var(--accent-primary)]"
                             />
                             <div className="flex gap-2">
-                                <Button 
-                                    onClick={() => extractFromHtml(html)} 
+                                <Button
+                                    onClick={() => extractFromHtml(html)}
                                     disabled={!html.trim()}
                                     leftIcon={<FileVideo className="w-4 h-4" />}
                                 >
                                     Extract Media
                                 </Button>
-                                <Button 
+                                <Button
                                     variant="secondary"
                                     onClick={handlePasteHtml}
                                     leftIcon={<Clipboard className="w-4 h-4" />}
@@ -686,7 +741,7 @@ function DirectProxyTab() {
             }
 
             if (!extractedFilename) {
-                try { extractedFilename = decodeURIComponent(new URL(finalUrl).pathname.split('/').pop() || ''); } catch {}
+                try { extractedFilename = decodeURIComponent(new URL(finalUrl).pathname.split('/').pop() || ''); } catch { }
             }
 
             setDownloadUrl(finalUrl);
@@ -746,355 +801,6 @@ function DirectProxyTab() {
     );
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-// DISCORD WEBHOOK TAB (User - localStorage)
-// ═══════════════════════════════════════════════════════════════
-
-import { 
-    UserDiscordSettings, 
-    DEFAULT_USER_DISCORD, 
-    DISCORD_STORAGE_KEY,
-    getUserDiscordSettings,
-    saveUserDiscordSettings,
-    sendDiscordNotification 
-} from '@/lib/utils/discord-webhook';
-
-function DiscordWebhookTab() {
-    const [settings, setSettings] = useState<UserDiscordSettings>(DEFAULT_USER_DISCORD);
-    const [testMessage, setTestMessage] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
-    const [showTips, setShowTips] = useState(false);
-
-    // Load from localStorage
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem(DISCORD_STORAGE_KEY);
-            if (saved) {
-                setSettings({ ...DEFAULT_USER_DISCORD, ...JSON.parse(saved) });
-            }
-        } catch {}
-    }, []);
-
-    // Save to localStorage
-    const saveSettings = (newSettings: UserDiscordSettings) => {
-        setSettings(newSettings);
-        saveUserDiscordSettings(newSettings);
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: 'Settings saved',
-            showConfirmButton: false,
-            timer: 1500,
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-        });
-    };
-
-    const updateSetting = <K extends keyof UserDiscordSettings>(key: K, value: UserDiscordSettings[K]) => {
-        const newSettings = { ...settings, [key]: value };
-        saveSettings(newSettings);
-    };
-
-    const sendTestMessage = async () => {
-        if (!settings.webhookUrl) {
-            setResult({ success: false, message: 'Set webhook URL first' });
-            return;
-        }
-
-        setIsSending(true);
-        setResult(null);
-
-        try {
-            const payload: Record<string, unknown> = {
-                username: 'XTFetch',
-                avatar_url: 'https://xtfetch.vercel.app/icon.png',
-            };
-
-            if (testMessage.trim()) {
-                payload.content = testMessage.trim();
-            }
-
-            if (settings.embedEnabled) {
-                payload.embeds = [{
-                    title: '🎬 Test Download Notification',
-                    description: testMessage.trim() || 'This is a test message from XTFetch!',
-                    color: parseInt(settings.embedColor.replace('#', ''), 16),
-                    fields: [
-                        { name: 'Platform', value: 'YouTube', inline: true },
-                        { name: 'Quality', value: 'HD 1080p', inline: true },
-                    ],
-                    footer: {
-                        text: settings.footerText || 'via XTFetch',
-                        icon_url: 'https://xtfetch.vercel.app/icon.png',
-                    },
-                    timestamp: new Date().toISOString(),
-                }];
-            }
-
-            const res = await fetch(settings.webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (res.ok || res.status === 204) {
-                setResult({ success: true, message: 'Message sent!' });
-                setTestMessage('');
-            } else {
-                const error = await res.text();
-                setResult({ success: false, message: error || `Error ${res.status}` });
-            }
-        } catch (err) {
-            setResult({ success: false, message: err instanceof Error ? err.message : 'Failed to send' });
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            {/* Info Card */}
-            <div className="glass-card p-4">
-                <div className="flex items-start gap-3">
-                    <Webhook className="w-5 h-5 text-[#5865F2] shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                        <h2 className="font-semibold">Discord Webhook</h2>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">
-                            Get notified on Discord when downloads complete. Your webhook URL is stored locally.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowTips(!showTips)}
-                        className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-muted)]"
-                    >
-                        <Info className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Tips */}
-            {showTips && (
-                <div className="glass-card p-4 bg-blue-500/5 border-blue-500/20">
-                    <h3 className="font-medium text-sm mb-2 flex items-center gap-2">
-                        <Info className="w-4 h-4 text-blue-400" />
-                        How to get Discord Webhook URL
-                    </h3>
-                    <ol className="text-xs text-[var(--text-muted)] space-y-1 list-decimal list-inside">
-                        <li>Open Discord and go to your server</li>
-                        <li>Right-click a channel → Edit Channel</li>
-                        <li>Go to Integrations → Webhooks</li>
-                        <li>Click "New Webhook" or use existing one</li>
-                        <li>Click "Copy Webhook URL"</li>
-                        <li>Paste it below!</li>
-                    </ol>
-                </div>
-            )}
-
-            {/* Settings */}
-            <div className="glass-card p-4 space-y-4">
-                {/* Webhook URL */}
-                <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">Webhook URL</label>
-                    <input
-                        type="url"
-                        value={settings.webhookUrl}
-                        onChange={e => updateSetting('webhookUrl', e.target.value)}
-                        placeholder="https://discord.com/api/webhooks/..."
-                        className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm font-mono"
-                    />
-                </div>
-
-                {/* Auto Send Toggle */}
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
-                    <div className="flex items-center gap-3">
-                        {settings.autoSend ? (
-                            <Bell className="w-5 h-5 text-green-400" />
-                        ) : (
-                            <BellOff className="w-5 h-5 text-[var(--text-muted)]" />
-                        )}
-                        <div>
-                            <p className="text-sm font-medium">Auto-send on download</p>
-                            <p className="text-xs text-[var(--text-muted)]">Automatically notify when download completes</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => updateSetting('autoSend', !settings.autoSend)}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${
-                            settings.autoSend ? 'bg-green-500' : 'bg-[var(--bg-card)]'
-                        }`}
-                    >
-                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${
-                            settings.autoSend ? 'left-7' : 'left-1'
-                        }`} />
-                    </button>
-                </div>
-
-                {/* Embed Settings */}
-                <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={settings.embedEnabled}
-                            onChange={e => updateSetting('embedEnabled', e.target.checked)}
-                            className="rounded"
-                        />
-                        Use rich embed (recommended)
-                    </label>
-
-                    {settings.embedEnabled && (
-                        <div className="grid grid-cols-2 gap-3 pl-6">
-                            <div>
-                                <label className="block text-xs text-[var(--text-muted)] mb-1">Embed Color</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="color"
-                                        value={settings.embedColor}
-                                        onChange={e => updateSetting('embedColor', e.target.value)}
-                                        className="w-10 h-9 rounded cursor-pointer"
-                                    />
-                                    <input
-                                        type="text"
-                                        value={settings.embedColor}
-                                        onChange={e => updateSetting('embedColor', e.target.value)}
-                                        className="flex-1 px-2 py-1 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-mono"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-[var(--text-muted)] mb-1">Footer Text</label>
-                                <input
-                                    type="text"
-                                    value={settings.footerText}
-                                    onChange={e => updateSetting('footerText', e.target.value)}
-                                    placeholder="via XTFetch"
-                                    className="w-full px-2 py-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Send Method for Large Files */}
-                <div className="space-y-3 pt-3 border-t border-[var(--border-color)]">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium">Video Send Method</p>
-                            <p className="text-xs text-[var(--text-muted)]">How to send large videos (&gt;10MB)</p>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        {[
-                            { id: 'smart' as const, label: 'Smart (Recommended)', desc: 'Auto-detect: ≤10MB = 1x, >10MB = 2x' },
-                            { id: 'single' as const, label: 'Always 1x Send', desc: 'Link + embed in one message (large files may not embed)' },
-                            { id: 'double' as const, label: 'Always 2x Send', desc: '1st: plain URL (video), 2nd: rich embed (info)' },
-                        ].map(method => (
-                            <label
-                                key={method.id}
-                                className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                                    settings.sendMethod === method.id 
-                                        ? 'bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30' 
-                                        : 'bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)]'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="sendMethod"
-                                    checked={settings.sendMethod === method.id}
-                                    onChange={() => updateSetting('sendMethod', method.id)}
-                                    className="mt-0.5"
-                                />
-                                <div>
-                                    <p className="text-sm font-medium">{method.label}</p>
-                                    <p className="text-xs text-[var(--text-muted)]">{method.desc}</p>
-                                </div>
-                            </label>
-                        ))}
-                    </div>
-                    <p className="text-xs text-amber-400/80 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        Discord doesn&apos;t auto-embed videos &gt;10MB when sent with rich embed
-                    </p>
-                </div>
-            </div>
-
-            {/* Test Message */}
-            <div className="glass-card p-4 space-y-3">
-                <h3 className="font-medium text-sm flex items-center gap-2">
-                    <Send className="w-4 h-4 text-[var(--accent-primary)]" />
-                    Send Test Message
-                </h3>
-                <textarea
-                    value={testMessage}
-                    onChange={e => setTestMessage(e.target.value)}
-                    placeholder="Optional message content..."
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm resize-none"
-                    rows={2}
-                />
-                <div className="flex items-center gap-3">
-                    <Button
-                        onClick={sendTestMessage}
-                        disabled={isSending || !settings.webhookUrl}
-                        leftIcon={isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    >
-                        {isSending ? 'Sending...' : 'Send Test'}
-                    </Button>
-                    {result && (
-                        <span className={`text-sm ${result.success ? 'text-green-400' : 'text-red-400'}`}>
-                            {result.success ? '✓' : '✗'} {result.message}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Preview */}
-            {settings.webhookUrl && settings.embedEnabled && (
-                <div className="glass-card p-4">
-                    <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
-                        Preview
-                    </h3>
-                    <div className="bg-[#313338] rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center overflow-hidden shrink-0">
-                                <img src="/icon.png" alt="XT" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-white text-sm">XTFetch</span>
-                                    <span className="px-1 py-0.5 text-[10px] bg-[#5865F2] text-white rounded">BOT</span>
-                                </div>
-                                <div className="rounded overflow-hidden max-w-md" style={{ borderLeft: `4px solid ${settings.embedColor}`, backgroundColor: '#2B2D31' }}>
-                                    <div className="p-3">
-                                        <h3 className="text-[#00A8FC] font-semibold text-sm mb-1">🎬 Download Complete</h3>
-                                        <p className="text-[#DBDEE1] text-sm">Your video has been downloaded successfully!</p>
-                                        <div className="grid grid-cols-2 gap-2 mt-2">
-                                            <div>
-                                                <div className="text-xs text-white font-semibold">Platform</div>
-                                                <div className="text-xs text-[#DBDEE1]">YouTube</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs text-white font-semibold">Quality</div>
-                                                <div className="text-xs text-[#DBDEE1]">HD 1080p</div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-[#3F4147]">
-                                            <img src="/icon.png" alt="" className="w-4 h-4 rounded-full" />
-                                            <span className="text-[#949BA4] text-xs">{settings.footerText || 'via XTFetch'}</span>
-                                            <span className="text-[#949BA4] text-xs">• Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 
 // Re-export from utility for backward compatibility
 export { getUserDiscordSettings, sendDiscordNotification } from '@/lib/utils/discord-webhook';

@@ -4,8 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
-import { getAdminCookie, type CookiePlatform } from '@/lib/utils/admin-cookie';
+import { verifyAdminSession } from '@/core/security';
+import { getAdminCookie, type CookiePlatform } from '@/lib/cookies';
 
 const PLATFORMS: CookiePlatform[] = ['facebook', 'instagram', 'twitter', 'weibo'];
 

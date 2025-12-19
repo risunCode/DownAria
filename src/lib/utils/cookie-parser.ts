@@ -9,7 +9,7 @@
 // TYPES
 // ============================================================================
 
-export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter' | 'youtube';
+export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter';
 
 interface CookieObject {
     name?: string;
@@ -36,7 +36,6 @@ const DOMAIN_PATTERNS: Record<CookiePlatform, string[]> = {
     instagram: ['.instagram.com', 'instagram.com'],
     weibo: ['.weibo.com', 'weibo.com', '.weibo.cn'],
     twitter: ['.twitter.com', 'twitter.com', '.x.com', 'x.com'],
-    youtube: ['.youtube.com', 'youtube.com', '.google.com', 'google.com'],
 };
 
 // ============================================================================
@@ -48,7 +47,6 @@ const REQUIRED_COOKIES: Record<CookiePlatform, string[]> = {
     instagram: ['sessionid'],              // Session ID (ds_user_id optional)
     weibo: ['SUB'],                        // Session token
     twitter: ['auth_token'],               // Auth token (ct0 for CSRF)
-    youtube: ['SAPISID', 'HSID'],          // Google auth cookies (or LOGIN_INFO)
 };
 
 // ============================================================================

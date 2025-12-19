@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS: UpdatePromptSettings = {
   custom_message: '',
 };
 
-const STORAGE_KEY = 'xtf_update_dismissed';
+const STORAGE_KEY = 'upd_dsm_v1_q2w';
 
 export function ServiceWorkerRegister() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -29,19 +29,19 @@ export function ServiceWorkerRegister() {
   // Check if prompt should be shown based on mode
   const shouldShowPrompt = useCallback((mode: UpdatePromptSettings['mode']): boolean => {
     if (mode === 'always') return true;
-    
+
     if (mode === 'once') {
       // Check localStorage - if dismissed, never show again
       const dismissed = localStorage.getItem(STORAGE_KEY);
       return dismissed !== 'forever';
     }
-    
+
     if (mode === 'session') {
       // Check sessionStorage - if dismissed this session, don't show
       const dismissed = sessionStorage.getItem(STORAGE_KEY);
       return dismissed !== 'session';
     }
-    
+
     return true;
   }, []);
 
@@ -54,13 +54,13 @@ export function ServiceWorkerRegister() {
           setSettings(data.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Show prompt when update available (with delay and mode check)
   useEffect(() => {
     if (!updateAvailable || !settings.enabled) return;
-    
+
     if (!shouldShowPrompt(settings.mode)) {
       console.log('[PWA] Update prompt dismissed by user preference');
       return;
@@ -78,7 +78,7 @@ export function ServiceWorkerRegister() {
     // Track online/offline status
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     setIsOffline(!navigator.onLine);
@@ -89,7 +89,7 @@ export function ServiceWorkerRegister() {
         .register('/sw.js')
         .then((registration) => {
           console.log('[PWA] Service Worker registered');
-          
+
           // Check for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;

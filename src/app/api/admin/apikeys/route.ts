@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { verifyAdminSession } from '@/core/security';
 import {
     getAllApiKeys,
     createApiKey,
@@ -13,7 +13,7 @@ import {
     deleteApiKey,
     regenerateApiKey,
     resetKeyStats,
-} from '@/lib/services/api-keys';
+} from '@/core/database';
 
 // GET - List all API keys
 export async function GET(request: NextRequest) {

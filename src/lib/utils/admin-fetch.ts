@@ -10,10 +10,10 @@
  * const { adminFetch } = useAdmin();
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/core/database';
 
 // Legacy admin key storage (kept for backward compatibility)
-const ADMIN_KEY_STORAGE = 'xtf_admin_key';
+const ADMIN_KEY_STORAGE = 'adm_k_v1_d8s';
 
 /**
  * Get admin key from localStorage (legacy)
@@ -52,7 +52,7 @@ export function hasAdminKey(): boolean {
  */
 async function getSupabaseToken(retries = 3): Promise<string | null> {
     if (!supabase) return null;
-    
+
     for (let i = 0; i < retries; i++) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -81,12 +81,12 @@ export async function adminFetch(
     options: RequestInit = {}
 ): Promise<Response> {
     const token = await getSupabaseToken();
-    
+
     const headers = new Headers(options.headers);
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
-    
+
     return fetch(url, {
         ...options,
         headers
@@ -119,12 +119,12 @@ export async function adminFetchJson<T = unknown>(
 export function installAdminFetchGlobal(): void {
     if (typeof window === 'undefined') return;
     if ((window as unknown as { __adminFetchInstalled?: boolean }).__adminFetchInstalled) return;
-    
+
     const originalFetch = window.fetch;
-    
+
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        
+
         // Intercept admin API calls
         if (url.includes('/api/admin') || url.includes('/api/announcements')) {
             const token = await getSupabaseToken();
@@ -134,9 +134,9 @@ export function installAdminFetchGlobal(): void {
                 return originalFetch(input, { ...init, headers });
             }
         }
-        
+
         return originalFetch(input, init);
     };
-    
+
     (window as unknown as { __adminFetchInstalled?: boolean }).__adminFetchInstalled = true;
 }

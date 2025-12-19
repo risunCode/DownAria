@@ -4,15 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { verifyAdminSession } from '@/core/security';
 import { 
   getAllAdminCookies, 
   setAdminCookie, 
   toggleAdminCookie, 
   deleteAdminCookie,
+  parseCookie,
+  validateCookie,
   type CookiePlatform 
-} from '@/lib/utils/admin-cookie';
-import { parseCookie, validateCookie } from '@/lib/utils/cookie-parser';
+} from '@/lib/cookies';
 
 const VALID_PLATFORMS: CookiePlatform[] = ['facebook', 'instagram', 'weibo', 'twitter'];
 

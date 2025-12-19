@@ -4,10 +4,11 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DownloadForm } from '@/components/DownloadForm';
-import { VideoPreview } from '@/components/VideoPreview';
+import { DownloadPreview } from '@/components/DownloadPreview';
 import { CardSkeleton } from '@/components/ui/Card';
-import { Platform, MediaData, HistoryItem, detectPlatform, sanitizeUrl } from '@/lib/types';
-import { getPlatformCookie, getWeiboCookie } from '@/lib/utils/storage';
+import { Platform, MediaData, detectPlatform, sanitizeUrl } from '@/lib/types';
+import type { HistoryEntry } from '@/lib/storage';
+import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
 import { AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 
@@ -15,7 +16,7 @@ function ShareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [platform, setPlatform] = useState<Platform>('youtube');
+  const [platform, setPlatform] = useState<Platform>('facebook');
   const [isLoading, setIsLoading] = useState(false);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
   const [sharedUrl, setSharedUrl] = useState<string>('');
@@ -102,9 +103,9 @@ function ShareContent() {
             icon: 'warning',
             title: 'Weibo Cookie Required',
             text: 'Go to Settings to add Weibo cookie first.',
-            background: '#1a1a1a',
-            color: '#fff',
-            confirmButtonColor: '#6366f1',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            confirmButtonColor: 'var(--accent-primary)',
           });
           return;
         }
@@ -118,16 +119,16 @@ function ShareContent() {
         icon: 'error',
         title: 'Failed',
         text: errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg,
-        background: '#1a1a1a',
-        color: '#fff',
-        confirmButtonColor: '#6366f1',
+        background: 'var(--bg-card)',
+        color: 'var(--text-primary)',
+        confirmButtonColor: 'var(--accent-primary)',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDownloadComplete = (item: HistoryItem) => {
+  const handleDownloadComplete = (_entry: HistoryEntry) => {
     // Optional: redirect to home after download
   };
 
@@ -162,7 +163,7 @@ function ShareContent() {
           {/* Preview */}
           <AnimatePresence mode="wait">
             {!isLoading && mediaData && (
-              <VideoPreview
+              <DownloadPreview
                 data={mediaData}
                 platform={platform}
                 onDownloadComplete={handleDownloadComplete}

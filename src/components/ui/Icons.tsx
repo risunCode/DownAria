@@ -18,7 +18,6 @@ import {
     faWandMagicSparkles,
 } from '@fortawesome/free-solid-svg-icons';
 import {
-    faYoutube,
     faFacebook,
     faInstagram,
     faXTwitter,
@@ -27,10 +26,6 @@ import {
 } from '@fortawesome/free-brands-svg-icons';
 
 // Platform icons
-export const YoutubeIcon = ({ className }: { className?: string }) => (
-    <FontAwesomeIcon icon={faYoutube} className={className} />
-);
-
 export const FacebookIcon = ({ className }: { className?: string }) => (
     <FontAwesomeIcon icon={faFacebook} className={className} />
 );
@@ -49,11 +44,6 @@ export const TiktokIcon = ({ className }: { className?: string }) => (
 
 export const WeiboIcon = ({ className }: { className?: string }) => (
     <FontAwesomeIcon icon={faWeibo} className={className} />
-);
-
-// Douyin uses same icon as TikTok
-export const DouyinIcon = ({ className }: { className?: string }) => (
-    <FontAwesomeIcon icon={faTiktok} className={className} />
 );
 
 // Media type icons
@@ -117,13 +107,11 @@ export const MagicIcon = ({ className }: { className?: string }) => (
 // Platform icon by ID
 export function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
     switch (platform) {
-        case 'youtube': return <YoutubeIcon className={className} />;
         case 'facebook': return <FacebookIcon className={className} />;
         case 'instagram': return <InstagramIcon className={className} />;
         case 'twitter': return <XTwitterIcon className={className} />;
         case 'tiktok': return <TiktokIcon className={className} />;
         case 'weibo': return <WeiboIcon className={className} />;
-        case 'douyin': return <DouyinIcon className={className} />;
         default: return <GlobeIcon className={className} />;
     }
 }

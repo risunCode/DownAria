@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/core/database';
 
 export interface UpdatePromptSettings {
     enabled: boolean;

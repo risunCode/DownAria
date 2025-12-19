@@ -25,7 +25,7 @@ interface PendingDownloadContextType {
 
 const PendingDownloadContext = createContext<PendingDownloadContextType | null>(null);
 
-const QUEUE_STORAGE_KEY = 'xtfetch_media_queue';
+const QUEUE_STORAGE_KEY = 'pd_q_v1_m4n';
 
 export function PendingDownloadProvider({ children }: { children: ReactNode }) {
   const [mediaData, setMediaDataState] = useState<MediaData | null>(null);
@@ -113,7 +113,7 @@ export function PendingDownloadProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <PendingDownloadContext.Provider value={{ 
+    <PendingDownloadContext.Provider value={{
       mediaData, setMediaData, clearMediaData,
       queue, addToQueue, removeFromQueue, clearQueue,
       isQueueMinimized, setQueueMinimized

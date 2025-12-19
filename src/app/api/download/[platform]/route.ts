@@ -5,7 +5,6 @@
  * POST /api/download/instagram
  * POST /api/download/twitter
  * POST /api/download/tiktok
- * POST /api/download/youtube
  * POST /api/download/weibo
  * 
  * Body: { url: "https://...", cookie?: "..." }
@@ -15,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleDownload } from '@/lib/services/download-handler';
 
-const VALID_PLATFORMS = ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'];
+const VALID_PLATFORMS = ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo'];
 
 export async function GET(
     request: NextRequest,

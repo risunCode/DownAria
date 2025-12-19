@@ -1,16 +1,16 @@
 /**
  * Admin Cookie Manager
  * Fetches global cookies set by admin from Supabase
- * Now supports Cookie Pool rotation for multi-cookie management
- * Priority: localStorage (user) > Cookie Pool (rotating) > Legacy single cookie
+ * Cookie Pool rotation > Legacy single cookie
+ * Cache: Redis > Memory fallback
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getRotatingCookie, markCookieSuccess, markCookieCooldown, markCookieExpired } from './cookie-pool';
+import { redis } from '@/lib/redis';
 
-export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter' | 'youtube';
+export type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter';
 
-// Re-export cookie pool functions for convenience
 export { markCookieSuccess, markCookieCooldown, markCookieExpired };
 
 interface AdminCookie {
@@ -27,7 +27,6 @@ let supabase: SupabaseClient | null = null;
 function getSupabase(): SupabaseClient | null {
     if (!supabase) {
         const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-        // Prefer service role key for admin operations (bypasses RLS)
         const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         if (!url || !key) return null;
         supabase = createClient(url, key);
@@ -35,31 +34,47 @@ function getSupabase(): SupabaseClient | null {
     return supabase;
 }
 
-// In-memory cache (5 min TTL)
-const cache = new Map<string, { cookie: string | null; expires: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Cache config
+const CACHE_TTL = 300; // 5 minutes in seconds
+const memCache = new Map<string, { cookie: string | null; expires: number }>();
+
+async function getCached(key: string): Promise<string | null | undefined> {
+    if (redis) {
+        try { return await redis.get<string>(key); } catch { /* fallback */ }
+    }
+    const entry = memCache.get(key);
+    if (entry && entry.expires > Date.now()) return entry.cookie;
+    return undefined;
+}
+
+async function setCached(key: string, value: string | null): Promise<void> {
+    if (redis) {
+        try { await redis.set(key, value ?? '', { ex: CACHE_TTL }); return; } catch { /* fallback */ }
+    }
+    memCache.set(key, { cookie: value, expires: Date.now() + CACHE_TTL * 1000 });
+}
+
+async function delCached(key: string): Promise<void> {
+    memCache.delete(key);
+    if (redis) { try { await redis.del(key); } catch { /* ignore */ } }
+}
 
 /**
  * Get admin cookie from Cookie Pool (rotating) or legacy single cookie
- * Returns null if not found or disabled
  */
 export async function getAdminCookie(platform: CookiePlatform): Promise<string | null> {
-    // Try Cookie Pool first (rotating multi-cookie)
+    // Try Cookie Pool first
     try {
         const poolCookie = await getRotatingCookie(platform);
-        if (poolCookie) {
-            return poolCookie;
-        }
-    } catch {
-        // Pool not available, fall through to legacy
-    }
+        if (poolCookie) return poolCookie;
+    } catch { /* fallback to legacy */ }
 
-    // Fallback to legacy single cookie
-    const cached = cache.get(platform);
-    if (cached && cached.expires > Date.now()) {
-        return cached.cookie;
-    }
+    // Check cache
+    const cacheKey = `cookie:${platform}`;
+    const cached = await getCached(cacheKey);
+    if (cached !== undefined) return cached || null;
 
+    // Fetch from DB
     const sb = getSupabase();
     if (!sb) return null;
 
@@ -70,13 +85,9 @@ export async function getAdminCookie(platform: CookiePlatform): Promise<string |
             .eq('platform', platform)
             .single();
 
-        if (error || !data || !data.enabled) {
-            cache.set(platform, { cookie: null, expires: Date.now() + CACHE_TTL });
-            return null;
-        }
-
-        cache.set(platform, { cookie: data.cookie, expires: Date.now() + CACHE_TTL });
-        return data.cookie;
+        const cookie = (!error && data?.enabled) ? data.cookie : null;
+        await setCached(cacheKey, cookie);
+        return cookie;
     } catch {
         return null;
     }
@@ -132,9 +143,7 @@ export async function setAdminCookie(
                 updated_at: new Date().toISOString()
             }, { onConflict: 'platform' });
 
-        if (!error) {
-            cache.delete(platform);
-        }
+        if (!error) await delCached(`cookie:${platform}`);
         return !error;
     } catch {
         return false;
@@ -154,9 +163,7 @@ export async function toggleAdminCookie(platform: CookiePlatform, enabled: boole
             .update({ enabled, updated_at: new Date().toISOString() })
             .eq('platform', platform);
 
-        if (!error) {
-            cache.delete(platform);
-        }
+        if (!error) await delCached(`cookie:${platform}`);
         return !error;
     } catch {
         return false;
@@ -176,18 +183,17 @@ export async function deleteAdminCookie(platform: CookiePlatform): Promise<boole
             .delete()
             .eq('platform', platform);
 
-        if (!error) {
-            cache.delete(platform);
-        }
+        if (!error) await delCached(`cookie:${platform}`);
         return !error;
     } catch {
         return false;
     }
 }
 
-/**
- * Clear cache (force refresh from DB)
- */
-export function clearAdminCookieCache(): void {
-    cache.clear();
+export async function clearAdminCookieCache(): Promise<void> {
+    memCache.clear();
+    if (redis) {
+        const platforms: CookiePlatform[] = ['facebook', 'instagram', 'weibo', 'twitter'];
+        await Promise.all(platforms.map(p => redis!.del(`cookie:${p}`).catch(() => {})));
+    }
 }

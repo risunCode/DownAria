@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
+import { verifyAdminSession } from '@/core/security';
 import {
     getServiceConfigAsync,
     updatePlatformConfig,
@@ -16,12 +16,12 @@ import {
     setApiKeyRequired,
     setPlaygroundEnabled,
     setPlaygroundRateLimit,
+    loadConfigFromDB,
     resetPlatformStats,
     resetAllStats,
     resetToDefaults,
-    loadConfigFromDB,
     type PlatformId
-} from '@/lib/services/service-config';
+} from '@/core/database';
 
 // GET - Get all service configs
 export async function GET(request: NextRequest) {

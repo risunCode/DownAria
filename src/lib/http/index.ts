@@ -1,78 +1,62 @@
 /**
- * HTTP Module
- * ===========
- * Centralized HTTP utilities for fetch operations.
- * 
- * This module consolidates:
- * - lib/services/fetch-helper.ts (Fetch utilities)
- * - lib/utils/http.ts (Response helpers)
- * 
- * Usage:
- *   import { fetchWithTimeout, successResponse, errorResponse } from '@/lib/http';
+ * HTTP Module - Centralized HTTP utilities
+ * =========================================
+ * Single source of truth for all HTTP operations.
+ * Uses Axios for better redirect handling.
  */
 
 // ═══════════════════════════════════════════════════════════════
-// FETCH UTILITIES
+// AXIOS CLIENT (Primary)
 // ═══════════════════════════════════════════════════════════════
 
 export {
-    // Fetch functions
-    fetchWithTimeout,
-    apiFetch,
-    browserFetch,
+  // HTTP methods
+  httpGet, httpPost, httpHead,
+  resolveUrl,
+  axiosClient,
 
-    // URL Resolution
-    needsResolve,
-    detectPlatformFromUrl,
-    resolveUrl,
-    resolveUrlWithLog,
+  // User agents
+  USER_AGENT, DESKTOP_USER_AGENT, MOBILE_USER_AGENT,
+  getUserAgent,
 
-    // User Agents
-    USER_AGENT,
-    DESKTOP_USER_AGENT,
-    MOBILE_USER_AGENT,
-    getUserAgent,
+  // Headers
+  BROWSER_HEADERS, API_HEADERS, DESKTOP_HEADERS,
+  FACEBOOK_HEADERS, INSTAGRAM_HEADERS, TIKTOK_HEADERS,
+  getApiHeaders, getBrowserHeaders, getSecureHeaders,
 
-    // Headers
-    BROWSER_HEADERS,
-    DESKTOP_HEADERS,
-    API_HEADERS,
-    INSTAGRAM_GRAPHQL_HEADERS,
-    INSTAGRAM_STORY_HEADERS,
-    TIKTOK_HEADERS,
-    getApiHeaders,
-    getBrowserHeaders,
-    getSecureHeaders,
-} from '@/lib/services/fetch-helper';
+  // Types
+  type HttpOptions, type HttpResponse, type ResolveResult,
+} from './client';
+
+// Anti-ban utilities
+export {
+  getRotatingHeaders, getRandomDelay, randomSleep,
+  shouldThrottle, trackRequest, markRateLimited,
+  getRandomProfile, BROWSER_PROFILES,
+  type BrowserProfile,
+} from './anti-ban';
 
 // ═══════════════════════════════════════════════════════════════
-// RESPONSE HELPERS
+// URL HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+export { needsResolve, normalizeUrl as normalizeUrlPipeline } from '@/lib/url';
+
+// ═══════════════════════════════════════════════════════════════
+// RESPONSE & FORMAT HELPERS
 // ═══════════════════════════════════════════════════════════════
 
 export {
-    // Response builders
-    successResponse,
-    errorResponse,
-
-    // URL utilities
-    validateMediaUrl,
-    filterValidUrls,
-    decodeUrl,
-    decodeHtml,
-    isValidMediaUrl,
-    isSmallImage,
-    normalizeUrl,
-    cleanTrackingParams,
-
-    // Format helpers
-    dedupeFormats,
-    dedupeByQuality,
-    getQualityLabel,
-    getQualityFromBitrate,
-    addFormat,
-
-    // Extraction helpers
-    extractByPatterns,
-    extractVideos,
-    extractMeta,
+  successResponse, errorResponse, missingUrlResponse, invalidUrlResponse,
+  validateMediaUrl, filterValidUrls, decodeUrl, decodeHtml,
+  isValidMediaUrl, isSmallImage, normalizeUrl, cleanTrackingParams,
+  dedupeFormats, dedupeByQuality, getQualityLabel, getQualityFromBitrate, addFormat,
+  extractByPatterns, extractVideos, extractMeta,
 } from '@/lib/utils/http';
+
+// ═══════════════════════════════════════════════════════════════
+// SCRAPER TYPES (Re-export for convenience)
+// ═══════════════════════════════════════════════════════════════
+
+export type { ScraperResult, ScraperOptions, ScraperData, ScraperFn } from '@/core/scrapers/types';
+export type { UnifiedEngagement as EngagementStats } from '@/lib/types';

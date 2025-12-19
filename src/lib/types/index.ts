@@ -1,5 +1,5 @@
 // Platform types
-export type Platform = 'youtube' | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'douyin';
+export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
 
 /**
  * Unified Engagement Stats
@@ -97,19 +97,6 @@ export interface PlatformConfig {
 // Platform configurations
 export const PLATFORMS: PlatformConfig[] = [
     {
-        id: 'youtube',
-        name: 'YouTube',
-        icon: '🎬',
-        color: '#ff0000',
-        placeholder: 'https://www.youtube.com/watch?v=...',
-        patterns: [
-            /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\/.+/,
-            /^(https?:\/\/)?(www\.|m\.)?youtube\.com\/shorts\/.+/,
-            /^(https?:\/\/)?(www\.|m\.)?youtube\.com\/(watch|embed|v)\/.*/,
-            /^(https?:\/\/)?music\.youtube\.com\/.+/,
-        ],
-    },
-    {
         id: 'facebook',
         name: 'Facebook',
         icon: '📘',
@@ -169,17 +156,6 @@ export const PLATFORMS: PlatformConfig[] = [
         patterns: [
             /^(https?:\/\/)?(www\.|m\.|video\.)?weibo\.(com|cn)\/.+/,
             /^(https?:\/\/)?t\.cn\/.+/,
-        ],
-    },
-    {
-        id: 'douyin',
-        name: 'Douyin',
-        icon: '🎶',
-        color: '#000000',
-        placeholder: 'https://v.douyin.com/...',
-        patterns: [
-            /^(https?:\/\/)?(www\.)?douyin\.com\/.+/,
-            /^(https?:\/\/)?v\.douyin\.com\/.+/,
         ],
     },
 ];
@@ -245,7 +221,6 @@ export function formatRelativeTime(dateString: string): string {
 
 // Sanitize pasted text to extract just the URL
 // Handles cases like:
-// - Douyin: "5.10 E@u.sR yGI:/ 12/03 你接下来的对手是 https://v.douyin.com/xxx/ 复制此链接，打开Dou音搜索"
 // - TikTok: "Check this out! https://vm.tiktok.com/xxx #fyp"
 // - Random garbage with URL in middle
 export function sanitizeUrl(text: string): string {
@@ -276,7 +251,7 @@ export function sanitizeUrl(text: string): string {
     }
 
     // If no http URL found, check if it looks like a URL without protocol
-    const noProtocolPattern = /(v\.douyin\.com|vm\.tiktok\.com|vt\.tiktok\.com|t\.co|fb\.watch|instagr\.am)\/[^\s\u4e00-\u9fff]+/gi;
+    const noProtocolPattern = /(vm\.tiktok\.com|vt\.tiktok\.com|t\.co|fb\.watch|instagr\.am)\/[^\s\u4e00-\u9fff]+/gi;
     const noProtoMatches = cleaned.match(noProtocolPattern);
     
     if (noProtoMatches && noProtoMatches.length > 0) {

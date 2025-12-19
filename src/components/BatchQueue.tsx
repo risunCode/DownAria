@@ -4,8 +4,18 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Play, Trash2, CheckCircle, XCircle, Loader2, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { QueueItem, QueueItemStatus } from '@/lib/utils/batch-queue';
 import { detectPlatform, sanitizeUrl } from '@/lib/types';
+
+// Queue types (inline - batch-queue.ts was removed)
+export type QueueItemStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export interface QueueItem {
+    id: string;
+    url: string;
+    platform: string;
+    status: QueueItemStatus;
+    result?: unknown;
+    error?: string;
+}
 import { PlatformIcon } from '@/components/ui/Icons';
 
 interface BatchQueueProps {

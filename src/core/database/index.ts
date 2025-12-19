@@ -37,6 +37,9 @@ export {
     getDownloadsBySource,
     getSuccessRate,
     getRecentErrors,
+    getCountryFromHeaders,
+    type Platform,
+    type Quality,
 } from '@/lib/supabase';
 
 // ═══════════════════════════════════════════════════════════════
@@ -48,7 +51,7 @@ export {
     setCache,
     clearCache,
     getCacheStats,
-} from '@/lib/services/cache';
+} from '@/lib/services/helper/cache';
 
 // ═══════════════════════════════════════════════════════════════
 // API KEYS
@@ -70,7 +73,7 @@ export {
     // Usage tracking
     recordKeyUsage,
     resetKeyStats,
-} from '@/lib/services/api-keys';
+} from '@/lib/services/helper/api-keys';
 
 // ═══════════════════════════════════════════════════════════════
 // SERVICE CONFIGURATION
@@ -80,6 +83,8 @@ export {
     // Platform status
     isPlatformEnabled,
     getPlatformDisabledMessage,
+    getPlatformConfig,
+    getAllPlatforms,
 
     // Maintenance mode
     isMaintenanceMode,
@@ -87,11 +92,35 @@ export {
 
     // Rate limits
     getGlobalRateLimit,
+    getPlaygroundRateLimit,
+
+    // Config getters
+    getServiceConfig,
+    getServiceConfigAsync,
+    loadConfigFromDB,
+
+    // Config setters
+    setPlatformEnabled,
+    setMaintenanceMode,
+    setMaintenanceMessage,
+    setGlobalRateLimit,
+    setPlaygroundEnabled,
+    setPlaygroundRateLimit,
+    setApiKeyRequired,
+    updatePlatformConfig,
+    isApiKeyRequired,
+    isPlaygroundEnabled,
 
     // Request tracking
     recordRequest,
 
+    // Stats
+    resetPlatformStats,
+    resetAllStats,
+    resetToDefaults,
+
     // Types
     type PlatformId,
     type PlatformConfig,
-} from '@/lib/services/service-config';
+    type ServiceConfig,
+} from '@/lib/services/helper/service-config';

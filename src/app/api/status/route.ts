@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServiceConfigAsync, loadConfigFromDB } from '@/lib/services/service-config';
+import { getServiceConfigAsync, loadConfigFromDB } from '@/core/database';
 
 export async function GET() {
     // Refresh from DB

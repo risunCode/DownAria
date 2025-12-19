@@ -9,7 +9,7 @@ import type { MediaFormat, UnifiedEngagement } from '@/lib/types';
 // PLATFORM TYPES
 // ═══════════════════════════════════════════════════════════════
 
-export type PlatformId = 'youtube' | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'douyin';
+export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
 
 // ═══════════════════════════════════════════════════════════════
 // ERROR CODES
@@ -24,6 +24,7 @@ export enum ScraperErrorCode {
     COOKIE_REQUIRED = 'COOKIE_REQUIRED',
     COOKIE_EXPIRED = 'COOKIE_EXPIRED',
     COOKIE_INVALID = 'COOKIE_INVALID',
+    COOKIE_BANNED = 'COOKIE_BANNED',  // NEW: Account/cookie banned
 
     // Content errors
     NOT_FOUND = 'NOT_FOUND',
@@ -31,6 +32,8 @@ export enum ScraperErrorCode {
     AGE_RESTRICTED = 'AGE_RESTRICTED',
     NO_MEDIA = 'NO_MEDIA',
     DELETED = 'DELETED',
+    CONTENT_REMOVED = 'CONTENT_REMOVED',  // NEW: Removed by user/platform
+    GEO_BLOCKED = 'GEO_BLOCKED',          // NEW: Region restricted
 
     // Network errors
     TIMEOUT = 'TIMEOUT',
@@ -55,12 +58,15 @@ export const ERROR_MESSAGES: Record<ScraperErrorCode, string> = {
     [ScraperErrorCode.COOKIE_REQUIRED]: 'This content requires login. Please provide a cookie.',
     [ScraperErrorCode.COOKIE_EXPIRED]: 'Your cookie has expired. Please update it.',
     [ScraperErrorCode.COOKIE_INVALID]: 'Invalid cookie format',
+    [ScraperErrorCode.COOKIE_BANNED]: 'This account/cookie has been banned or restricted.',
 
-    [ScraperErrorCode.NOT_FOUND]: 'Content not found',
+    [ScraperErrorCode.NOT_FOUND]: 'Content not found. The post may have been deleted.',
     [ScraperErrorCode.PRIVATE_CONTENT]: 'This content is private',
     [ScraperErrorCode.AGE_RESTRICTED]: 'This content is age-restricted. Please provide a cookie.',
     [ScraperErrorCode.NO_MEDIA]: 'No downloadable media found',
     [ScraperErrorCode.DELETED]: 'This content has been deleted',
+    [ScraperErrorCode.CONTENT_REMOVED]: 'This content was removed by the user or platform.',
+    [ScraperErrorCode.GEO_BLOCKED]: 'This content is not available in your region.',
 
     [ScraperErrorCode.TIMEOUT]: 'Request timed out. Please try again.',
     [ScraperErrorCode.RATE_LIMITED]: 'Too many requests. Please wait a moment.',

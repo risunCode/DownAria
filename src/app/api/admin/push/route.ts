@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
-import { verifyAdminToken } from '@/lib/utils/admin-auth';
+import { verifyAdminToken } from '@/core/security';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

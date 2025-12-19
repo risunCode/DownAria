@@ -7,8 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
-import { clearCache, getCacheStats } from '@/lib/services/cache';
+import { verifyAdminSession } from '@/core/security';
+import { clearCache, getCacheStats } from '@/core/database';
 
 // GET - Get cache statistics
 export async function GET(request: NextRequest) {

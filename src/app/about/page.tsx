@@ -22,13 +22,12 @@ import {
 import { SidebarLayout } from '@/components/Sidebar';
 import Announcements from '@/components/Announcements';
 import Link from 'next/link';
-import { 
-    YoutubeIcon, 
-    FacebookIcon, 
-    InstagramIcon, 
-    XTwitterIcon, 
-    TiktokIcon, 
-    WeiboIcon 
+import {
+    FacebookIcon,
+    InstagramIcon,
+    XTwitterIcon,
+    TiktokIcon,
+    WeiboIcon
 } from '@/components/ui/Icons';
 
 // ============================================================================
@@ -49,42 +48,44 @@ function ChangelogSection() {
                 <span className="text-lg">📋</span>
                 Changelog
             </h3>
-            
+
             <div className="space-y-4">
-                {/* Latest Version - v1.0.2 */}
+                {/* Latest Version - v1.0.3 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.2</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 18, 2025</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.3</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
-                    
+
                     {/* What's New */}
                     <div className="mb-3">
                         <h4 className="text-xs font-semibold text-green-400 mb-1.5 flex items-center gap-1">
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Facebook scraper v3 - improved image extraction accuracy</li>
-                            <li>• Smart target block detection using comet_sections markers</li>
-                            <li>• New photo_image extraction method for single/dual image posts</li>
-                            <li>• Expandable changelog section in About page</li>
+                            <li>• Settings page redesign - Tab-based navigation (Basic, Cookies, Storage, Integrations)</li>
+                            <li>• Moved Discord Webhook from Advanced to Settings → Integrations</li>
+                            <li>• Discord Webhook now supports tagging (@everyone, @here, or User ID)</li>
+                            <li>• Redis result caching for faster repeated downloads</li>
+                            <li>• SEO metadata for all pages (better Google search visibility)</li>
+                            <li>• Skip Cache toggle in Storage settings</li>
                         </ul>
                     </div>
-                    
+
                     {/* What's Fixed */}
                     <div className="mb-3">
                         <h4 className="text-xs font-semibold text-blue-400 mb-1.5 flex items-center gap-1">
                             <span>🔧</span> What&apos;s Fixed
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Fixed profile picture being extracted as post image (t39.30808-1 filter)</li>
-                            <li>• Fixed image URLs missing query params (403 errors)</li>
-                            <li>• Fixed wrong images from related posts (improved findTargetBlock)</li>
-                            <li>• All 16 Facebook test cases now pass (100%)</li>
+                            <li>• Fixed Facebook 403 errors with improved proxy headers</li>
+                            <li>• Fixed cache key case sensitivity for share URLs</li>
+                            <li>• Improved Instagram regex pattern matching</li>
                         </ul>
                     </div>
                 </div>
+
 
                 {/* Known Issues */}
                 <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
@@ -94,10 +95,9 @@ function ChangelogSection() {
                     </h4>
                     <ul className="text-xs text-[var(--text-muted)] space-y-1.5 ml-4">
                         <li>• <strong>Facebook carousels 6+ images</strong> - Only first 5 images extracted (Facebook lazy-loads)</li>
-                        <li>• <strong>YouTube quality</strong> - Limited to 360p (Innertube API restriction)</li>
-                        <li>• <strong>Douyin</strong> - Currently offline (TikWM API not working)</li>
+                        <li>• <strong>YouTube</strong> - Temporarily removed (looking for free API)</li>
                     </ul>
-                    
+
                     {/* Solutions */}
                     <div className="mt-3 pt-3 border-t border-amber-500/10">
                         <h4 className="text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
@@ -106,7 +106,6 @@ function ChangelogSection() {
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
                             <li>• For large carousels: Open individual photo URLs from Facebook</li>
-                            <li>• For YouTube HD: Use dedicated YouTube downloaders</li>
                         </ul>
                     </div>
                 </div>
@@ -130,6 +129,35 @@ function ChangelogSection() {
                             transition={{ duration: 0.2 }}
                             className="space-y-4 overflow-hidden"
                         >
+                            {/* Version 1.0.2 */}
+                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.2</span>
+                                    <span className="text-xs text-[var(--text-muted)]">December 18, 2025</span>
+                                </div>
+                                <div className="mb-2">
+                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
+                                        <span>✨</span> What&apos;s New
+                                    </h4>
+                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
+                                        <li>• Facebook scraper v3 - improved image extraction accuracy</li>
+                                        <li>• Smart target block detection using comet_sections markers</li>
+                                        <li>• New photo_image extraction method for single/dual image posts</li>
+                                        <li>• Expandable changelog section in About page</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
+                                        <span>🔧</span> What&apos;s Fixed
+                                    </h4>
+                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
+                                        <li>• Fixed profile picture being extracted as post image</li>
+                                        <li>• Fixed image URLs missing query params (403 errors)</li>
+                                        <li>• Fixed wrong images from related posts (improved logic)</li>
+                                    </ul>
+                                </div>
+                            </div>
+
                             {/* Version 1.0.1 */}
                             <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
                                 <div className="flex items-center gap-2 mb-2">
@@ -196,7 +224,6 @@ export default function AboutPage() {
         { name: 'X/Twitter', icon: XTwitterIcon, color: '#9CA3AF', status: 'active' },
         { name: 'TikTok', icon: TiktokIcon, color: '#00F2EA', status: 'active' },
         { name: 'Weibo', icon: WeiboIcon, color: '#E6162D', status: 'active' },
-        { name: 'YouTube', icon: YoutubeIcon, color: '#FF0000', status: 'active' },
     ];
 
     return (
@@ -227,7 +254,7 @@ export default function AboutPage() {
                             </div>
                             <div className="space-y-3 text-sm text-[var(--text-secondary)]">
                                 <p>
-                                    Dulu, aku sering banget pake <strong>bot Telegram</strong> buat download video dari sosmed. 
+                                    Dulu, aku sering banget pake <strong>bot Telegram</strong> buat download video dari sosmed.
                                     Praktis sih, tinggal kirim link, tunggu bentar, selesai.
                                 </p>
                                 <p>Tapi lama-lama mulai kesel... 😤</p>
@@ -235,7 +262,7 @@ export default function AboutPage() {
                                     Akhirnya kepikiran: <em>&quot;Kenapa gak bikin sendiri aja?&quot;</em>
                                 </p>
                                 <p className="text-[var(--accent-primary)] font-medium">
-                                    Dan lahirlah <strong>XTFetch</strong> — downloader yang sama fungsinya, 
+                                    Dan lahirlah <strong>XTFetch</strong> — downloader yang sama fungsinya,
                                     tapi <strong>tanpa limit</strong>, <strong>tanpa antri</strong>, dan <strong>100% gratis</strong>. 🚀
                                 </p>
                             </div>
@@ -465,15 +492,7 @@ export default function AboutPage() {
                                 <Download className="w-4 h-4" />
                                 Start Downloading
                             </Link>
-                            <a
-                                href="https://github.com/risunCode/XTFetchs/issues/new"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full inline-flex items-center justify-center gap-2 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium py-2.5 px-4 rounded-xl text-sm border border-[var(--accent-primary)]/30 hover:bg-[var(--accent-primary)]/20 transition-colors"
-                            >
-                                <MessageCircle className="w-4 h-4" />
-                                Contact / Feedback
-                            </a>
+
                             <a
                                 href="https://github.com/risunCode/XTFetchs"
                                 target="_blank"

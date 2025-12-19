@@ -123,7 +123,7 @@ export async function isAdmin(userId: string): Promise<boolean> {
 }
 
 // Types
-export type Platform = 'youtube' | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'douyin';
+export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
 export type Source = 'web' | 'api' | 'discord' | 'telegram';
 export type Quality = 'HD' | 'SD' | 'audio' | 'original' | 'unknown';
 

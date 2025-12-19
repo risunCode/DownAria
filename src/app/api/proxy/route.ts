@@ -1,41 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PlatformId } from '@/lib/services/api-config';
-import { getApiHeaders } from '@/lib/services/fetch-helper';
-import { logger } from '@/lib/services/logger';
+import { type PlatformId } from '@/core/config';
+import { getBrowserHeaders } from '@/lib/http';
+import { logger } from '@/core';
 
 // Allowed CDN domains for proxy (SSRF prevention)
 const ALLOWED_PROXY_DOMAINS = [
-    // Facebook/Instagram CDN
-    'fbcdn.net', 'cdninstagram.com', 'scontent.xx.fbcdn.net',
+    // Facebook/Instagram CDN (fbcdn.net covers all scontent-*.xx.fbcdn.net)
+    'fbcdn.net', 'cdninstagram.com',
     // Twitter CDN
     'twimg.com', 'video.twimg.com', 'pbs.twimg.com',
     // TikTok CDN
-    'tiktokcdn.com', 'tiktokcdn-us.com', 'musical.ly', 'bytedance',
-    // YouTube CDN
-    'googlevideo.com', 'ytimg.com', 'ggpht.com',
+    'tiktokcdn.com', 'tiktokcdn-us.com', 'muscdn.com', 'byteoversea.com',
     // Weibo CDN
     'sinaimg.cn', 'weibocdn.com',
-    // Douyin CDN
-    'douyincdn.com', 'zjcdn.com',
 ];
 
 function isAllowedProxyUrl(url: string): boolean {
     try {
         const parsed = new URL(url);
         const hostname = parsed.hostname.toLowerCase();
-        
+
         // Block private IPs and localhost
         if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.|0\.|localhost|::1)/i.test(hostname)) {
             return false;
         }
-        
+
         // Block non-http(s) protocols
         if (!['http:', 'https:'].includes(parsed.protocol)) {
             return false;
         }
-        
+
         // Check against allowed CDN domains
-        return ALLOWED_PROXY_DOMAINS.some(domain => 
+        return ALLOWED_PROXY_DOMAINS.some(domain =>
             hostname === domain || hostname.endsWith('.' + domain)
         );
     } catch {
@@ -47,22 +43,22 @@ export async function GET(request: NextRequest) {
     try {
         const url = request.nextUrl.searchParams.get('url');
         const filename = request.nextUrl.searchParams.get('filename') || 'download.mp4';
-        const platform = (request.nextUrl.searchParams.get('platform') || 'youtube') as PlatformId;
+        const platform = (request.nextUrl.searchParams.get('platform') || 'facebook') as PlatformId;
         const headOnly = request.nextUrl.searchParams.get('head') === '1';
         const inline = request.nextUrl.searchParams.get('inline') === '1'; // For thumbnails/images display
 
         if (!url) {
             return NextResponse.json({ error: 'URL is required' }, { status: 400 });
         }
-        
+
         // SSRF Prevention: Validate URL against allowed CDN domains
         if (!isAllowedProxyUrl(url)) {
             logger.error('proxy', `Blocked SSRF attempt: ${url.substring(0, 100)}`);
             return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
         }
 
-        // Use centralized headers from fetch-helper (with platform referer/origin)
-        const headers = getApiHeaders(platform, { 'Accept-Encoding': 'identity' });
+        // Use full browser headers for CDN requests (required by Facebook/Instagram)
+        const headers = getBrowserHeaders(platform, { 'Accept-Encoding': 'identity' });
 
         // Check if client sent Range header (for video seeking)
         const rangeHeader = request.headers.get('range');
@@ -106,7 +102,7 @@ export async function GET(request: NextRequest) {
         } else {
             responseHeaders.set('Accept-Ranges', 'bytes'); // Enable range requests
         }
-        
+
         if (contentRange) {
             responseHeaders.set('Content-Range', contentRange);
         }

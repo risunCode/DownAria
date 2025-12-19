@@ -7,6 +7,7 @@ import { Loader2, X, Minus, CheckCircle, XCircle, Wifi, Pause, Play, Download, G
 import { usePendingDownload } from '@/lib/contexts/PendingDownloadContext';
 import { PLATFORMS } from '@/lib/types';
 import { sendDiscordNotification } from '@/lib/utils/discord-webhook';
+import { formatBytes, formatSpeed } from '@/lib/utils/format-utils';
 
 // Types
 export interface DownloadTask {
@@ -43,19 +44,7 @@ export function useDownloadManager() {
     return ctx;
 }
 
-function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
 
-function formatSpeed(bytesPerSec: number): { mb: string; mbit: string } {
-    const mbPerSec = bytesPerSec / (1024 * 1024);
-    const mbitPerSec = (bytesPerSec * 8) / (1024 * 1024);
-    return { mb: mbPerSec.toFixed(2) + ' MB/s', mbit: mbitPerSec.toFixed(1) + ' Mbps' };
-}
 
 export function DownloadManagerProvider({ children }: { children: ReactNode }) {
     const [tasks, setTasks] = useState<DownloadTask[]>([]);
@@ -95,7 +84,7 @@ export function DownloadManagerProvider({ children }: { children: ReactNode }) {
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}&platform=${platform}`;
         const abortController = new AbortController();
         let finalFilename = filename;
-        
+
         if (existingTaskId) {
             updateTask(taskId, { status: 'downloading', speed: 0, abortController });
         } else {
@@ -113,7 +102,7 @@ export function DownloadManagerProvider({ children }: { children: ReactNode }) {
                 const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
                 if (match) finalFilename = match[1].replace(/['"]/g, '').trim();
             }
-            
+
             if (!finalFilename.includes('.') || finalFilename.endsWith('.txt')) {
                 const extMap: Record<string, string> = {
                     'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov',
@@ -141,7 +130,7 @@ export function DownloadManagerProvider({ children }: { children: ReactNode }) {
 
             updateTask(taskId, { filename: finalFilename });
             if (!res.body) throw new Error('No body');
-            
+
             const reader = res.body.getReader();
             const chunks: BlobPart[] = [];
             let received = 0, lastTime = Date.now(), lastReceived = 0;
@@ -167,7 +156,7 @@ export function DownloadManagerProvider({ children }: { children: ReactNode }) {
             a.href = blobUrl; a.download = finalFilename; a.click();
             URL.revokeObjectURL(blobUrl);
             setTimeout(() => setIsMinimized(true), 2000);
-            
+
             // Send Discord notification if enabled
             const discordResult = await sendDiscordNotification({
                 platform: platform.charAt(0).toUpperCase() + platform.slice(1),
@@ -222,12 +211,12 @@ function FloatingDownloadPopup({ isMinimized, setIsMinimized }: { isMinimized: b
     const { tasks, removeTask, cancelTask, pauseTask, resumeTask } = useDownloadManager();
     const { queue } = usePendingDownload();
     const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
-    
+
     // Drag to close
     const dragY = useMotionValue(0);
     const opacity = useTransform(dragY, [0, 100], [1, 0]);
     const scale = useTransform(dragY, [0, 100], [1, 0.9]);
-    
+
     const activeTasks = tasks.filter(t => t.status !== 'cancelled');
     const downloadingOrPaused = activeTasks.filter(t => t.status === 'downloading' || t.status === 'paused');
     const historyTasks = activeTasks.filter(t => t.status === 'done' || t.status === 'error');
@@ -238,20 +227,20 @@ function FloatingDownloadPopup({ isMinimized, setIsMinimized }: { isMinimized: b
     // Current tab: active downloads + last 1 history item (so it's not empty)
     const lastHistoryItem = historyTasks.length > 0 ? [historyTasks[historyTasks.length - 1]] : [];
     const currentTasks = downloadingOrPaused.length > 0 ? downloadingOrPaused : lastHistoryItem;
-    
+
     const totalCount = activeTasks.length + queue.length;
-    
+
     // Visibility logic:
     // - Always show on /advanced page
     // - On other pages: only show if there are active downloads
     const isAdvancedPage = pathname === '/advanced';
     const hasActiveDownloads = downloadingTasks.length > 0;
-    
+
     // Hide completely if not on advanced page AND no active downloads
     if (!isAdvancedPage && !hasActiveDownloads) {
         return null;
     }
-    
+
     const speedFormatted = formatSpeed(totalSpeed);
 
     const getPlatformIcon = (platform: string) => {
@@ -289,7 +278,7 @@ function FloatingDownloadPopup({ isMinimized, setIsMinimized }: { isMinimized: b
             </div>
         );
     }
-    
+
     // Show empty state bubble if no items
     if (totalCount === 0) {
         return (
@@ -306,8 +295,8 @@ function FloatingDownloadPopup({ isMinimized, setIsMinimized }: { isMinimized: b
     return (
         <AnimatePresence>
             <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-[9999]">
-                <motion.div 
-                    initial={{ opacity: 0, y: 100, scale: 0.8 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: 100, scale: 0.8 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 100, scale: 0.8 }}
                     transition={{ type: 'spring', damping: 20, stiffness: 300 }}
@@ -321,78 +310,77 @@ function FloatingDownloadPopup({ isMinimized, setIsMinimized }: { isMinimized: b
                     }}
                     style={{ opacity, scale }}
                     className="w-full sm:w-96 rounded-xl overflow-hidden shadow-2xl border border-[var(--border-color)] bg-[var(--bg-card)]">
-                {/* Header - Drag Handle */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[var(--accent-primary)] to-purple-600 cursor-grab active:cursor-grabbing select-none">
-                    <div className="flex items-center gap-3">
-                        <GripVertical className="w-5 h-5 text-white/60 hover:text-white transition-colors" />
-                        <img src="/icon.png" alt="XTFetch" className="w-6 h-6 rounded-full" />
-                        <span className="font-semibold text-white">Downloads</span>
-                        {downloadingTasks.length > 0 && (
-                            <span className="px-2 py-0.5 text-xs bg-white/20 rounded-full text-white">{downloadingTasks.length} active</span>
-                        )}
+                    {/* Header - Drag Handle */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[var(--accent-primary)] to-purple-600 cursor-grab active:cursor-grabbing select-none">
+                        <div className="flex items-center gap-3">
+                            <GripVertical className="w-5 h-5 text-white/60 hover:text-white transition-colors" />
+                            <img src="/icon.png" alt="XTFetch" className="w-6 h-6 rounded-full" />
+                            <span className="font-semibold text-white">Downloads</span>
+                            {downloadingTasks.length > 0 && (
+                                <span className="px-2 py-0.5 text-xs bg-white/20 rounded-full text-white">{downloadingTasks.length} active</span>
+                            )}
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+                            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors" title="Minimize"><Minus className="w-4 h-4 text-white" /></button>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
-                        className="p-1.5 hover:bg-white/20 rounded-lg transition-colors" title="Minimize"><Minus className="w-4 h-4 text-white" /></button>
-                </div>
 
-                {/* Tabs - Current & History only */}
-                <div className="flex border-b border-[var(--border-color)]">
-                    {(['current', 'history'] as const).map(tab => {
-                        const count = tab === 'current' ? currentTasks.length : historyTasks.length;
-                        return (
-                            <button key={tab} onClick={(e) => { e.stopPropagation(); setActiveTab(tab); }}
-                                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-                                    activeTab === tab 
-                                        ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-secondary)]' 
-                                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                                }`}>
-                                {tab.charAt(0).toUpperCase() + tab.slice(1)} {count > 0 && `(${count})`}
-                            </button>
-                        );
-                    })}
-                </div>
+                    {/* Tabs - Current & History only */}
+                    <div className="flex border-b border-[var(--border-color)]">
+                        {(['current', 'history'] as const).map(tab => {
+                            const count = tab === 'current' ? currentTasks.length : historyTasks.length;
+                            return (
+                                <button key={tab} onClick={(e) => { e.stopPropagation(); setActiveTab(tab); }}
+                                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${activeTab === tab
+                                            ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)] bg-[var(--bg-secondary)]'
+                                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                        }`}>
+                                    {tab.charAt(0).toUpperCase() + tab.slice(1)} {count > 0 && `(${count})`}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                {/* Network Speed Bar */}
-                {downloadingTasks.length > 0 && activeTab === 'current' && (
-                    <div className="px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex items-center gap-3">
-                        <Wifi className="w-4 h-4 text-green-500" />
-                        <div className="flex-1 flex items-center justify-between text-xs">
-                            <span className="text-[var(--text-muted)]">Speed:</span>
-                            <div className="flex gap-3">
-                                <span className="text-[var(--accent-primary)] font-mono font-medium">{speedFormatted.mb}</span>
-                                <span className="text-[var(--text-muted)] font-mono">({speedFormatted.mbit})</span>
+                    {/* Network Speed Bar */}
+                    {downloadingTasks.length > 0 && activeTab === 'current' && (
+                        <div className="px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] flex items-center gap-3">
+                            <Wifi className="w-4 h-4 text-green-500" />
+                            <div className="flex-1 flex items-center justify-between text-xs">
+                                <span className="text-[var(--text-muted)]">Speed:</span>
+                                <div className="flex gap-3">
+                                    <span className="text-[var(--accent-primary)] font-mono font-medium">{speedFormatted.mb}</span>
+                                    <span className="text-[var(--text-muted)] font-mono">({speedFormatted.mbit})</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-
-                {/* Content */}
-                <div className="max-h-64 sm:max-h-72 overflow-y-auto">
-                    {activeTab === 'current' && (
-                        currentTasks.length === 0 ? (
-                            <div className="p-6 text-center text-[var(--text-muted)] text-sm">No active downloads</div>
-                        ) : currentTasks.map(task => (
-                            <TaskItem key={task.id} task={task} pauseTask={pauseTask} resumeTask={resumeTask} cancelTask={cancelTask} removeTask={removeTask} />
-                        ))
                     )}
 
-                    {activeTab === 'history' && (
-                        historyTasks.length === 0 ? (
-                            <div className="p-6 text-center text-[var(--text-muted)] text-sm">No download history</div>
-                        ) : historyTasks.map(task => (
-                            <TaskItem key={task.id} task={task} pauseTask={pauseTask} resumeTask={resumeTask} cancelTask={cancelTask} removeTask={removeTask} />
-                        ))
-                    )}
-                </div>
+                    {/* Content */}
+                    <div className="max-h-64 sm:max-h-72 overflow-y-auto">
+                        {activeTab === 'current' && (
+                            currentTasks.length === 0 ? (
+                                <div className="p-6 text-center text-[var(--text-muted)] text-sm">No active downloads</div>
+                            ) : currentTasks.map(task => (
+                                <TaskItem key={task.id} task={task} pauseTask={pauseTask} resumeTask={resumeTask} cancelTask={cancelTask} removeTask={removeTask} />
+                            ))
+                        )}
 
-                {/* Footer actions */}
-                {activeTab === 'history' && historyTasks.length > 0 && (
-                    <div className="px-4 py-2 border-t border-[var(--border-color)]">
-                        <button onClick={() => historyTasks.forEach(t => removeTask(t.id))} className="w-full py-1.5 text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors">
-                            Clear History
-                        </button>
+                        {activeTab === 'history' && (
+                            historyTasks.length === 0 ? (
+                                <div className="p-6 text-center text-[var(--text-muted)] text-sm">No download history</div>
+                            ) : historyTasks.map(task => (
+                                <TaskItem key={task.id} task={task} pauseTask={pauseTask} resumeTask={resumeTask} cancelTask={cancelTask} removeTask={removeTask} />
+                            ))
+                        )}
                     </div>
-                )}
+
+                    {/* Footer actions */}
+                    {activeTab === 'history' && historyTasks.length > 0 && (
+                        <div className="px-4 py-2 border-t border-[var(--border-color)]">
+                            <button onClick={() => historyTasks.forEach(t => removeTask(t.id))} className="w-full py-1.5 text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors">
+                                Clear History
+                            </button>
+                        </div>
+                    )}
                 </motion.div>
             </div>
         </AnimatePresence>

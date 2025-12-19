@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySession, verifyAdminSession } from '@/lib/utils/admin-auth';
+import { verifySession, verifyAdminSession } from '@/core/security';
 
 // GET - Check current auth status
 export async function GET(request: NextRequest) {

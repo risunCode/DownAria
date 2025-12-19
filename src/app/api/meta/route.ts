@@ -8,12 +8,11 @@
  */
 
 import { NextRequest } from 'next/server';
-import { scrapeFacebook } from '@/lib/services/facebook';
-import { scrapeInstagram } from '@/lib/services/instagram';
-import { matchesPlatform } from '@/lib/services/api-config';
-import { logger } from '@/lib/services/logger';
-import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
-import { getAdminCookie } from '@/lib/utils/admin-cookie';
+import { scrapeFacebook, scrapeInstagram } from '@/lib/services';
+import { detectPlatform as detectPlatformCore } from '@/core/config';
+import { logger } from '@/core';
+import { successResponse, errorResponse, missingUrlResponse } from '@/lib/http';
+import { getAdminCookie } from '@/lib/cookies';
 import { 
     isPlatformEnabled, 
     isMaintenanceMode, 
@@ -21,14 +20,14 @@ import {
     getPlatformDisabledMessage, 
     recordRequest, 
     type PlatformId 
-} from '@/lib/services/service-config';
+} from '@/core/database';
 
 type MetaPlatform = 'facebook' | 'instagram';
 
-// Detect platform from URL
+// Detect platform from URL (only facebook/instagram for this endpoint)
 function detectPlatform(url: string): MetaPlatform | null {
-    if (matchesPlatform(url, 'instagram')) return 'instagram';
-    if (matchesPlatform(url, 'facebook')) return 'facebook';
+    const platform = detectPlatformCore(url);
+    if (platform === 'instagram' || platform === 'facebook') return platform;
     return null;
 }
 

@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, History, Info, Menu, X, Github, Heart, Palette, Sun, Moon, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { YoutubeIcon, FacebookIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
-import { ThemeType, getTheme, saveTheme, initTheme } from '@/lib/utils/storage';
+import { FacebookIcon, InstagramIcon, XTwitterIcon, TiktokIcon } from '@/components/ui/Icons';
+import { ThemeType, saveTheme, initTheme } from '@/lib/storage';
 
 const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
     { id: 'light', label: 'Light', icon: Sun },
@@ -228,7 +228,7 @@ export function Footer() {
                             </div>
                         </div>
                         <p className="text-sm text-[var(--text-muted)]">
-                            Free and fast social media video downloader. Download from YouTube, Facebook, Instagram, and X.
+                            Free and fast social media video downloader. Download from Facebook, Instagram, TikTok, and X.
                         </p>
                     </div>
 
@@ -258,10 +258,10 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-[var(--text-primary)] mb-4">Supported Platforms</h4>
                         <div className="flex flex-wrap gap-2">
-                            <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-400 text-sm flex items-center gap-1.5"><YoutubeIcon className="w-4 h-4" /> YouTube</span>
                             <span className="px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-sm flex items-center gap-1.5"><FacebookIcon className="w-4 h-4" /> Facebook</span>
                             <span className="px-3 py-1.5 rounded-full bg-pink-500/10 text-pink-400 text-sm flex items-center gap-1.5"><InstagramIcon className="w-4 h-4" /> Instagram</span>
                             <span className="px-3 py-1.5 rounded-full bg-gray-500/10 text-gray-300 text-sm flex items-center gap-1.5"><XTwitterIcon className="w-4 h-4" /> Twitter</span>
+                            <span className="px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-400 text-sm flex items-center gap-1.5"><TiktokIcon className="w-4 h-4" /> TikTok</span>
                         </div>
                     </div>
                 </div>

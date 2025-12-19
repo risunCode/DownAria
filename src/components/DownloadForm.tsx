@@ -28,11 +28,11 @@ const PROGRESS_STEPS = [
 // Rotating tips/hints
 const TIPS = [
     'Paste any video URL to start',
-    'Supports YouTube, TikTok, Instagram & more',
+    'Supports TikTok, Instagram, Facebook & more',
     'Auto-detects platform from URL',
     'Download in multiple qualities',
     'No watermark on most platforms',
-    'Works with Reels, Shorts & Stories',
+    'Works with Reels, Stories & Posts',
 ];
 
 export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, initialUrl }: DownloadFormProps) {
@@ -331,20 +331,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     </motion.div>
                 )}
 
-                {/* YouTube limitation tips */}
-                {platform === 'youtube' && url && !isLoading && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs"
-                    >
-                        <AlertCircle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-                        <div className="text-yellow-200/80">
-                            <span className="font-medium text-yellow-400">YouTube Limitation:</span>{' '}
-                            Only 360p available. Sorry, HD streams are blocked by YouTube for server-side requests.
-                        </div>
-                    </motion.div>
-                )}
+
                 </div>
             </div>
         </motion.form>

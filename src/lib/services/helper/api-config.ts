@@ -4,7 +4,7 @@
  */
 
 // ========== PLATFORM TYPES ==========
-export type PlatformId = 'youtube' | 'tiktok' | 'douyin' | 'instagram' | 'facebook' | 'twitter' | 'weibo';
+export type PlatformId = 'tiktok' | 'instagram' | 'facebook' | 'twitter' | 'weibo';
 
 export interface PlatformConfig {
     name: string;
@@ -18,20 +18,10 @@ export interface PlatformConfig {
 
 // ========== PLATFORM CONFIGS ==========
 export const PLATFORM_CONFIGS: Record<PlatformId, PlatformConfig> = {
-    youtube: {
-        name: 'YouTube',
-        domain: 'youtube.com',
-        aliases: ['youtube.com', 'youtu.be', 'music.youtube.com', 'm.youtube.com', 'www.youtube.com'],
-    },
     tiktok: {
         name: 'TikTok',
         domain: 'tiktok.com',
         aliases: ['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com', 'm.tiktok.com', 'www.tiktok.com'],
-    },
-    douyin: {
-        name: 'Douyin',
-        domain: 'douyin.com',
-        aliases: ['douyin.com', 'v.douyin.com', 'iesdouyin.com', 'www.douyin.com'],
     },
     instagram: {
         name: 'Instagram',
@@ -59,28 +49,22 @@ export const PLATFORM_CONFIGS: Record<PlatformId, PlatformConfig> = {
 
 // ========== DERIVED HELPERS ==========
 
-/** Get base URL from domain (https://www.{domain}) */
 export function getBaseUrl(platform: PlatformId): string {
     const domain = PLATFORM_CONFIGS[platform]?.domain;
     return domain ? `https://www.${domain}` : '';
 }
 
-/** Get referer header (https://www.{domain}/) */
 export function getReferer(platform: PlatformId): string {
     const domain = PLATFORM_CONFIGS[platform]?.domain;
     return domain ? `https://www.${domain}/` : '';
 }
 
-/** Get origin header (https://www.{domain}) */
 export function getOrigin(platform: PlatformId): string {
     return getBaseUrl(platform);
 }
 
 // ========== PLATFORM DETECTION ==========
 
-/**
- * Detect platform from URL using domain aliases
- */
 export function detectPlatform(url: string): PlatformId | null {
     try {
         const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
@@ -89,45 +73,29 @@ export function detectPlatform(url: string): PlatformId | null {
                 return id as PlatformId;
             }
         }
-    } catch {
-        /* invalid URL */
-    }
+    } catch { /* invalid URL */ }
     return null;
 }
 
-/**
- * Check if URL belongs to a specific platform
- */
 export function isPlatformUrl(url: string, platform: PlatformId): boolean {
     return detectPlatform(url) === platform;
 }
 
-/**
- * Check if URL string contains any platform alias (for regex-free validation)
- */
 export function matchesPlatform(url: string, platform: PlatformId): boolean {
     const aliases = PLATFORM_CONFIGS[platform]?.aliases || [];
     const lower = url.toLowerCase();
     return aliases.some(alias => lower.includes(alias));
 }
 
-/**
- * Build regex pattern from platform aliases
- */
 export function getPlatformRegex(platform: PlatformId): RegExp {
     const aliases = PLATFORM_CONFIGS[platform]?.aliases || [];
     const escaped = aliases.map(a => a.replace(/\./g, '\\.'));
     return new RegExp(`(${escaped.join('|')})`, 'i');
 }
 
-/**
- * Get all domain aliases for a platform
- */
 export function getPlatformAliases(platform: PlatformId): string[] {
     return PLATFORM_CONFIGS[platform]?.aliases || [];
 }
-
-// ========== CONFIG HELPERS ==========
 
 export function getPlatformConfig(platform: PlatformId): PlatformConfig {
     return PLATFORM_CONFIGS[platform];

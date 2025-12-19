@@ -52,9 +52,9 @@ const ALLOWED_DOMAINS = [
     'instagram.com', 'cdninstagram.com', 'instagr.am',
     'twitter.com', 'x.com', 't.co', 'twimg.com',
     'tiktok.com', 'tiktokcdn.com', 'musical.ly',
-    'youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com',
+
     'weibo.com', 'weibo.cn', 'sinaimg.cn',
-    'douyin.com', 'douyincdn.com',
+
 ];
 
 const BLOCKED_PATTERNS = [

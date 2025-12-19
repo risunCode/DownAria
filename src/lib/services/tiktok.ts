@@ -1,61 +1,47 @@
 /**
- * TikTok/Douyin Scraper Service
- * Uses TikWM API for TikTok, Cobalt API for Douyin
+ * TikTok Scraper Service
+ * Uses TikWM API
  */
 
 import { MediaFormat } from '@/lib/types';
-import { addFormat } from '@/lib/utils/http';
-import { fetchWithTimeout, ScraperResult, ScraperOptions, EngagementStats, TIKTOK_HEADERS } from './fetch-helper';
-import { getCache, setCache } from './cache';
-import { createError, ScraperErrorCode } from './errors';
-import { matchesPlatform } from './api-config';
-import { logger } from './logger';
-import { scrapeDouyin } from './cobalt';
+import { addFormat } from '@/lib/http';
+import { httpGet, TIKTOK_HEADERS, type EngagementStats } from '@/lib/http';
+import { getCache, setCache } from './helper/cache';
+import { createError, ScraperErrorCode, type ScraperResult, type ScraperOptions } from '@/core/scrapers/types';
+import { matchesPlatform } from './helper/api-config';
+import { logger } from './helper/logger';
 
 export async function scrapeTikTok(url: string, options?: ScraperOptions): Promise<ScraperResult> {
     const { hd = true, timeout = 10000, skipCache = false } = options || {};
 
-    // Check if Douyin URL - use Cobalt instead (TikWM doesn't work for Douyin)
-    if (matchesPlatform(url, 'douyin')) {
-        logger.debug('tiktok', 'Douyin URL detected, using Cobalt API');
-        return scrapeDouyin(url, options);
-    }
-
-    // Validate TikTok URL
     if (!matchesPlatform(url, 'tiktok')) {
         return createError(ScraperErrorCode.INVALID_URL, 'Invalid TikTok URL');
     }
 
-    // Check cache
     if (!skipCache) {
         const cached = await getCache<ScraperResult>('tiktok', url);
-        if (cached?.success) {
-            logger.cache('tiktok', true);
-            return { ...cached, cached: true };
-        }
+        if (cached?.success) { logger.cache('tiktok', true); return { ...cached, cached: true }; }
     }
 
     try {
-        const res = await fetchWithTimeout(
-            `https://tikwm.com/api/?url=${encodeURIComponent(url)}&hd=${hd ? 1 : 0}`,
-            { headers: TIKTOK_HEADERS, timeout }
-        );
+        const apiUrl = `https://tikwm.com/api/?url=${encodeURIComponent(url)}&hd=${hd ? 1 : 0}`;
+        const res = await httpGet(apiUrl, { headers: TIKTOK_HEADERS, timeout });
 
-        if (!res.ok) {
+        if (res.status !== 200) {
             return createError(ScraperErrorCode.API_ERROR, `API error: ${res.status}`);
         }
 
-        const { code, data: d, msg } = await res.json();
+        const json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+        const { code, data: d, msg } = json;
 
         if (code !== 0 || !d) {
             return createError(ScraperErrorCode.NO_MEDIA, msg || 'No data returned');
         }
 
-        // Extract engagement stats (unified format)
         const engagement: EngagementStats = {
             likes: d.digg_count || 0,
             comments: d.comment_count || 0,
-            shares: d.share_count || 0,  // Unified as 'shares'
+            shares: d.share_count || 0,
             views: d.play_count || 0,
         };
 
@@ -98,15 +84,15 @@ export async function scrapeTikTok(url: string, options?: ScraperOptions): Promi
                 formats,
                 url,
                 type: isSlideshow ? 'slideshow' : 'video',
-                engagement: (engagement.likes || engagement.comments || engagement.shares || engagement.views)
-                    ? engagement : undefined,
+                engagement: (engagement.likes || engagement.comments || engagement.shares || engagement.views) ? engagement : undefined,
             }
         };
 
-        const videoCount = formats.filter(f => f.type === 'video').length;
-        const imageCount = formats.filter(f => f.type === 'image').length;
-        const audioCount = formats.filter(f => f.type === 'audio').length;
-        logger.media('tiktok', { videos: videoCount, images: imageCount, audio: audioCount });
+        logger.media('tiktok', { 
+            videos: formats.filter(f => f.type === 'video').length, 
+            images: formats.filter(f => f.type === 'image').length,
+            audio: formats.filter(f => f.type === 'audio').length 
+        });
 
         setCache('tiktok', url, result);
         return result;
@@ -116,8 +102,5 @@ export async function scrapeTikTok(url: string, options?: ScraperOptions): Promi
     }
 }
 
-// Legacy export for backward compatibility
 export const fetchTikWM = scrapeTikTok;
-
-// Re-export types
 export type { ScraperResult as TikWMResult };

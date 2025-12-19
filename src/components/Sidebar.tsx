@@ -6,15 +6,13 @@ import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, C
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    YoutubeIcon,
     FacebookIcon,
     InstagramIcon,
     XTwitterIcon,
     TiktokIcon,
     WeiboIcon,
-    DouyinIcon
 } from '@/components/ui/Icons';
-import { ThemeType, saveTheme, initTheme } from '@/lib/utils/storage';
+import { ThemeType, saveTheme, initTheme } from '@/lib/storage';
 
 const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
     { id: 'dark', label: 'Dark', icon: Moon },
@@ -82,13 +80,11 @@ export function SidebarLayout({ children }: SidebarProps) {
 
     // Default platforms with dynamic status from API
     const platformsConfig = [
-        { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
         { id: 'facebook', icon: FacebookIcon, label: 'Facebook', color: 'text-blue-500' },
         { id: 'instagram', icon: InstagramIcon, label: 'Instagram', color: 'text-pink-500' },
         { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
         { id: 'tiktok', icon: TiktokIcon, label: 'TikTok', color: 'text-cyan-400' },
         { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
-        { id: 'douyin', icon: DouyinIcon, label: 'Douyin', color: 'text-[var(--text-muted)]' },
     ];
 
     // Merge with API status
@@ -96,7 +92,7 @@ export function SidebarLayout({ children }: SidebarProps) {
         const apiStatus = platformStatus.find(s => s.id === p.id);
         return {
             ...p,
-            status: (apiStatus?.status || (p.id === 'douyin' ? 'offline' : 'active')) as 'active' | 'maintenance' | 'offline'
+            status: (apiStatus?.status || 'active') as 'active' | 'maintenance' | 'offline'
         };
     });
 
@@ -287,10 +283,7 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                         Supported Platforms
                     </p>
                     <div className="space-y-1">
-                        {/* Hide YouTube and Douyin, show only main 5 platforms */}
-                        {platforms
-                            .filter(p => p.id !== 'youtube' && p.id !== 'douyin')
-                            .map((platform, index) => (
+                        {platforms.map((platform, index) => (
                                 <div
                                     key={index}
                                     className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${platform.status === 'offline' ? 'opacity-50' : ''

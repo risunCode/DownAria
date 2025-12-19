@@ -45,8 +45,7 @@ export async function GET() {
             .eq('enabled', true);
 
         // Debug log
-        console.log('[CookieStatus] Pool:', poolData?.length || 0, 'cookies, error:', poolError?.message);
-        console.log('[CookieStatus] Legacy:', legacyData?.length || 0, 'cookies, error:', legacyError?.message);
+        // Note: Removed for production to reduce log noise
 
         // Build status map
         const platforms = ['facebook', 'instagram', 'twitter', 'weibo'];

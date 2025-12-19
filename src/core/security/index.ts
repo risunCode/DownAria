@@ -1,185 +1,135 @@
 /**
  * Core Security Module
- * ====================
- * Centralized security utilities for the application.
- * 
- * This module consolidates:
- * - lib/utils/security.ts (main security functions)
- * - lib/utils/api-security.ts (API-specific, mostly deprecated)
- * - lib/utils/admin-auth.ts (admin authentication)
- * 
- * Usage:
- *   import { encrypt, decrypt, isValidSocialUrl, verifyAdminSession } from '@/core/security';
+ * Centralized security: validation, encryption, auth, rate limiting
+ * Rate limiting: Redis > Memory fallback
  */
 
-// ═══════════════════════════════════════════════════════════════
-// RE-EXPORTS FROM EXISTING MODULES
-// ═══════════════════════════════════════════════════════════════
+import { redis } from '@/lib/redis';
 
-// Main security utilities
+// Security utilities
 export {
-    // Sanitization
-    escapeHtml,
-    sanitizeObject,
-
-    // URL Validation (SSRF Prevention)
-    isValidSocialUrl,
-
-    // Cookie Validation
-    isValidCookie,
-
-    // Encryption
-    encrypt,
-    decrypt,
-
-    // API Key Hashing
-    hashApiKey,
-
-    // Token Generation
-    generateSecureToken,
-
-    // Log Masking
-    maskSensitiveData,
-    maskCookie,
-
-    // Request Validation
-    validateRequestBody,
-    detectAttackPatterns,
-
-    // IP Extraction
+    escapeHtml, sanitizeObject,
+    isValidSocialUrl, isValidCookie,
+    encrypt, decrypt,
+    hashApiKey, generateSecureToken,
+    maskSensitiveData, maskCookie,
+    validateRequestBody, detectAttackPatterns,
     getClientIP,
 } from '@/lib/utils/security';
 
-// Admin Authentication
-export {
-    verifySession,
-    verifyAdminSession,
-} from '@/lib/utils/admin-auth';
+// Admin auth
+export { verifySession, verifyAdminSession, verifyAdminToken } from '@/lib/utils/admin-auth';
 
-// Rate Limiting (from api-security - will be deprecated)
-export {
-    checkRateLimit,
-} from '@/lib/utils/api-security';
+// Rate limiting types & config
+export interface RateLimitConfig { maxRequests: number; windowMs: number; }
+export interface RateLimitResult { allowed: boolean; remaining: number; resetIn: number; }
 
-// ═══════════════════════════════════════════════════════════════
-// UNIFIED RATE LIMITER (New Implementation)
-// ═══════════════════════════════════════════════════════════════
-
-export interface RateLimitConfig {
-    maxRequests: number;
-    windowMs: number;
-}
-
-export interface RateLimitResult {
-    allowed: boolean;
-    remaining: number;
-    resetIn: number;
-}
-
-interface RateLimitEntry {
-    count: number;
-    resetAt: number;
-}
-
-// Rate limit configurations for different contexts
 export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
-    // Public API (per IP)
-    public: { maxRequests: 15, windowMs: 60 * 1000 },
-
-    // Authenticated via API Key (per key)
-    apiKey: { maxRequests: 100, windowMs: 60 * 1000 },
-
-    // Auth endpoints (stricter)
-    auth: { maxRequests: 10, windowMs: 60 * 1000 },
-
-    // Admin endpoints
-    admin: { maxRequests: 60, windowMs: 60 * 1000 },
-
-    // Middleware global limit
-    global: { maxRequests: 60, windowMs: 60 * 1000 },
+    public: { maxRequests: 15, windowMs: 60_000 },
+    apiKey: { maxRequests: 100, windowMs: 60_000 },
+    auth: { maxRequests: 10, windowMs: 60_000 },
+    admin: { maxRequests: 60, windowMs: 60_000 },
+    global: { maxRequests: 60, windowMs: 60_000 },
+    playground: { maxRequests: 5, windowMs: 120_000 },
 };
 
-// Unified rate limit store
-const rateLimitStore = new Map<string, RateLimitEntry>();
+// In-memory fallback
+const memStore = new Map<string, { count: number; resetAt: number }>();
 
-// Cleanup expired entries periodically
-const CLEANUP_THRESHOLD = 1000;
-
-function cleanupExpiredEntries(): void {
-    const now = Date.now();
-    if (rateLimitStore.size > CLEANUP_THRESHOLD) {
-        for (const [key, entry] of rateLimitStore) {
-            if (entry.resetAt < now) {
-                rateLimitStore.delete(key);
-            }
-        }
+function memCleanup() {
+    if (memStore.size > 500) {
+        const now = Date.now();
+        for (const [k, v] of memStore) if (v.resetAt < now) memStore.delete(k);
     }
 }
 
-/**
- * Unified Rate Limiter
- * @param identifier - Unique identifier (IP address, API key, etc.)
- * @param context - Rate limit context (uses predefined configs)
- * @param customConfig - Optional custom configuration
- */
-export function rateLimit(
-    identifier: string,
-    context: keyof typeof RATE_LIMIT_CONFIGS = 'public',
-    customConfig?: Partial<RateLimitConfig>
-): RateLimitResult {
-    const config = { ...RATE_LIMIT_CONFIGS[context], ...customConfig };
+function memRateLimit(key: string, cfg: RateLimitConfig): RateLimitResult {
     const now = Date.now();
-    const key = `${context}:${identifier}`;
-
-    cleanupExpiredEntries();
-
-    const entry = rateLimitStore.get(key);
-
-    // New window
+    memCleanup();
+    const entry = memStore.get(key);
     if (!entry || entry.resetAt < now) {
-        rateLimitStore.set(key, { count: 1, resetAt: now + config.windowMs });
-        return { allowed: true, remaining: config.maxRequests - 1, resetIn: config.windowMs };
+        memStore.set(key, { count: 1, resetAt: now + cfg.windowMs });
+        return { allowed: true, remaining: cfg.maxRequests - 1, resetIn: cfg.windowMs };
     }
-
-    // Exceeded limit
-    if (entry.count >= config.maxRequests) {
+    if (entry.count >= cfg.maxRequests) {
         return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };
     }
-
-    // Increment
     entry.count++;
-    return {
-        allowed: true,
-        remaining: config.maxRequests - entry.count,
-        resetIn: entry.resetAt - now
-    };
+    return { allowed: true, remaining: cfg.maxRequests - entry.count, resetIn: entry.resetAt - now };
 }
 
 /**
- * Reset rate limit for an identifier
+ * Rate Limiter - Redis-backed with memory fallback
  */
-export function resetRateLimit(identifier: string, context: string = 'public'): void {
-    rateLimitStore.delete(`${context}:${identifier}`);
+export async function rateLimit(
+    id: string,
+    ctx: keyof typeof RATE_LIMIT_CONFIGS = 'public',
+    custom?: Partial<RateLimitConfig>
+): Promise<RateLimitResult> {
+    const cfg = { ...RATE_LIMIT_CONFIGS[ctx], ...custom };
+    const key = `rl:${ctx}:${id}`;
+    const windowSec = Math.ceil(cfg.windowMs / 1000);
+
+    if (!redis) return memRateLimit(key, cfg);
+
+    try {
+        // Atomic increment with TTL
+        const count = await redis.incr(key);
+        
+        // Set expiry on first request
+        if (count === 1) {
+            await redis.expire(key, windowSec);
+        }
+
+        // Get TTL for resetIn
+        const ttl = await redis.ttl(key);
+        const resetIn = ttl > 0 ? ttl * 1000 : cfg.windowMs;
+
+        if (count > cfg.maxRequests) {
+            return { allowed: false, remaining: 0, resetIn };
+        }
+
+        return { allowed: true, remaining: cfg.maxRequests - count, resetIn };
+    } catch {
+        return memRateLimit(key, cfg);
+    }
 }
 
-/**
- * Get current rate limit status without consuming
- */
-export function getRateLimitStatus(
-    identifier: string,
-    context: keyof typeof RATE_LIMIT_CONFIGS = 'public'
-): { count: number; remaining: number; resetIn: number } | null {
-    const config = RATE_LIMIT_CONFIGS[context];
-    const key = `${context}:${identifier}`;
-    const entry = rateLimitStore.get(key);
+// Sync version for middleware (memory only)
+export function rateLimitSync(
+    id: string,
+    ctx: keyof typeof RATE_LIMIT_CONFIGS = 'public',
+    custom?: Partial<RateLimitConfig>
+): RateLimitResult {
+    const cfg = { ...RATE_LIMIT_CONFIGS[ctx], ...custom };
+    return memRateLimit(`rl:${ctx}:${id}`, cfg);
+}
 
-    if (!entry || entry.resetAt < Date.now()) {
-        return null;
+export async function resetRateLimit(id: string, ctx = 'public') {
+    const key = `rl:${ctx}:${id}`;
+    memStore.delete(key);
+    if (redis) await redis.del(key);
+}
+
+export async function getRateLimitStatus(id: string, ctx: keyof typeof RATE_LIMIT_CONFIGS = 'public') {
+    const cfg = RATE_LIMIT_CONFIGS[ctx];
+    const key = `rl:${ctx}:${id}`;
+
+    if (redis) {
+        try {
+            const [count, ttl] = await Promise.all([
+                redis.get<number>(key),
+                redis.ttl(key)
+            ]);
+            if (count && ttl > 0) {
+                return { count, remaining: Math.max(0, cfg.maxRequests - count), resetIn: ttl * 1000 };
+            }
+        } catch { /* fallback to memory */ }
     }
 
-    return {
-        count: entry.count,
-        remaining: config.maxRequests - entry.count,
-        resetIn: entry.resetAt - Date.now(),
-    };
+    const entry = memStore.get(key);
+    if (entry && entry.resetAt > Date.now()) {
+        return { count: entry.count, remaining: cfg.maxRequests - entry.count, resetIn: entry.resetAt - Date.now() };
+    }
+    return null;
 }

@@ -20,13 +20,26 @@ export {
     // Platform matching
     matchesPlatform,
     detectPlatform,
+    isPlatformUrl,
+    getPlatformRegex,
+    getPlatformAliases,
 
     // Platform configs
     PLATFORM_CONFIGS,
+    getPlatformConfig as getApiPlatformConfig,
+
+    // URL helpers
+    getBaseUrl,
+    getReferer,
+    getOrigin,
 
     // API endpoints
     getApiEndpoint,
-} from '@/lib/services/api-config';
+
+    // Types
+    type PlatformId,
+    type PlatformConfig as ApiPlatformConfig,
+} from '@/lib/services/helper/api-config';
 
 // Re-export platform types from types
 export type { Platform } from '@/lib/types';
@@ -114,14 +127,8 @@ export const ALLOWED_SOCIAL_DOMAINS = [
     // TikTok
     'tiktok.com', 'tiktokcdn.com', 'musical.ly',
 
-    // YouTube
-    'youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com',
-
     // Weibo
     'weibo.com', 'weibo.cn', 'sinaimg.cn',
-
-    // Douyin
-    'douyin.com', 'douyincdn.com',
 ];
 
 export const ALLOWED_CDN_DOMAINS = [
@@ -133,9 +140,6 @@ export const ALLOWED_CDN_DOMAINS = [
 
     // TikTok CDN
     'tiktokcdn.com', 'tiktokcdn-us.com',
-
-    // YouTube CDN
-    'googlevideo.com', 'ytimg.com',
 
     // Weibo CDN
     'sinaimg.cn', 'weibocdn.com',

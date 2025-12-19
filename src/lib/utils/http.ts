@@ -7,14 +7,13 @@
  */
 
 import { NextResponse } from 'next/server';
-import { DownloadResponse, MediaFormat } from '@/lib/types';
-import { PlatformId, getReferer, getPlatformConfig } from '@/lib/services/api-config';
-import { getUserAgent, DESKTOP_USER_AGENT } from '@/lib/services/fetch-helper';
+import { DownloadResponse, MediaFormat, MediaData } from '@/lib/types';
+import { type PlatformId, getReferer, getApiPlatformConfig } from '@/core/config';
+import { getUserAgent, DESKTOP_USER_AGENT } from '@/lib/http';
 
 // ========== URL VALIDATION ==========
 const TRUSTED_CDNS: Record<string, string[]> = {
     tiktok: ['tiktok.com', 'webapp-prime', 'bytedance', 'musical.ly', 'tiktokcdn'],
-    douyin: ['zjcdn.com', 'douyin.com'],
 };
 
 export async function validateMediaUrl(url: string, platform: PlatformId, timeout = 3000): Promise<boolean> {
@@ -22,8 +21,7 @@ export async function validateMediaUrl(url: string, platform: PlatformId, timeou
     try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), timeout);
-        // Use platform-specific UA from centralized fetch-helper
-        const ua = (platform === 'tiktok' || platform === 'douyin') ? DESKTOP_USER_AGENT : getUserAgent(platform);
+        const ua = platform === 'tiktok' ? DESKTOP_USER_AGENT : getUserAgent(platform);
         const res = await fetch(url, {
             method: 'HEAD',
             signal: ctrl.signal,
@@ -77,7 +75,7 @@ export const isSmallImage = (url: string) => SMALL_IMG_PATTERNS.some(p => p.test
 export function normalizeUrl(url: string, platform: PlatformId): string {
     let u = url;
     if (platform === 'facebook') u = u.replace(/m\.|mbasic\.|web\./g, 'www.');
-    else if (platform === 'youtube') u = u.replace('music.youtube.com', 'www.youtube.com');
+
     return u.startsWith('http') ? u : 'https://' + u;
 }
 
@@ -86,8 +84,6 @@ export const cleanTrackingParams = (url: string) => url
     .replace(/&&+/g, '&').replace(/\?&/g, '?').replace(/[&?]$/g, '');
 
 // ========== RESPONSE HELPERS ==========
-type MediaData = { title: string; thumbnail: string; author: string; formats: MediaFormat[]; url: string; description?: string; duration?: string; views?: string; usedCookie?: boolean; cached?: boolean; responseTime?: number };
-
 export const successResponse = (platform: PlatformId, data: MediaData) =>
     NextResponse.json<DownloadResponse>({ success: true, platform, data });
 
@@ -95,7 +91,7 @@ export const errorResponse = (platform: PlatformId, error: string, status = 400)
     NextResponse.json<DownloadResponse>({ success: false, platform, error }, { status });
 
 export const missingUrlResponse = (p: PlatformId) => errorResponse(p, 'URL is required', 400);
-export const invalidUrlResponse = (p: PlatformId) => errorResponse(p, `Invalid ${getPlatformConfig(p)?.name || p} URL`, 400);
+export const invalidUrlResponse = (p: PlatformId) => errorResponse(p, `Invalid ${getApiPlatformConfig(p)?.name || p} URL`, 400);
 
 // ========== FORMAT HELPERS ==========
 export const dedupeFormats = (f: MediaFormat[]) => f.filter((x, i, a) => i === a.findIndex(y => y.url === x.url));

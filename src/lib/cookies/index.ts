@@ -1,44 +1,28 @@
 /**
- * Cookies Module
- * ==============
- * Centralized cookie management utilities.
- * 
- * This module consolidates:
- * - lib/utils/cookie-parser.ts (Cookie parsing)
- * - lib/utils/cookie-pool.ts (Cookie pool rotation)
- * - lib/utils/admin-cookie.ts (Admin cookie management)
- * 
- * Usage:
- *   import { parseCookie, getRotatingCookie, getAdminCookie } from '@/lib/cookies';
+ * Cookies Module - Parsing, pool rotation, admin management
  */
 
-// ═══════════════════════════════════════════════════════════════
-// COOKIE PARSING
-// ═══════════════════════════════════════════════════════════════
+// Parsing
+export { parseCookie, validateCookie, isCookieLike, getCookieFormat } from '@/lib/utils/cookie-parser';
 
-export {
-    parseCookie,
-    validateCookie,
-    isCookieLike,
-    getCookieFormat,
-} from '@/lib/utils/cookie-parser';
-
-// ═══════════════════════════════════════════════════════════════
-// COOKIE POOL (Multi-cookie rotation)
-// ═══════════════════════════════════════════════════════════════
-
+// Pool rotation & management
 export {
     getRotatingCookie,
     markCookieSuccess,
     markCookieCooldown,
     markCookieExpired,
     getCookiePoolStats,
+    getCookiesByPlatform,
+    addCookieToPool,
+    updatePooledCookie,
+    deleteCookieFromPool,
+    testCookieHealth,
+    type CookiePoolStats,
+    type PooledCookie,
+    type CookieStatus,
 } from '@/lib/utils/cookie-pool';
 
-// ═══════════════════════════════════════════════════════════════
-// ADMIN COOKIES
-// ═══════════════════════════════════════════════════════════════
-
+// Admin cookies (legacy single cookie)
 export {
     getAdminCookie,
     hasAdminCookie,

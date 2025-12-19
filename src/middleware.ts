@@ -1,7 +1,7 @@
 /**
  * Next.js Middleware - Security Layer
  * - Security Headers
- * - Rate Limiting
+ * - Rate Limiting (uses @/core/security)
  * - Admin Route Protection
  * - CORS
  * - DDoS Protection
@@ -10,12 +10,24 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Rate limit storage (in-memory, resets on deploy)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// ═══════════════════════════════════════════════════════════════
+// RATE LIMITING (Inline - can't import from @/core in middleware)
+// Mirrors implementation from @/core/security
+// ═══════════════════════════════════════════════════════════════
+
+interface RateLimitEntry {
+    count: number;
+    resetAt: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
 const loginAttempts = new Map<string, { count: number; blockedUntil: number }>();
 
 // Config
-const RATE_LIMIT = { maxRequests: 60, windowMs: 60000 }; // 60 req/min
+const RATE_LIMIT_CONFIG = {
+    global: { maxRequests: 60, windowMs: 60000 },  // 60 req/min
+    auth: { maxRequests: 10, windowMs: 60000 },    // 10 req/min for auth
+};
 const LOGIN_LIMIT = { maxAttempts: 5, blockDuration: 300000 }; // 5 attempts, 5 min block
 const ALLOWED_ORIGINS = ['https://xtfetch.vercel.app', 'http://localhost:3000'];
 
@@ -33,28 +45,37 @@ function getClientIP(request: NextRequest): string {
         || 'unknown';
 }
 
-function checkRateLimit(ip: string, limit = RATE_LIMIT.maxRequests): { allowed: boolean; remaining: number } {
+/**
+ * Rate limit check (mirrors @/core/security rateLimit)
+ */
+function checkRateLimit(
+    identifier: string, 
+    context: 'global' | 'auth' = 'global'
+): { allowed: boolean; remaining: number; resetIn: number } {
+    const config = RATE_LIMIT_CONFIG[context];
     const now = Date.now();
-    const entry = rateLimitMap.get(ip);
+    const key = `mw:${context}:${identifier}`;
 
     // Cleanup old entries
-    if (rateLimitMap.size > 10000) {
-        for (const [key, val] of rateLimitMap) {
-            if (val.resetAt < now) rateLimitMap.delete(key);
+    if (rateLimitStore.size > 10000) {
+        for (const [k, val] of rateLimitStore) {
+            if (val.resetAt < now) rateLimitStore.delete(k);
         }
     }
 
+    const entry = rateLimitStore.get(key);
+
     if (!entry || entry.resetAt < now) {
-        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT.windowMs });
-        return { allowed: true, remaining: limit - 1 };
+        rateLimitStore.set(key, { count: 1, resetAt: now + config.windowMs });
+        return { allowed: true, remaining: config.maxRequests - 1, resetIn: config.windowMs };
     }
 
-    if (entry.count >= limit) {
-        return { allowed: false, remaining: 0 };
+    if (entry.count >= config.maxRequests) {
+        return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };
     }
 
     entry.count++;
-    return { allowed: true, remaining: limit - entry.count };
+    return { allowed: true, remaining: config.maxRequests - entry.count, resetIn: entry.resetAt - now };
 }
 
 function checkLoginAttempts(ip: string): { allowed: boolean; blockedFor?: number } {
@@ -153,18 +174,19 @@ export function middleware(request: NextRequest) {
         // Skip rate limiting for proxy endpoint (downloads need many requests)
         // Proxy already has SSRF protection via domain whitelist
         const isProxy = pathname.startsWith('/api/proxy');
-        let remaining = RATE_LIMIT.maxRequests;
+        let remaining = RATE_LIMIT_CONFIG.global.maxRequests;
 
         if (!isProxy) {
             // Stricter limit for auth endpoints
-            const limit = pathname.includes('/auth') ? 10 : RATE_LIMIT.maxRequests;
-            const rateCheck = checkRateLimit(ip, limit);
+            const context = pathname.includes('/auth') ? 'auth' : 'global';
+            const rateCheck = checkRateLimit(ip, context);
             remaining = rateCheck.remaining;
 
             if (!rateCheck.allowed) {
+                const retryAfter = Math.ceil(rateCheck.resetIn / 1000);
                 return new NextResponse(
                     JSON.stringify({ success: false, error: 'Too many requests. Try again later.' }),
-                    { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }
+                    { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': retryAfter.toString() } }
                 );
             }
         }

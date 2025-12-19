@@ -6,18 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminSession } from '@/lib/utils/admin-auth';
-import {
-    updatePooledCookie,
-    deleteCookieFromPool,
-    testCookieHealth
-} from '@/lib/utils/cookie-pool';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { verifyAdminSession } from '@/core/security';
+import { deleteCookieFromPool, testCookieHealth, updatePooledCookie } from '@/lib/cookies';
+import { supabaseAdmin, supabase } from '@/core/database';
 
 export async function GET(
     req: NextRequest,
@@ -32,6 +23,11 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const test = searchParams.get('test');
 
+    const db = supabaseAdmin || supabase;
+    if (!db) {
+        return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
+    }
+
     try {
         // Test cookie health
         if (test === 'true') {
@@ -40,7 +36,7 @@ export async function GET(
         }
 
         // Get full cookie data
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('admin_cookie_pool')
             .select('*')
             .eq('id', id)

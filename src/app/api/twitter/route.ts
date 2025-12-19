@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeTwitter } from '@/lib/services/twitter';
-import { logger } from '@/lib/services/logger';
-import { successResponse, errorResponse, missingUrlResponse } from '@/lib/utils/http';
-import { getAdminCookie } from '@/lib/utils/admin-cookie';
-import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/lib/services/service-config';
-import { parseCookie } from '@/lib/utils/cookie-parser';
+import { scrapeTwitter } from '@/lib/services';
+import { logger } from '@/core';
+import { successResponse, errorResponse, missingUrlResponse } from '@/lib/http';
+import { getAdminCookie, parseCookie } from '@/lib/cookies';
+import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/core/database';
 
 async function handleRequest(url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
