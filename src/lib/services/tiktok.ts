@@ -10,9 +10,11 @@ import { getCache, setCache } from './helper/cache';
 import { createError, ScraperErrorCode, type ScraperResult, type ScraperOptions } from '@/core/scrapers/types';
 import { matchesPlatform } from './helper/api-config';
 import { logger } from './helper/logger';
+import { getScraperTimeout } from './helper/system-config';
 
 export async function scrapeTikTok(url: string, options?: ScraperOptions): Promise<ScraperResult> {
-    const { hd = true, timeout = 10000, skipCache = false } = options || {};
+    const { hd = true, skipCache = false } = options || {};
+    const timeout = options?.timeout ?? getScraperTimeout('tiktok');
 
     if (!matchesPlatform(url, 'tiktok')) {
         return createError(ScraperErrorCode.INVALID_URL, 'Invalid TikTok URL');

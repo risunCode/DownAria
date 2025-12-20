@@ -94,7 +94,8 @@ async function handleRequest(url: string, userCookie?: string, skipCache = false
         // Scraper will try guest first, then retry with cookie if needed
         logger.debug(platform, cookie ? 'Scraping with cookie available for retry...' : 'Scraping without cookie...');
         result = await scraper(url, { cookie, skipCache });
-        usedCookie = result.success && !!cookie;
+        // Check if scraper actually used cookie (from result.data.usedCookie)
+        usedCookie = result.success && result.data?.usedCookie === true;
     }
 
     const responseTime = Date.now() - startTime;

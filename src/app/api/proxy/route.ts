@@ -13,6 +13,11 @@ const ALLOWED_PROXY_DOMAINS = [
     'tiktokcdn.com', 'tiktokcdn-us.com', 'muscdn.com', 'byteoversea.com',
     // Weibo CDN
     'sinaimg.cn', 'weibocdn.com',
+    // YouTube CDN (HLS segments + thumbnails)
+    'googlevideo.com', 'ytimg.com', 'ggpht.com',
+    'manifest.googlevideo.com',
+    // YouTube external API audio download
+    'ccproject.serv00.net',
 ];
 
 function isAllowedProxyUrl(url: string): boolean {
@@ -41,7 +46,7 @@ function isAllowedProxyUrl(url: string): boolean {
 
 export async function GET(request: NextRequest) {
     try {
-        const url = request.nextUrl.searchParams.get('url');
+        let url = request.nextUrl.searchParams.get('url');
         const filename = request.nextUrl.searchParams.get('filename') || 'download.mp4';
         const platform = (request.nextUrl.searchParams.get('platform') || 'facebook') as PlatformId;
         const headOnly = request.nextUrl.searchParams.get('head') === '1';
@@ -51,20 +56,27 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'URL is required' }, { status: 400 });
         }
 
+        // Fix double-encoded URLs (e.g., %253D should be %3D)
+        // This happens when URL is encoded twice
+        if (url.includes('%25')) {
+            try {
+                url = decodeURIComponent(url);
+                logger.debug('proxy', 'Decoded double-encoded URL');
+            } catch { /* ignore decode errors */ }
+        }
+
         // SSRF Prevention: Validate URL against allowed CDN domains
         if (!isAllowedProxyUrl(url)) {
-            logger.error('proxy', `Blocked SSRF attempt: ${url.substring(0, 100)}`);
+            logger.error('proxy', `Blocked URL: ${url.substring(0, 150)}`);
+            try {
+                const parsed = new URL(url);
+                logger.error('proxy', `Hostname: ${parsed.hostname}`);
+            } catch {}
             return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
         }
 
-        // Use full browser headers for CDN requests (required by Facebook/Instagram)
+        // Build headers based on platform
         const headers = getBrowserHeaders(platform, { 'Accept-Encoding': 'identity' });
-
-        // Check if client sent Range header (for video seeking)
-        const rangeHeader = request.headers.get('range');
-        if (rangeHeader) {
-            headers['Range'] = rangeHeader;
-        }
 
         // HEAD request - just get file size
         if (headOnly) {
@@ -78,6 +90,12 @@ export async function GET(request: NextRequest) {
         }
 
         logger.url('proxy', `${filename} <- ${url.substring(0, 60)}...`);
+
+        // Check if client sent Range header (for video seeking)
+        const rangeHeader = request.headers.get('range');
+        if (rangeHeader) {
+            headers['Range'] = rangeHeader;
+        }
 
         const response = await fetch(url, { headers, redirect: 'follow' });
 

@@ -9,7 +9,7 @@ import type { MediaFormat, UnifiedEngagement } from '@/lib/types';
 // PLATFORM TYPES
 // ═══════════════════════════════════════════════════════════════
 
-export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
+export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
 
 // ═══════════════════════════════════════════════════════════════
 // ERROR CODES

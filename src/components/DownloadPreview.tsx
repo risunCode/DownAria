@@ -24,6 +24,7 @@ import { VideoIcon, ImageIcon, MusicIcon, LayersIcon, CheckCircleIcon } from '@/
 import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/discord-webhook';
 import { formatBytes } from '@/lib/utils/format-utils';
 import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { useTranslations } from 'next-intl';
 import Swal from 'sweetalert2';
 
 interface DownloadPreviewProps {
@@ -36,16 +37,35 @@ type DownloadStatus = 'idle' | 'downloading' | 'success' | 'error';
 
 export function DownloadPreview({ data, platform, onDownloadComplete }: DownloadPreviewProps) {
     const [downloadStatus, setDownloadStatus] = useState<Record<string, DownloadStatus>>({});
-    const [downloadProgress, setDownloadProgress] = useState<Record<string, { loaded: number; total: number; percent: number }>>({});
+    const [downloadProgress, setDownloadProgress] = useState<Record<string, { loaded: number; total: number; percent: number; speed: number; message?: string }>>({});
     const [fileSizes, setFileSizes] = useState<Record<string, string>>({});
     const [fileSizeNumerics, setFileSizeNumerics] = useState<Record<string, number>>({});
     const [globalStatus, setGlobalStatus] = useState<DownloadStatus>('idle');
+    
+    const t = useTranslations('download.preview');
+    const tCommon = useTranslations('common');
+
+    // Safety check - if no data or no formats, show nothing
+    if (!data || !data.formats || data.formats.length === 0) {
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card p-6 text-center"
+            >
+                <p className="text-[var(--text-muted)]">No media formats available</p>
+            </motion.div>
+        );
+    }
 
     // Group formats by itemId
     const groupedItems: Record<string, MediaFormat[]> = {};
     const itemThumbnails: Record<string, string> = {};
 
-    data.formats.forEach(format => {
+    // Safety check for formats
+    const formats = data.formats || [];
+    
+    formats.forEach(format => {
         const id = format.itemId || 'main';
         if (!groupedItems[id]) {
             groupedItems[id] = [];
@@ -115,11 +135,27 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
     const getProgressText = (itemId: string): string => {
         const progress = downloadProgress[itemId];
-        if (!progress) return 'Downloading...';
-        if (progress.total > 0) {
-            return `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)} (${progress.percent}%)`;
+        if (!progress) return tCommon('loading');
+        
+        const parts: string[] = [];
+        
+        // Show percentage
+        if (progress.percent > 0) {
+            parts.push(`${progress.percent}%`);
         }
-        return `${formatBytes(progress.loaded)} downloaded`;
+        
+        // Show speed if available
+        if (progress.speed > 0) {
+            const speedMB = (progress.speed / (1024 * 1024)).toFixed(1);
+            parts.push(`${speedMB} MB/s`);
+        }
+        
+        // Show message for HLS
+        if (progress.message) {
+            return progress.message;
+        }
+        
+        return parts.length > 0 ? parts.join(' • ') : tCommon('loading');
     };
 
     // Send to webhook
@@ -195,12 +231,12 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     // Download function
     const triggerDownload = async (format: MediaFormat, itemId: string) => {
         setDownloadStatus(prev => ({ ...prev, [itemId]: 'downloading' }));
-        setDownloadProgress(prev => ({ ...prev, [itemId]: { loaded: 0, total: 0, percent: 0 } }));
+        setDownloadProgress(prev => ({ ...prev, [itemId]: { loaded: 0, total: 0, percent: 0, speed: 0 } }));
 
         try {
             // Generate filename
             const platformShort: Record<string, string> = {
-                facebook: 'FB', instagram: 'IG', twitter: 'X', tiktok: 'TT', weibo: 'WB'
+                facebook: 'FB', instagram: 'IG', twitter: 'X', tiktok: 'TT', weibo: 'WB', youtube: 'YT'
             };
             const platName = platformShort[platform] || platform.toUpperCase();
             const author = (data.author || 'unknown').replace(/^@/, '').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_\u4e00-\u9fff]/g, '').substring(0, 25) || 'unknown';
@@ -218,6 +254,13 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 if (ttVideo) return ttVideo[1];
                 const twStatus = url.match(/\/status\/(\d+)/);
                 if (twStatus) return twStatus[1];
+                // YouTube video ID
+                const ytWatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+                if (ytWatch) return ytWatch[1];
+                const ytShort = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+                if (ytShort) return ytShort[1];
+                const ytShorts = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+                if (ytShorts) return ytShorts[1];
                 return Date.now().toString(36);
             };
             const postId = extractPostId(data.url);
@@ -238,9 +281,53 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     if (!fileExt) fileExt = format.type === 'video' ? 'mp4' : format.type === 'audio' ? 'mp3' : 'jpg';
                 }
                 const carouselSuffix = isMultiItem && itemId !== 'main' ? `_${itemIds.indexOf(itemId) + 1}` : '';
-                filename = `${platName}_${author}_${postId}${carouselSuffix}.${fileExt}[XT-Fetch]`;
+                filename = `${platName}_${author}_${postId}${carouselSuffix}_[XTFetch].${fileExt}`;
             }
-            if (!filename.includes('.')) filename += `.${format.format || 'mp4'}`;
+            // Only add extension if filename doesn't already have one
+            if (!filename.match(/\.\w+$/)) filename += `.${format.format || 'mp4'}`;
+
+            // Check if this is HLS format (m3u8) - need special handling
+            const isHLS = (format as { isHLS?: boolean }).isHLS || format.format === 'm3u8' || format.url.includes('.m3u8');
+            
+            if (isHLS) {
+                // Use HLS downloader for m3u8 streams
+                const { downloadHLSAsMP4 } = await import('@/lib/utils/hls-downloader');
+                
+                // Change extension from m3u8 to mp4
+                const mp4Filename = filename.replace(/\.m3u8$/i, '.mp4');
+                
+                const result = await downloadHLSAsMP4(format.url, mp4Filename, (progress) => {
+                    setDownloadProgress(prev => ({
+                        ...prev,
+                        [itemId]: {
+                            loaded: progress.bytesLoaded || 0,
+                            total: 0,
+                            percent: progress.percent,
+                            speed: 0,
+                            message: progress.message,
+                        }
+                    }));
+                });
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'HLS download failed');
+                }
+                
+                // Add to history
+                const historyId = await addHistory({
+                    platform,
+                    contentId: postId,
+                    resolvedUrl: data.url,
+                    title: data.title || 'Untitled',
+                    thumbnail: itemThumbnails[itemId] || data.thumbnail || '',
+                    author: data.author || 'Unknown',
+                    quality: format.quality,
+                    type: format.type,
+                });
+
+                setDownloadStatus(prev => ({ ...prev, [itemId]: 'success' }));
+                return;
+            }
 
             const downloadViaAnchor = (url: string, fname: string) => {
                 const link = document.createElement('a');
@@ -263,14 +350,36 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
             const chunks: Uint8Array[] = [];
             let loaded = 0;
+            let lastTime = Date.now();
+            let lastLoaded = 0;
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 chunks.push(value);
                 loaded += value.length;
+                
+                // Calculate speed every 500ms
+                const now = Date.now();
+                const timeDiff = now - lastTime;
+                let speed = 0;
+                
+                if (timeDiff >= 500) {
+                    speed = ((loaded - lastLoaded) / timeDiff) * 1000; // bytes per second
+                    lastTime = now;
+                    lastLoaded = loaded;
+                }
+                
                 const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
-                setDownloadProgress(prev => ({ ...prev, [itemId]: { loaded, total, percent } }));
+                setDownloadProgress(prev => ({ 
+                    ...prev, 
+                    [itemId]: { 
+                        loaded, 
+                        total, 
+                        percent,
+                        speed: speed || prev[itemId]?.speed || 0
+                    } 
+                }));
             }
 
             const blob = new Blob(chunks as BlobPart[]);
@@ -373,7 +482,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 )}
                 {audioFormats.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                        <span className="text-xs text-[var(--text-muted)] mr-2 flex items-center"><MusicIcon className="w-3 h-3 mr-1" /> Audio</span>
+                        <span className="text-xs text-[var(--text-muted)] mr-2 flex items-center"><MusicIcon className="w-3 h-3 mr-1" /> {t('audio')}</span>
                         {audioFormats.map((format, idx) => (
                             <button key={`a-${idx}`} onClick={() => setSelectedFormats(prev => ({ ...prev, [itemId]: format }))}
                                 className={`quality-badge ${currentSelected === format ? 'selected' : ''}`}>
@@ -407,14 +516,14 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                             : 'bg-green-500/20 text-green-400 border border-green-500/30'
                             }`}>
-                            {data.usedCookie ? '🔒 Private' : '🌐 Public'}
+                            {data.usedCookie ? t('withCookie') : t('guest')}
                         </span>
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-[var(--text-secondary)]">
                     {data.author && (<span className="flex items-center gap-1"><User className="w-3 h-3" />{data.author}</span>)}
                     {data.views && (<span className="flex items-center gap-1"><Eye className="w-3 h-3" />{data.views}</span>)}
-                    {isMultiItem && (<span className="flex items-center gap-1 text-[var(--accent-primary)]"><LayersIcon className="w-3 h-3" />{itemIds.length} items</span>)}
+                    {isMultiItem && (<span className="flex items-center gap-1 text-[var(--accent-primary)]"><LayersIcon className="w-3 h-3" />{itemIds.length} {t('items')}</span>)}
                     {data.engagement && (() => {
                         const e = data.engagement as { views?: number; likes?: number; comments?: number; shares?: number; bookmarks?: number };
                         return (
@@ -483,7 +592,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
                                 <span className="inline-flex items-center gap-1.5">
                                     {groupedItems[selectedItemId][0].type === 'video' ? <VideoIcon className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                                    {groupedItems[selectedItemId][0].type === 'video' ? 'Video' : 'Image'} #{itemIds.indexOf(selectedItemId) + 1}
+                                    {groupedItems[selectedItemId][0].type === 'video' ? t('video') : t('image')} #{itemIds.indexOf(selectedItemId) + 1}
                                 </span>
                             </h4>
                             {groupedItems[selectedItemId].length > 1 && renderFormatButtons(groupedItems[selectedItemId], selectedItemId)}
@@ -494,7 +603,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                 }}
                                     disabled={sentToWebhook[selectedItemId]}
                                     leftIcon={sentToWebhook[selectedItemId] ? <CheckCircleIcon className="w-4 h-4 text-green-400" /> : <Send className="w-4 h-4" />}>
-                                    {sentToWebhook[selectedItemId] ? 'Sent' : 'Discord'}
+                                    {sentToWebhook[selectedItemId] ? t('sent') : t('discord')}
                                 </Button>
                                 <Button size="sm" onClick={() => {
                                     const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
@@ -503,12 +612,31 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     disabled={downloadStatus[selectedItemId] === 'downloading'}
                                     leftIcon={downloadStatus[selectedItemId] === 'downloading' ? <Loader2 className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}>
                                     {downloadStatus[selectedItemId] === 'downloading'
-                                        ? 'Downloading...'
+                                        ? getProgressText(selectedItemId)
                                         : downloadStatus[selectedItemId] === 'success'
-                                            ? '✓ Done'
-                                            : `Download${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? ` (${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])})` : ''}`}
+                                            ? t('done')
+                                            : `${t('download')}${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? ` (${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])})` : ''}`}
                                 </Button>
                             </div>
+                            {/* Progress Bar for carousel item */}
+                            {downloadStatus[selectedItemId] === 'downloading' && downloadProgress[selectedItemId] && (
+                                <div className="mt-3 space-y-1">
+                                    <div className="w-full h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-purple-500 transition-all duration-300 ease-out"
+                                            style={{ width: `${downloadProgress[selectedItemId]?.percent || 0}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
+                                        <span>{formatBytes(downloadProgress[selectedItemId]?.loaded || 0)} / {downloadProgress[selectedItemId]?.total ? formatBytes(downloadProgress[selectedItemId].total) : '?'}</span>
+                                        {downloadProgress[selectedItemId]?.speed > 0 && (
+                                            <span className="text-[var(--accent-primary)] font-mono">
+                                                {(downloadProgress[selectedItemId].speed / (1024 * 1024)).toFixed(1)} MB/s
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -516,7 +644,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     <div className="pt-4 border-t border-[var(--border-color)] flex justify-end">
                         <Button variant="primary" size="lg" onClick={handleDownloadAll} disabled={globalStatus === 'downloading'}
                             leftIcon={globalStatus === 'downloading' ? <Loader2 className="animate-spin w-5 h-5" /> : <Download className="w-5 h-5" />}>
-                            {globalStatus === 'downloading' ? 'Downloading All...' : `Download All (${itemIds.length})`}
+                            {globalStatus === 'downloading' ? t('downloadingAll') : `${t('downloadAll')} (${itemIds.length})`}
                         </Button>
                     </div>
                 </div>
@@ -536,19 +664,38 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             <Button size="sm" variant="secondary" onClick={() => handleSendToWebhook(selectedFormats[itemIds[0]], itemIds[0])}
                                 disabled={sentToWebhook[itemIds[0]]}
                                 leftIcon={sentToWebhook[itemIds[0]] ? <CheckCircleIcon className="w-4 h-4 text-green-400" /> : <Send className="w-4 h-4" />}>
-                                {sentToWebhook[itemIds[0]] ? 'Sent' : 'Discord'}
+                                {sentToWebhook[itemIds[0]] ? t('sent') : t('discord')}
                             </Button>
                             <Button size="sm" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
                                 disabled={downloadStatus[itemIds[0]] === 'downloading'}
                                 leftIcon={downloadStatus[itemIds[0]] === 'downloading' ? <Loader2 className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}>
                                 {downloadStatus[itemIds[0]] === 'downloading'
                                     ? getProgressText(itemIds[0])
-                                    : downloadStatus[itemIds[0]] === 'success' ? 'Downloaded' : 'Download'}
+                                    : downloadStatus[itemIds[0]] === 'success' ? t('downloaded') : t('download')}
                                 {downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
                                     <span className="ml-1 opacity-70">({getFileSize(itemIds[0], selectedFormats[itemIds[0]])})</span>
                                 )}
                             </Button>
                         </div>
+                        {/* Progress Bar */}
+                        {downloadStatus[itemIds[0]] === 'downloading' && downloadProgress[itemIds[0]] && (
+                            <div className="mt-3 space-y-1">
+                                <div className="w-full h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-purple-500 transition-all duration-300 ease-out"
+                                        style={{ width: `${downloadProgress[itemIds[0]]?.percent || 0}%` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
+                                    <span>{formatBytes(downloadProgress[itemIds[0]]?.loaded || 0)} / {downloadProgress[itemIds[0]]?.total ? formatBytes(downloadProgress[itemIds[0]].total) : '?'}</span>
+                                    {downloadProgress[itemIds[0]]?.speed > 0 && (
+                                        <span className="text-[var(--accent-primary)] font-mono">
+                                            {(downloadProgress[itemIds[0]].speed / (1024 * 1024)).toFixed(1)} MB/s
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

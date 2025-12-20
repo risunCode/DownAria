@@ -4,9 +4,25 @@ import { logger } from '@/core';
 import { successResponse, errorResponse, missingUrlResponse } from '@/lib/http';
 import { getAdminCookie, parseCookie } from '@/lib/cookies';
 import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, recordRequest } from '@/core/database';
+import { rateLimit, getClientIP } from '@/core/security';
 
-async function handleRequest(url: string, userCookie?: string, skipCache = false) {
+// Legacy API rate limit: 5 requests per 5 minutes
+const LEGACY_RATE_LIMIT = { maxRequests: 5, windowMs: 5 * 60 * 1000 };
+
+async function handleRequest(request: NextRequest, url: string, userCookie?: string, skipCache = false) {
     const startTime = Date.now();
+    const clientIP = getClientIP(request);
+    
+    // Rate limiting
+    const rl = await rateLimit(clientIP, 'legacy_twitter', LEGACY_RATE_LIMIT);
+    if (!rl.allowed) {
+        const resetIn = Math.ceil(rl.resetIn / 1000);
+        return NextResponse.json({ 
+            success: false, 
+            error: `Rate limit exceeded. Try again in ${resetIn}s.`,
+            resetIn 
+        }, { status: 429 });
+    }
     
     if (isMaintenanceMode()) {
         return errorResponse('twitter', getMaintenanceMessage(), 503);
@@ -74,7 +90,7 @@ export async function GET(request: NextRequest) {
     
     try {
         const cookie = request.nextUrl.searchParams.get('cookie') || undefined;
-        return handleRequest(url, cookie);
+        return handleRequest(request, url, cookie);
     } catch (error) {
         logger.error('twitter', error);
         return errorResponse('twitter', error instanceof Error ? error.message : 'Failed', 500);
@@ -85,7 +101,7 @@ export async function POST(request: NextRequest) {
     try {
         const { url, cookie, skipCache } = await request.json();
         if (!url) return missingUrlResponse('twitter');
-        return handleRequest(url, cookie, skipCache);
+        return handleRequest(request, url, cookie, skipCache);
     } catch (error) {
         logger.error('twitter', error);
         return errorResponse('twitter', error instanceof Error ? error.message : 'Failed', 500);

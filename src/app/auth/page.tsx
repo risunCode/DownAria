@@ -66,7 +66,7 @@ function AuthContent() {
 
     useEffect(() => {
         getSession().then(session => {
-            if (session) router.push('/admin/dashboard');
+            if (session) router.push('/admin');
         });
         
         const ref = searchParams.get('ref');
@@ -157,7 +157,7 @@ function AuthContent() {
                 if (result.error) {
                     setError(result.error);
                 } else {
-                    router.push('/admin/dashboard');
+                    router.push('/admin');
                 }
             } else if (mode === 'register') {
                 if (password !== confirmPassword) {

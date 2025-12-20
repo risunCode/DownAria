@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/core';
+import { rateLimit, getClientIP } from '@/core/security';
+
+// Legacy API rate limit: 5 requests per 5 minutes
+const LEGACY_RATE_LIMIT = { maxRequests: 5, windowMs: 5 * 60 * 1000 };
 
 // Only allow Facebook domains (SSRF prevention)
 function isAllowedUrl(url: string): boolean {
@@ -13,6 +17,19 @@ function isAllowedUrl(url: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+    const clientIP = getClientIP(request);
+    
+    // Rate limiting
+    const rl = await rateLimit(clientIP, 'legacy_fb_source', LEGACY_RATE_LIMIT);
+    if (!rl.allowed) {
+        const resetIn = Math.ceil(rl.resetIn / 1000);
+        return NextResponse.json({ 
+            success: false, 
+            error: `Rate limit exceeded. Try again in ${resetIn}s.`,
+            resetIn 
+        }, { status: 429 });
+    }
+    
     try {
         const { url } = await request.json();
 

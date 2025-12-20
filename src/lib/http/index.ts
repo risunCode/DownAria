@@ -17,12 +17,14 @@ export {
 
   // User agents
   USER_AGENT, DESKTOP_USER_AGENT, MOBILE_USER_AGENT,
-  getUserAgent,
+  getUserAgent, getUserAgentAsync,
 
   // Headers
   BROWSER_HEADERS, API_HEADERS, DESKTOP_HEADERS,
   FACEBOOK_HEADERS, INSTAGRAM_HEADERS, TIKTOK_HEADERS,
-  getApiHeaders, getBrowserHeaders, getSecureHeaders,
+  getApiHeaders, getApiHeadersAsync,
+  getBrowserHeaders, getBrowserHeadersAsync,
+  getSecureHeaders, getSecureHeadersAsync,
 
   // Types
   type HttpOptions, type HttpResponse, type ResolveResult,
@@ -32,7 +34,7 @@ export {
 export {
   getRotatingHeaders, getRandomDelay, randomSleep,
   shouldThrottle, trackRequest, markRateLimited,
-  getRandomProfile, BROWSER_PROFILES,
+  getRandomProfile, FALLBACK_PROFILES,
   type BrowserProfile,
 } from './anti-ban';
 

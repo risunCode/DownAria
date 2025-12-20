@@ -1,0 +1,502 @@
+{
+  "common": {
+    "loading": "Memuat...",
+    "error": "Error",
+    "success": "Berhasil",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "delete": "Hapus",
+    "confirm": "Konfirmasi",
+    "close": "Tutup",
+    "back": "Kembali",
+    "next": "Lanjut",
+    "clear": "Hapus",
+    "clearAll": "Hapus Semua",
+    "export": "Ekspor",
+    "import": "Impor",
+    "enable": "Aktifkan",
+    "disable": "Nonaktifkan",
+    "edit": "Edit",
+    "add": "Tambah",
+    "remove": "Hapus",
+    "refresh": "Refresh",
+    "retry": "Coba Lagi",
+    "ok": "OK",
+    "yes": "Ya",
+    "no": "Tidak"
+  },
+
+  "nav": {
+    "home": "Beranda",
+    "history": "Riwayat",
+    "advanced": "Lanjutan",
+    "docs": "Dokumentasi",
+    "settings": "Pengaturan",
+    "about": "Tentang",
+    "navigation": "Navigasi",
+    "supportedPlatforms": "Platform Didukung"
+  },
+
+  "home": {
+    "titlePrefix": "Download",
+    "titleSuffix": "Gratis",
+    "platforms": {
+      "socialMedia": "Media Sosial",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "twitter": "Twitter",
+      "weibo": "Weibo"
+    },
+    "subtitle": "Tempel URL → Deteksi Otomatis → Download",
+    "badges": {
+      "noWatermark": "Tanpa Watermark",
+      "fastFree": "Cepat & Gratis",
+      "multiQuality": "Berbagai Kualitas",
+      "noLogin": "Tanpa Login"
+    }
+  },
+
+  "download": {
+    "pasteUrl": "Tempel URL video...",
+    "paste": "Tempel",
+    "pasted": "Selesai",
+    "go": "Go",
+    "downloadingFrom": "Download dari",
+    "progress": {
+      "starting": "Memulai...",
+      "connecting": "Menghubungkan...",
+      "fetching": "Mengambil halaman...",
+      "extracting": "Mengekstrak media...",
+      "validating": "Memvalidasi URL...",
+      "almostDone": "Hampir selesai...",
+      "done": "Selesai!"
+    },
+    "tips": {
+      "tip1": "Tempel URL video untuk memulai",
+      "tip2": "Mendukung TikTok, Instagram, Facebook & lainnya",
+      "tip3": "Deteksi platform otomatis dari URL",
+      "tip4": "Download dalam berbagai kualitas",
+      "tip5": "Tanpa watermark di sebagian besar platform",
+      "tip6": "Berfungsi untuk Reels, Stories & Posts"
+    },
+    "preview": {
+      "download": "Download",
+      "downloadAll": "Download Semua",
+      "downloadingAll": "Mendownload Semua...",
+      "downloading": "Mendownload...",
+      "downloaded": "Terdownload",
+      "done": "✓ Selesai",
+      "quality": "Kualitas",
+      "size": "Ukuran",
+      "duration": "Durasi",
+      "noPreview": "Pratinjau tidak tersedia",
+      "audio": "Audio",
+      "video": "Video",
+      "image": "Gambar",
+      "items": "item",
+      "withCookie": "🔒 Private",
+      "guest": "🌐 Public",
+      "sent": "Terkirim",
+      "discord": "Discord"
+    }
+  },
+
+  "history": {
+    "title": "Riwayat Download",
+    "subtitle": "Lihat dan kelola download sebelumnya",
+    "empty": "Belum ada download",
+    "emptyDesc": "Riwayat download akan muncul di sini",
+    "clearHistory": "Hapus Riwayat",
+    "clearConfirm": "Hapus semua riwayat?",
+    "clearConfirmDesc": "Ini akan menghapus semua riwayat download. Tindakan ini tidak dapat dibatalkan.",
+    "privacy": {
+      "title": "Privasi Anda penting.",
+      "description": "Riwayat download hanya disimpan di perangkat Anda. Kami tidak pernah mengumpulkan, melacak, atau mengirim data Anda ke mana pun.",
+      "storage": "Disimpan di penyimpanan browser"
+    },
+    "item": {
+      "downloaded": "Didownload",
+      "redownload": "Download ulang",
+      "copyUrl": "Salin URL",
+      "delete": "Hapus"
+    }
+  },
+
+  "settings": {
+    "title": "Pengaturan",
+    "subtitle": "Sesuaikan pengalaman Anda",
+    "tabs": {
+      "basic": "Dasar",
+      "cookies": "Cookies",
+      "storage": "Penyimpanan",
+      "integrations": "Integrasi"
+    },
+    "theme": {
+      "title": "Tema",
+      "dark": "Gelap",
+      "darkDesc": "Nyaman di mata",
+      "light": "Terang",
+      "lightDesc": "Klasik cerah",
+      "solarized": "Solarized",
+      "solarizedDesc": "Nada hangat"
+    },
+    "language": {
+      "title": "Bahasa",
+      "auto": "Deteksi otomatis",
+      "autoDesc": "Gunakan bahasa browser"
+    },
+    "notifications": {
+      "title": "Notifikasi",
+      "push": "Notifikasi Push",
+      "notSupported": "Tidak didukung",
+      "blocked": "Diblokir browser",
+      "enabled": "Menerima update",
+      "disabled": "Aktifkan notifikasi"
+    },
+    "discord": {
+      "title": "Discord Webhook",
+      "description": "Dapatkan notifikasi download di server Discord Anda",
+      "configure": "Konfigurasi"
+    },
+    "hideDocs": {
+      "title": "Sidebar",
+      "label": "Sembunyikan Dokumentasi",
+      "desc": "Hapus link Docs dari navigasi sidebar"
+    },
+    "pwa": {
+      "title": "Install Aplikasi",
+      "installed": "Terinstall ✓",
+      "notInstalled": "Belum terinstall",
+      "androidTip": "Terbaik di Android",
+      "androidDesc": "Gunakan browser Chrome untuk pengalaman terbaik. Tap menu (⋮) → \"Tambahkan ke Layar utama\" atau \"Install aplikasi\".",
+      "manualInstall": "Install Manual"
+    },
+    "features": {
+      "title": "Aplikasi & Fitur"
+    },
+    "cookies": {
+      "title": "Cookie Platform",
+      "priority": "Prioritas: Cookie Anda → Cookie Admin → Mode Tamu",
+      "adminNote": "Cookie admin sudah dikonfigurasi untuk sebagian besar platform.",
+      "yours": "Milik Anda",
+      "admin": "Admin",
+      "guest": "Tamu",
+      "howToGet": "Cara mendapatkan cookie",
+      "howToGetDesc": "Install ekstensi Cookie Editor → Buka platform → Klik ekstensi → Export as Header String",
+      "warning": "Peringatan",
+      "warningDesc": "Menggunakan cookie dapat melanggar ToS platform. Risiko termasuk shadow ban hingga banned permanen.",
+      "invalidFormat": "Format tidak valid",
+      "saved": "Tersimpan!",
+      "cleared": "Cookie Dihapus",
+      "clearAll": "Hapus Semua"
+    },
+    "storage": {
+      "title": "Data & Penyimpanan",
+      "skipCache": "Lewati Cache",
+      "skipCacheDesc": "Bypass cache Redis untuk hasil terbaru",
+      "backup": {
+        "title": "Backup Lengkap",
+        "description": "Ekspor sebagai ZIP berisi history.json + settings.json. Impor akan menggabungkan data.",
+        "historyItems": "{count} riwayat + pengaturan",
+        "exportSuccess": "Backup Dibuat!",
+        "exportSuccessDesc": "Riwayat + Pengaturan diekspor sebagai ZIP.",
+        "exportFailed": "Ekspor Gagal",
+        "restoreConfirm": "Pulihkan Backup?",
+        "restoreConfirmDesc": "Ini akan memulihkan riwayat dan pengaturan. Duplikat akan dilewati.",
+        "restore": "Pulihkan",
+        "restored": "Dipulihkan!",
+        "restoredDesc": "{history} item riwayat, {settings} pengaturan",
+        "duplicatesSkipped": "{count} duplikat dilewati",
+        "restoreFailed": "Pemulihan Gagal",
+        "invalidFile": "Pilih file backup .zip."
+      },
+      "items": {
+        "cookies": "Cookies",
+        "cookiesDesc": "Autentikasi platform",
+        "localStorage": "LocalStorage",
+        "localStorageDesc": "Tema & pengaturan",
+        "historyCache": "Riwayat & Cache",
+        "historyCacheDesc": "Data cache",
+        "resetAll": "Reset Semua",
+        "resetAllDesc": "Reset pabrik"
+      },
+      "clear": {
+        "cookies": "Hapus semua cookie?",
+        "cookiesDesc": "Ini akan menghapus semua cookie platform yang tersimpan.",
+        "localStorage": "Hapus LocalStorage?",
+        "localStorageDesc": "Ini akan menghapus tema dan pengaturan.",
+        "historyCache": "Hapus Riwayat & Cache?",
+        "historyCacheDesc": "Ini akan menghapus semua riwayat download dan hasil cache.",
+        "all": "Reset Semuanya?",
+        "allDesc": "Semua cookie, pengaturan, dan cache akan dihapus.",
+        "resetAllBtn": "Reset Semua"
+      },
+      "info": {
+        "localStorage": "LocalStorage",
+        "indexedDB": "IndexedDB",
+        "total": "Est. Total"
+      }
+    },
+    "integrations": {
+      "title": "Integrasi",
+      "comingSoon": "Integrasi lainnya segera hadir..."
+    }
+  },
+
+  "about": {
+    "title": "Tentang",
+    "subtitle": "Downloader media sosial tanpa batas, tanpa ribet.",
+    "story": {
+      "title": "Ceritanya",
+      "p1": "Dulu, aku sering banget pake bot Telegram buat download video dari sosmed. Praktis sih, tinggal kirim link, tunggu bentar, selesai.",
+      "p2": "Tapi lama-lama mulai kesel... 😤",
+      "p3": "Akhirnya kepikiran: \"Kenapa gak bikin sendiri aja?\"",
+      "p4": "Dan lahirlah XTFetch — downloader yang sama fungsinya, tapi tanpa limit, tanpa antri, dan 100% gratis. 🚀"
+    },
+    "painPoints": {
+      "title": "Kenapa aku bikin ini",
+      "limit": "\"Limit harian tercapai\"",
+      "queue": "\"Silakan tunggu dalam antrian\"",
+      "busy": "\"Bot sedang sibuk\"",
+      "premium": "\"Berlangganan premium\""
+    },
+    "features": {
+      "title": "Fitur",
+      "noLimits": "Tanpa limit harian",
+      "noWatermark": "Tanpa watermark",
+      "autoDetect": "Deteksi platform otomatis",
+      "multiQuality": "Berbagai kualitas",
+      "noLogin": "Tanpa perlu login"
+    },
+    "platforms": {
+      "title": "Platform"
+    },
+    "privacy": {
+      "title": "Privasi",
+      "local": "Data hanya disimpan lokal",
+      "noTracking": "Tanpa tracking, tanpa iklan",
+      "noLogs": "URL tidak pernah dicatat",
+      "openSource": "Open source"
+    },
+    "tech": {
+      "title": "Tech Stack"
+    },
+    "startDownloading": "Mulai Download"
+  },
+
+  "maintenance": {
+    "title": "Sedang Maintenance",
+    "defaultMessage": "🔧 XTFetch sedang dalam maintenance. Silakan coba lagi nanti.",
+    "checkStatus": "Cek Status",
+    "adminPanel": "Panel Admin",
+    "footer": "Kami sedang bekerja keras untuk meningkatkan pengalaman Anda. Terima kasih atas kesabarannya!"
+  },
+
+  "install": {
+    "title": "Install XTFetch",
+    "subtitle": "Dapatkan pengalaman aplikasi lengkap di perangkat Anda",
+    "alreadyInstalled": "Sudah Terinstall!",
+    "readyToUse": "XTFetch siap digunakan di perangkat Anda",
+    "openApp": "Buka Aplikasi",
+    "installNow": "Install Sekarang",
+    "howToInstall": "Cara Install",
+    "installing": "Menginstall...",
+    "platform": {
+      "ios": "Perangkat iOS",
+      "android": "Perangkat Android",
+      "desktop": "Browser Desktop"
+    },
+    "features": {
+      "fast": "Super Cepat",
+      "fastDesc": "Performa aplikasi native",
+      "notifications": "Notifikasi Push",
+      "notificationsDesc": "Dapat notifikasi instan",
+      "offline": "Berfungsi Offline",
+      "offlineDesc": "Download kapan saja"
+    },
+    "instructions": {
+      "ios": {
+        "title": "Install di iOS",
+        "step1": "Ketuk tombol Share di Safari",
+        "step2": "Scroll ke bawah dan ketuk \"Add to Home Screen\"",
+        "step3": "Ketuk \"Add\" untuk konfirmasi",
+        "note": "Pastikan Anda menggunakan browser Safari"
+      },
+      "android": {
+        "title": "Install di Android",
+        "step1": "Ketuk tombol menu (⋮) di Chrome",
+        "step2": "Ketuk \"Add to Home screen\" atau \"Install app\"",
+        "step3": "Ketuk \"Install\" untuk konfirmasi",
+        "note": "Berfungsi optimal dengan Chrome atau Samsung Internet"
+      },
+      "desktop": {
+        "title": "Install di Desktop",
+        "step1": "Cari ikon install (⊕) di address bar",
+        "step2": "Klik \"Install\" di popup",
+        "step3": "Aplikasi akan terbuka di window sendiri",
+        "note": "Didukung di Chrome, Edge, dan browser Chromium lainnya"
+      }
+    },
+    "gotIt": "Mengerti!",
+    "backToApp": "← Kembali ke XTFetch"
+  },
+
+  "notFound": {
+    "title": "Halaman Tidak Ditemukan",
+    "message": "Oops! Halaman yang Anda cari tidak ada atau telah dipindahkan.",
+    "goHome": "Ke Beranda",
+    "goBack": "Kembali",
+    "suggestion": "Coba download video dari halaman utama"
+  },
+
+  "share": {
+    "title": "Konten Dibagikan",
+    "processing": "Memproses URL yang dibagikan...",
+    "noUrl": "Tidak ada URL terdeteksi dari share",
+    "backToHome": "← Kembali ke Beranda",
+    "failed": "Gagal",
+    "error": "Terjadi kesalahan"
+  },
+
+  "errors": {
+    "invalidUrl": "URL tidak valid",
+    "enterUrl": "Masukkan URL",
+    "invalidPlatformUrl": "URL {platform} tidak valid",
+    "fetchFailed": "Gagal mengambil data",
+    "cookieRequired": "Cookie diperlukan",
+    "cookieExpired": "Cookie kedaluwarsa",
+    "maintenance": "Sedang maintenance",
+    "rateLimit": "Terlalu banyak permintaan",
+    "noValidUrl": "Tidak ada URL valid di clipboard",
+    "pasteHint": "Ketuk di sini dan tekan Ctrl+V (atau tahan lama → Paste)",
+    "checkpointRequired": {
+      "title": "🚫 Cookie Diblokir",
+      "message": "Facebook mendeteksi aktivitas tidak biasa pada cookie admin.",
+      "detail": "Akun mungkin terkena shadow ban atau memerlukan verifikasi.",
+      "hint": "Coba tambahkan cookie Anda sendiri di Pengaturan, atau tunggu admin memperbarui."
+    },
+    "maintenanceError": {
+      "title": "🔧 Sedang Maintenance",
+      "message": "Kami sedang melakukan perbaikan. Cek kembali nanti!"
+    },
+    "serviceDisabled": {
+      "title": "⏸️ Layanan Dijeda"
+    },
+    "extractionFailed": {
+      "title": "Ekstraksi Gagal",
+      "withCookie": "⚠️ Cookie sudah diset tapi ekstraksi tetap gagal.",
+      "hint": "Coba: Refresh cookie, gunakan HTML extractor di Lanjutan, atau postingan mungkin dibatasi."
+    },
+    "fetchFailedPrivate": {
+      "title": "Gagal Mengambil",
+      "hint": "Konten ini mungkin privat. Tambahkan cookie Anda di Pengaturan untuk mengakses."
+    },
+    "weiboCookie": {
+      "title": "Cookie Weibo Diperlukan",
+      "message": "Weibo memerlukan cookie untuk mengakses video.",
+      "expired": "⚠️ Cookie sebelumnya sudah kedaluwarsa atau belum diset.",
+      "hint": "Buka Pengaturan → Weibo dan tempel cookie tamu baru.",
+      "goToSettings": "⚙️ Ke Pengaturan"
+    }
+  },
+
+  "platforms": {
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "twitter": "Twitter/X",
+    "tiktok": "TikTok",
+    "weibo": "Weibo",
+    "youtube": "YouTube",
+    "status": {
+      "active": "Aktif",
+      "maintenance": "Maintenance",
+      "offline": "Offline"
+    },
+    "cookieDesc": {
+      "facebook": "Stories & grup",
+      "instagram": "Post privat",
+      "twitter": "Konten dewasa",
+      "weibo": "Wajib"
+    }
+  },
+
+  "footer": {
+    "copyright": "© 2025 risunCode",
+    "personalUse": "Gunakan dengan bijak ✨"
+  },
+
+  "advanced": {
+    "title": "Alat Lanjutan",
+    "subtitle": "Fitur untuk pengguna tingkat lanjut - ekstraktor dan proxy",
+    "warning": {
+      "title": "Eksperimental:",
+      "message": "Alat ini untuk pengguna tingkat lanjut. Gunakan dengan bijak."
+    },
+    "tabs": {
+      "playground": "API Playground",
+      "fbHtml": "FB HTML Extractor",
+      "proxy": "Direct Proxy"
+    },
+    "playground": {
+      "title": "API Playground",
+      "description": "Uji API download tanpa autentikasi. Dibatasi {limit} request/2 menit.",
+      "remaining": "Tersisa",
+      "viewApiEndpoint": "Lihat API Endpoint & Contoh",
+      "placeholder": "Tempel URL media sosial...",
+      "paste": "Tempel",
+      "pasteFailed": "Gagal menempel",
+      "sendRequest": "Kirim Request",
+      "rateLimited": "Limit Tercapai",
+      "privateContent": "Konten privat",
+      "availableFormats": "Format Tersedia",
+      "moreFormats": "format lainnya",
+      "viewJson": "Lihat JSON Response",
+      "api": {
+        "testBrowser": "Test di Browser (GET):",
+        "testBrowserHint": "Tempel di address bar browser untuk melihat JSON response",
+        "postHint": "Untuk penggunaan programatik - kirim URL di request body",
+        "postBody": "POST Body:",
+        "noKeyRequired": "Tanpa API key • GET /api = 15/menit • POST /api/playground = 5/2menit"
+      },
+      "errors": {
+        "invalidProtocol": "URL harus dimulai dengan http:// atau https://",
+        "unsupportedPlatform": "Platform tidak didukung. Coba Facebook, Instagram, Twitter, TikTok, atau Weibo",
+        "invalidFormat": "Format URL tidak valid",
+        "requestFailed": "Request gagal"
+      }
+    },
+    "fbHtml": {
+      "title": "Facebook HTML Extractor",
+      "description": "Ekstrak video dari post privat via page source",
+      "step1": "URL Facebook",
+      "step2": "URL View Source",
+      "step3": "Tempel HTML Source",
+      "paste": "Tempel",
+      "clear": "Hapus",
+      "copy": "Salin",
+      "copied": "Tersalin!",
+      "copyHint": "Tempel di tab baru",
+      "sourceHint": "Buka di tab baru → Ctrl+A → Ctrl+C",
+      "extracting": "Mengekstrak URL media...",
+      "found": "Ditemukan {count} media",
+      "extractNew": "Ekstrak Baru",
+      "extractMedia": "Ekstrak Media",
+      "pasteFromClipboard": "Tempel dari Clipboard",
+      "pasteHint": "Tips: Jika tombol tempel tidak berfungsi, tempel manual (Ctrl+V) ke kotak di atas",
+      "noMediaFound": "Media tidak ditemukan",
+      "parseError": "Error parsing",
+      "htmlPlaceholder": "Tempel seluruh kode HTML source di sini (Ctrl+V)...",
+      "pasteFailed": "Gagal menempel"
+    },
+    "proxy": {
+      "title": "Direct Link Proxy",
+      "description": "Download dari Google Drive, Dropbox, Mediafire",
+      "paste": "Tempel",
+      "clear": "Hapus",
+      "download": "Download",
+      "open": "Buka",
+      "pasteFailed": "Gagal menempel"
+    }
+  }
+}

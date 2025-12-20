@@ -6,18 +6,28 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { detectPlatform } from '@/core/config';
-import { scrapeFacebook, scrapeInstagram, scrapeTwitter, scrapeTikTok, scrapeWeibo } from '@/lib/services';
+import { scrapeFacebook, scrapeInstagram, scrapeTwitter, scrapeTikTok, scrapeWeibo, scrapeYouTube } from '@/lib/services';
 import { logger } from '@/core';
-import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, getPlaygroundRateLimit, loadConfigFromDB, getServiceConfig, type PlatformId } from '@/core/database';
+import { isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage, getPlaygroundRateLimit, loadConfigFromDB, getServiceConfig, trackDownload, trackError, getCountryFromHeaders, type PlatformId } from '@/core/database';
 import { getAdminCookie, type CookiePlatform } from '@/lib/cookies';
 import { isValidSocialUrl, detectAttackPatterns, rateLimit, getClientIP, getRateLimitStatus, RATE_LIMIT_CONFIGS } from '@/core/security';
 import { redis, getResultCache, setResultCache } from '@/lib/redis';
-import { normalizeUrl as normalizeUrlPipeline } from '@/lib/url';
+import { prepareUrl, normalizeUrl as normalizeUrlPipeline } from '@/lib/url';
 
-type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
+type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
 
-const URL_CACHE_TTL = 120;
+const DEFAULT_URL_CACHE_TTL = 120;
 const memUrlCache = new Map<string, { urls: Set<string>; resetAt: number }>();
+
+// Get URL cache TTL from system config
+async function getUrlCacheTTL(): Promise<number> {
+    try {
+        const { getCacheTtlPlaygroundUrl } = await import('@/lib/services/helper/system-config');
+        return Math.floor(getCacheTtlPlaygroundUrl() / 1000); // Convert ms to seconds
+    } catch {
+        return DEFAULT_URL_CACHE_TTL;
+    }
+}
 
 function normalizeUrlForCache(url: string): string {
     try {
@@ -35,12 +45,13 @@ async function isUrlCached(ip: string, url: string): Promise<boolean> {
 }
 
 async function cacheUrl(ip: string, url: string): Promise<void> {
+    const urlCacheTTL = await getUrlCacheTTL();
     const normalized = normalizeUrlForCache(url);
     const key = `pg:url:${ip}:${normalized}`;
-    if (redis) { try { await redis.set(key, '1', { ex: URL_CACHE_TTL }); return; } catch { /* fallback */ } }
+    if (redis) { try { await redis.set(key, '1', { ex: urlCacheTTL }); return; } catch { /* fallback */ } }
     let entry = memUrlCache.get(ip);
     if (!entry || entry.resetAt < Date.now()) {
-        entry = { urls: new Set(), resetAt: Date.now() + URL_CACHE_TTL * 1000 };
+        entry = { urls: new Set(), resetAt: Date.now() + urlCacheTTL * 1000 };
         memUrlCache.set(ip, entry);
     }
     entry.urls.add(normalized);
@@ -57,7 +68,7 @@ async function handlePlaygroundRequest(request: NextRequest, url: string): Promi
     if (!config.playgroundEnabled) return NextResponse.json({ success: false, error: 'Guest playground is disabled.' }, { status: 503 });
     if (isMaintenanceMode()) return NextResponse.json({ success: false, error: getMaintenanceMessage() }, { status: 503 });
 
-    const currentStatus = await getRateLimitStatus(clientIP, 'playground');
+    const currentStatus = await getRateLimitStatus(clientIP, 'playground', maxRequests);
     const currentRemaining = currentStatus ? currentStatus.remaining : maxRequests;
 
     if (!url) return NextResponse.json({ success: false, error: 'URL required', rateLimit: { remaining: currentRemaining, limit: maxRequests } }, { status: 400 });
@@ -67,7 +78,12 @@ async function handlePlaygroundRequest(request: NextRequest, url: string): Promi
     if (detectAttackPatterns(url)) return NextResponse.json({ success: false, error: 'Invalid URL', rateLimit: { remaining: currentRemaining, limit: maxRequests } }, { status: 400 });
 
     const platform = detectPlatform(url);
-    if (!platform) return NextResponse.json({ success: false, error: 'Unsupported URL. Supported: Facebook, Instagram, Twitter, TikTok, Weibo', supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo'], rateLimit: { remaining: currentRemaining, limit: maxRequests } }, { status: 400 });
+    if (!platform) return NextResponse.json({ success: false, error: 'Unsupported URL. Supported: Facebook, Instagram, Twitter, TikTok, Weibo, YouTube', supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo', 'youtube'], rateLimit: { remaining: currentRemaining, limit: maxRequests } }, { status: 400 });
+
+    // Resolve URL for canonical cache key
+    const urlResult = await prepareUrl(url, { timeout: 5000 });
+    const resolvedUrl = urlResult.resolvedUrl || url;
+    const resolvedPlatform = urlResult.platform || platform;
 
     const isCached = await isUrlCached(clientIP, url);
     let rateCheck = { allowed: true, remaining: currentRemaining, resetIn: 120 };
@@ -77,68 +93,84 @@ async function handlePlaygroundRequest(request: NextRequest, url: string): Promi
         return NextResponse.json({ success: false, error: `Rate limit exceeded. Try again in ${resetIn}s`, rateLimit: { remaining: 0, resetIn, limit: maxRequests } }, { status: 429 });
     }
 
-    if (!isPlatformEnabled(platform as PlatformId)) {
-        return NextResponse.json({ success: false, error: getPlatformDisabledMessage(platform as PlatformId), platform, rateLimit: { remaining: rateCheck.remaining, limit: maxRequests } }, { status: 503 });
+    if (!isPlatformEnabled(resolvedPlatform as PlatformId)) {
+        return NextResponse.json({ success: false, error: getPlatformDisabledMessage(resolvedPlatform as PlatformId), platform: resolvedPlatform, rateLimit: { remaining: rateCheck.remaining, limit: maxRequests } }, { status: 503 });
     }
 
-    logger.debug('playground', `Guest request: ${platform} from ${clientIP}`);
+    logger.debug('playground', `Guest request: ${resolvedPlatform} from ${clientIP}`);
 
-    // Check Redis result cache first (by content ID)
+    // Check Redis result cache using RESOLVED URL for canonical cache key
     type CachedResult = { data: unknown; usedCookie?: boolean; cachedAt: number };
-    const cachedResult = await getResultCache<CachedResult>(platform as Platform, url);
-    if (cachedResult) {
-        const responseTime = Date.now() - startTime;
-        logger.debug('playground', `Cache HIT for ${platform}`);
-        return NextResponse.json({
-            success: true,
-            platform,
-            cached: true,
-            data: { ...(cachedResult.data as object), usedCookie: cachedResult.usedCookie || false, responseTime },
-            rateLimit: { remaining: rateCheck.remaining, limit: maxRequests }
-        });
+    const cachedResult = await getResultCache<CachedResult>(resolvedPlatform as Platform, resolvedUrl);
+    if (cachedResult && cachedResult.data) {
+        const cachedData = cachedResult.data as { formats?: unknown[] };
+        // Only use cache if it has valid formats
+        if (cachedData.formats && Array.isArray(cachedData.formats) && cachedData.formats.length > 0) {
+            const responseTime = Date.now() - startTime;
+            logger.debug('playground', `Cache HIT for ${resolvedPlatform} (canonical key from resolved URL)`);
+            return NextResponse.json({
+                success: true,
+                platform: resolvedPlatform,
+                cached: true,
+                data: { ...(cachedResult.data as object), usedCookie: cachedResult.usedCookie || false, responseTime },
+                rateLimit: { remaining: rateCheck.remaining, limit: maxRequests }
+            });
+        }
+        // Cache exists but no formats - skip and re-scrape
+        logger.debug('playground', `Cache entry has no formats for ${resolvedPlatform}, re-scraping`);
     }
 
     const cookiePlatforms: CookiePlatform[] = ['facebook', 'instagram', 'twitter', 'weibo'];
     let cookie: string | undefined;
-    if (cookiePlatforms.includes(platform as CookiePlatform)) {
-        cookie = await getAdminCookie(platform as CookiePlatform) || undefined;
+    if (cookiePlatforms.includes(resolvedPlatform as CookiePlatform)) {
+        cookie = await getAdminCookie(resolvedPlatform as CookiePlatform) || undefined;
     }
 
-    let result: { success: boolean; data?: unknown; error?: string } | undefined;
+    let result: { success: boolean; data?: { usedCookie?: boolean; formats?: unknown[] }; error?: string } | undefined;
     let usedCookie = false;
 
-    switch (platform) {
+    // Use resolved URL for scraping
+    switch (resolvedPlatform) {
         case 'facebook':
-            result = await scrapeFacebook(url);
-            if (!result.success && cookie) { result = await scrapeFacebook(url, { cookie }); if (result.success) usedCookie = true; }
+            // Pass cookie from the start - scraper has internal retry logic
+            result = await scrapeFacebook(resolvedUrl, cookie ? { cookie } : undefined);
+            if (result.success && result.data?.usedCookie) usedCookie = true;
             break;
         case 'instagram':
-            result = await scrapeInstagram(url);
-            if (!result.success && cookie) { result = await scrapeInstagram(url, { cookie }); if (result.success) usedCookie = true; }
+            result = await scrapeInstagram(resolvedUrl, cookie ? { cookie } : undefined);
+            if (result.success && result.data?.usedCookie) usedCookie = true;
             break;
         case 'twitter':
-            result = await scrapeTwitter(url);
-            if (!result.success && cookie) { result = await scrapeTwitter(url, { cookie }); if (result.success) usedCookie = true; }
+            result = await scrapeTwitter(resolvedUrl);
+            if (!result.success && cookie) { result = await scrapeTwitter(resolvedUrl, { cookie }); if (result.success) usedCookie = true; }
             break;
         case 'tiktok':
-            result = await scrapeTikTok(url);
+            result = await scrapeTikTok(resolvedUrl);
             break;
         case 'weibo':
             if (!cookie) result = { success: false, error: 'Weibo requires cookie' };
-            else { result = await scrapeWeibo(url, { cookie }); usedCookie = true; }
+            else { result = await scrapeWeibo(resolvedUrl, { cookie }); usedCookie = true; }
+            break;
+        case 'youtube':
+            result = await scrapeYouTube(resolvedUrl);
             break;
     }
 
-    // Save successful result to Redis cache
+    // Save successful result to Redis cache using RESOLVED URL for canonical key
+    // Only cache if we have valid formats
     if (result?.success && result.data) {
-        await setResultCache(platform as Platform, url, {
-            data: result.data,
-            usedCookie,
-            cachedAt: Date.now()
-        });
+        const resultData = result.data as { formats?: unknown[] };
+        if (resultData.formats && Array.isArray(resultData.formats) && resultData.formats.length > 0) {
+            await setResultCache(resolvedPlatform as Platform, resolvedUrl, {
+                data: result.data,
+                usedCookie,
+                cachedAt: Date.now()
+            });
+        }
     }
 
     const responseTime = Date.now() - startTime;
+    const country = getCountryFromHeaders(request.headers);
 
     if (usedCookie && cookie) {
         const { markCookieSuccess, markCookieCooldown, markCookieExpired } = await import('@/lib/cookies');
@@ -152,16 +184,44 @@ async function handlePlaygroundRequest(request: NextRequest, url: string): Promi
 
     if (result?.success && result.data) {
         if (!isCached) await cacheUrl(clientIP, url);
+        
+        // Track successful playground download
+        trackDownload({
+            platform: resolvedPlatform,
+            quality: 'unknown',
+            source: 'playground',
+            country,
+            success: true,
+        });
+        
         return NextResponse.json({
             success: true,
-            platform,
+            platform: resolvedPlatform,
             cached: isCached, // true = didn't use rate limit
             data: { ...(result.data as object), usedCookie, responseTime },
             rateLimit: { remaining: rateCheck.remaining, limit: maxRequests }
         });
     }
 
-    return NextResponse.json({ success: false, platform, error: result?.error || 'Could not extract media', responseTime, rateLimit: { remaining: rateCheck.remaining, limit: maxRequests } }, { status: 400 });
+    // Track failed playground request
+    const errorMsg = result?.error || 'Could not extract media';
+    trackDownload({
+        platform: resolvedPlatform,
+        quality: 'unknown',
+        source: 'playground',
+        country,
+        success: false,
+        error_type: errorMsg.substring(0, 50),
+    });
+    trackError({
+        platform: resolvedPlatform,
+        source: 'playground',
+        country,
+        error_type: 'playground_failed',
+        error_message: errorMsg,
+    });
+
+    return NextResponse.json({ success: false, platform: resolvedPlatform, error: errorMsg, responseTime, rateLimit: { remaining: rateCheck.remaining, limit: maxRequests } }, { status: 400 });
 }
 
 export async function POST(request: NextRequest) {
@@ -180,10 +240,28 @@ export async function GET(request: NextRequest) {
 
     await loadConfigFromDB();
     const config = getServiceConfig();
+    const clientIP = getClientIP(request);
+    
+    // Get current rate limit status for this client
+    const maxRequests = config.playgroundRateLimit || RATE_LIMIT_CONFIGS.playground.maxRequests;
+    const currentStatus = await getRateLimitStatus(clientIP, 'playground', maxRequests);
+    
     return NextResponse.json({
-        name: 'XTFetch Guest Playground API',
-        enabled: config.playgroundEnabled,
-        rateLimit: { maxRequests: config.playgroundRateLimit, windowMinutes: 2 },
-        supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo']
+        success: true,
+        data: {
+            remaining: currentStatus?.remaining ?? maxRequests,
+            limit: maxRequests,
+            resetIn: currentStatus?.resetIn ? Math.ceil(currentStatus.resetIn / 1000) : 0,
+        },
+        // Also include config info
+        config: {
+            name: 'XTFetch Guest Playground API',
+            enabled: config.playgroundEnabled,
+            supported: ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo', 'youtube']
+        }
+    }, {
+        headers: {
+            'Cache-Control': 'no-store', // Don't cache rate limit status
+        },
     });
 }

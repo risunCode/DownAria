@@ -10,13 +10,121 @@ import { type PlatformId, getReferer, getOrigin } from '@/core/config';
 import { logger } from '@/core';
 
 // ═══════════════════════════════════════════════════════════════
-// USER AGENTS
+// USER AGENTS (Fallback defaults)
 // ═══════════════════════════════════════════════════════════════
 
 export const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 export const DESKTOP_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15';
 export const MOBILE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
+// In-memory cache for user agents from DB
+let uaPoolCache: { data: Array<{ platform: string; user_agent: string; device_type: string; enabled: boolean; last_used_at: string | null }>; loadedAt: number } | null = null;
+const DEFAULT_UA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes fallback
+
+// Get cache TTL from system config (lazy load)
+async function getUaCacheTTL(): Promise<number> {
+  try {
+    const { getCacheTtlUseragents } = await import('@/lib/services/helper/system-config');
+    return getCacheTtlUseragents();
+  } catch {
+    return DEFAULT_UA_CACHE_TTL;
+  }
+}
+
+/**
+ * Load user agents from database pool
+ */
+async function loadUserAgentPool(): Promise<typeof uaPoolCache> {
+  const cacheTTL = await getUaCacheTTL();
+  
+  // Return cached if fresh
+  if (uaPoolCache && Date.now() - uaPoolCache.loadedAt < cacheTTL) {
+    return uaPoolCache;
+  }
+
+  try {
+    // Dynamic import to avoid circular dependency
+    const { supabase } = await import('@/core/database');
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from('useragent_pool')
+      .select('platform, user_agent, device_type, enabled, last_used_at')
+      .eq('enabled', true)
+      .order('last_used_at', { ascending: true, nullsFirst: true });
+
+    if (error || !data) {
+      logger.debug('http', 'Failed to load UA pool from DB, using defaults');
+      return null;
+    }
+
+    uaPoolCache = { data, loadedAt: Date.now() };
+    return uaPoolCache;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Update last_used_at and increment use_count for a user agent (fire and forget)
+ */
+async function markUserAgentUsed(userAgent: string): Promise<void> {
+  try {
+    const { supabase } = await import('@/core/database');
+    if (!supabase) return;
+
+    // Use RPC function to increment use_count atomically
+    await supabase.rpc('increment_ua_use_count', { ua_string: userAgent });
+  } catch {
+    // Ignore errors - this is fire and forget
+  }
+}
+
+/**
+ * Get user agent - tries DB pool first, falls back to hardcoded
+ */
+export async function getUserAgentAsync(platform?: PlatformId, deviceType?: 'desktop' | 'mobile'): Promise<string> {
+  const pool = await loadUserAgentPool();
+  
+  if (pool?.data && pool.data.length > 0) {
+    // Filter by platform (specific or 'all')
+    let candidates = pool.data.filter(ua => 
+      ua.platform === platform || ua.platform === 'all'
+    );
+
+    // Filter by device type if specified
+    if (deviceType) {
+      const filtered = candidates.filter(ua => ua.device_type === deviceType);
+      if (filtered.length > 0) candidates = filtered;
+    }
+
+    // Platform-specific device preferences
+    if (!deviceType && platform) {
+      if (platform === 'tiktok') {
+        const mobile = candidates.filter(ua => ua.device_type === 'mobile');
+        if (mobile.length > 0) candidates = mobile;
+      } else if (platform === 'weibo') {
+        const desktop = candidates.filter(ua => ua.device_type === 'desktop');
+        if (desktop.length > 0) candidates = desktop;
+      }
+    }
+
+    if (candidates.length > 0) {
+      // Pick least recently used (rotation)
+      const selected = candidates[0];
+      // Fire and forget - update last_used_at
+      markUserAgentUsed(selected.user_agent).catch(() => {});
+      return selected.user_agent;
+    }
+  }
+
+  // Fallback to hardcoded
+  return getUserAgent(platform);
+}
+
+/**
+ * Sync version - uses hardcoded defaults (for backwards compatibility)
+ */
 export function getUserAgent(platform?: PlatformId): string {
   switch (platform) {
     case 'weibo': return DESKTOP_USER_AGENT;
@@ -148,9 +256,12 @@ export interface HttpResponse<T = string> {
 export async function httpGet(url: string, options?: HttpOptions): Promise<HttpResponse> {
   const { platform, cookie, headers: extraHeaders, ...rest } = options || {};
 
+  // Get user agent from DB pool (async) with fallback
+  const userAgent = await getUserAgentAsync(platform);
+
   const headers: Record<string, string> = {
     ...BROWSER_HEADERS,
-    'User-Agent': getUserAgent(platform),
+    'User-Agent': userAgent,
   };
 
   if (platform) {
@@ -186,9 +297,12 @@ export async function httpPost<T = unknown>(
 ): Promise<HttpResponse<T>> {
   const { platform, cookie, headers: extraHeaders, ...rest } = options || {};
 
+  // Get user agent from DB pool (async) with fallback
+  const userAgent = await getUserAgentAsync(platform);
+
   const headers: Record<string, string> = {
     ...API_HEADERS,
-    'User-Agent': getUserAgent(platform),
+    'User-Agent': userAgent,
     'Content-Type': 'application/json',
   };
 
@@ -221,8 +335,11 @@ export async function httpPost<T = unknown>(
 export async function httpHead(url: string, options?: HttpOptions): Promise<HttpResponse<null>> {
   const { platform, cookie, headers: extraHeaders, ...rest } = options || {};
 
+  // Get user agent from DB pool (async) with fallback
+  const userAgent = await getUserAgentAsync(platform);
+
   const headers: Record<string, string> = {
-    'User-Agent': getUserAgent(platform),
+    'User-Agent': userAgent,
     'Accept': '*/*',
   };
 
@@ -321,14 +438,34 @@ export function getApiHeaders(platform?: PlatformId, extra?: Record<string, stri
   return extra ? { ...h, ...extra } : h;
 }
 
+export async function getApiHeadersAsync(platform?: PlatformId, extra?: Record<string, string>): Promise<Record<string, string>> {
+  const ua = await getUserAgentAsync(platform);
+  const h: Record<string, string> = { ...API_HEADERS, 'User-Agent': ua };
+  if (platform) { h['Referer'] = getReferer(platform); h['Origin'] = getOrigin(platform); }
+  return extra ? { ...h, ...extra } : h;
+}
+
 export function getBrowserHeaders(platform?: PlatformId, extra?: Record<string, string>): Record<string, string> {
   const h: Record<string, string> = { ...BROWSER_HEADERS, 'User-Agent': getUserAgent(platform) };
   if (platform) h['Referer'] = getReferer(platform);
   return extra ? { ...h, ...extra } : h;
 }
 
+export async function getBrowserHeadersAsync(platform?: PlatformId, extra?: Record<string, string>): Promise<Record<string, string>> {
+  const ua = await getUserAgentAsync(platform);
+  const h: Record<string, string> = { ...BROWSER_HEADERS, 'User-Agent': ua };
+  if (platform) h['Referer'] = getReferer(platform);
+  return extra ? { ...h, ...extra } : h;
+}
+
 export function getSecureHeaders(platform?: PlatformId, cookie?: string): Record<string, string> {
   const h = getBrowserHeaders(platform);
+  if (cookie) h['Cookie'] = cookie;
+  return h;
+}
+
+export async function getSecureHeadersAsync(platform?: PlatformId, cookie?: string): Promise<Record<string, string>> {
+  const h = await getBrowserHeadersAsync(platform);
   if (cookie) h['Cookie'] = cookie;
   return h;
 }

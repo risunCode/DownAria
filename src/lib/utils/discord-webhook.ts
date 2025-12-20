@@ -47,12 +47,18 @@ export const DEFAULT_USER_DISCORD: UserDiscordSettings = {
 };
 
 // Random key to break backward compatibility as requested
-export const DISCORD_STORAGE_KEY = 'dw_cfg_v2_9j2k';
+export const DISCORD_STORAGE_KEY = 'xtf_discord';
+
+// Import encrypted storage
+import { getEncrypted, setEncrypted, migrateToEncrypted } from '@/lib/storage/crypto';
 
 export function getUserDiscordSettings(): UserDiscordSettings | null {
     if (typeof window === 'undefined') return null;
     try {
-        const saved = localStorage.getItem(DISCORD_STORAGE_KEY);
+        // Auto-migrate unencrypted data
+        migrateToEncrypted(DISCORD_STORAGE_KEY);
+        
+        const saved = getEncrypted(DISCORD_STORAGE_KEY);
         if (saved) {
             return { ...DEFAULT_USER_DISCORD, ...JSON.parse(saved) };
         }
@@ -65,7 +71,7 @@ export function getUserDiscordSettings(): UserDiscordSettings | null {
 export function saveUserDiscordSettings(settings: UserDiscordSettings): void {
     if (typeof window === 'undefined') return;
     try {
-        localStorage.setItem(DISCORD_STORAGE_KEY, JSON.stringify(settings));
+        setEncrypted(DISCORD_STORAGE_KEY, JSON.stringify(settings));
     } catch { }
 }
 
@@ -82,8 +88,9 @@ function formatBytes(bytes: number): string {
 }
 
 // Duplicate prevention
-const recentMessages = new Set<string>();
+const recentMessages = new Map<string, number>(); // key -> timestamp
 const MESSAGE_CACHE_TTL = 60 * 1000;
+const MAX_CACHE_SIZE = 100;
 
 // Rate limit tracking with proper Discord headers
 let rateLimitState = {
@@ -97,16 +104,30 @@ function getMessageKey(data: { platform: string; sourceUrl?: string; mediaUrl?: 
 }
 
 function isDuplicate(key: string): boolean {
-    return recentMessages.has(key);
+    const timestamp = recentMessages.get(key);
+    if (!timestamp) return false;
+    // Check if expired
+    if (Date.now() - timestamp > MESSAGE_CACHE_TTL) {
+        recentMessages.delete(key);
+        return false;
+    }
+    return true;
 }
 
 function markSent(key: string): void {
-    recentMessages.add(key);
-    setTimeout(() => recentMessages.delete(key), MESSAGE_CACHE_TTL);
-    if (recentMessages.size > 100) {
-        const first = recentMessages.values().next().value;
-        if (first) recentMessages.delete(first);
+    // Cleanup old entries first if at capacity
+    if (recentMessages.size >= MAX_CACHE_SIZE) {
+        const now = Date.now();
+        for (const [k, ts] of recentMessages.entries()) {
+            if (now - ts > MESSAGE_CACHE_TTL) recentMessages.delete(k);
+        }
+        // If still at capacity, remove oldest
+        if (recentMessages.size >= MAX_CACHE_SIZE) {
+            const oldest = recentMessages.keys().next().value;
+            if (oldest) recentMessages.delete(oldest);
+        }
     }
+    recentMessages.set(key, Date.now());
 }
 
 function getBaseUrl(): string {
@@ -178,7 +199,7 @@ async function sendToWebhook(
     // Check rate limit before sending
     const waitMs = getRateLimitWait();
     if (waitMs > 0) {
-        console.log(`[Discord] Waiting ${waitMs}ms for rate limit...`);
+        if (process.env.NODE_ENV === 'development') console.log(`[Discord] Waiting ${waitMs}ms for rate limit...`);
         await new Promise(r => setTimeout(r, waitMs));
     }
 
@@ -195,7 +216,7 @@ async function sendToWebhook(
             const retryAfter = res.headers.get('Retry-After');
             const waitSec = retryAfter ? parseFloat(retryAfter) : 5;
 
-            console.log(`[Discord] Rate limited, retry after ${waitSec}s`);
+            if (process.env.NODE_ENV === 'development') console.log(`[Discord] Rate limited, retry after ${waitSec}s`);
 
             if (retries > 0) {
                 await new Promise(r => setTimeout(r, waitSec * 1000));
@@ -404,7 +425,7 @@ export async function sendDiscordNotification(data: {
 
         // UPLOAD LOGIC
         if (shouldUpload && data.mediaUrl) {
-            console.log(`[Discord] Uploading small media (${formatBytes(finalSize)})`);
+            if (process.env.NODE_ENV === 'development') console.log(`[Discord] Uploading small media (${formatBytes(finalSize)})`);
             try {
                 const proxyUrl = getProxyUrl(data.mediaUrl, data.platform);
                 const res = await fetch(proxyUrl);
@@ -427,7 +448,7 @@ export async function sendDiscordNotification(data: {
                     return { sent: true };
                 }
             } catch (err) {
-                console.warn('[Discord] Upload failed, falling back to link:', err);
+                if (process.env.NODE_ENV === 'development') console.warn('[Discord] Upload failed, falling back to link:', err);
                 if (manual) {
                     // Optional: Notify user that upload failed and we are falling back?
                     // Swal.fire(...) // Skipping to avoid double popup spam, just fall back
@@ -442,7 +463,7 @@ export async function sendDiscordNotification(data: {
 
             if (useDoubleMessage) {
                 // 2x SEND: [Wrapped-Link] + Embed
-                console.log('[Discord] Using 2x send method (Link -> Embed)');
+                if (process.env.NODE_ENV === 'development') console.log('[Discord] Using 2x send method (Link -> Embed)');
 
                 // Message 1: Wrapped link [Platform Type](url) - Discord will auto-embed video
                 const result1 = await sendToWebhook(settings.webhookUrl, {

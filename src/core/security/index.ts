@@ -9,7 +9,7 @@ import { redis } from '@/lib/redis';
 // Security utilities
 export {
     escapeHtml, sanitizeObject,
-    isValidSocialUrl, isValidCookie,
+    isValidSocialUrl, isValidCookie, sanitizeCookie,
     encrypt, decrypt,
     hashApiKey, generateSecureToken,
     maskSensitiveData, maskCookie,
@@ -111,8 +111,9 @@ export async function resetRateLimit(id: string, ctx = 'public') {
     if (redis) await redis.del(key);
 }
 
-export async function getRateLimitStatus(id: string, ctx: keyof typeof RATE_LIMIT_CONFIGS = 'public') {
+export async function getRateLimitStatus(id: string, ctx: keyof typeof RATE_LIMIT_CONFIGS = 'public', customMaxRequests?: number) {
     const cfg = RATE_LIMIT_CONFIGS[ctx];
+    const maxRequests = customMaxRequests ?? cfg.maxRequests;
     const key = `rl:${ctx}:${id}`;
 
     if (redis) {
@@ -122,14 +123,14 @@ export async function getRateLimitStatus(id: string, ctx: keyof typeof RATE_LIMI
                 redis.ttl(key)
             ]);
             if (count && ttl > 0) {
-                return { count, remaining: Math.max(0, cfg.maxRequests - count), resetIn: ttl * 1000 };
+                return { count, remaining: Math.max(0, maxRequests - count), resetIn: ttl * 1000 };
             }
         } catch { /* fallback to memory */ }
     }
 
     const entry = memStore.get(key);
     if (entry && entry.resetAt > Date.now()) {
-        return { count: entry.count, remaining: cfg.maxRequests - entry.count, resetIn: entry.resetAt - Date.now() };
+        return { count: entry.count, remaining: maxRequests - entry.count, resetIn: entry.resetAt - Date.now() };
     }
     return null;
 }

@@ -11,24 +11,27 @@
  */
 
 import { supabase } from '@/core/database';
+import { getEncrypted, setEncrypted, removeEncrypted, migrateToEncrypted } from '@/lib/storage/crypto';
 
 // Legacy admin key storage (kept for backward compatibility)
-const ADMIN_KEY_STORAGE = 'adm_k_v1_d8s';
+const ADMIN_KEY_STORAGE = 'xtf_admin_key';
 
 /**
- * Get admin key from localStorage (legacy)
+ * Get admin key from localStorage (legacy) - ENCRYPTED
  */
 export function getAdminKey(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(ADMIN_KEY_STORAGE);
+    // Auto-migrate unencrypted data
+    migrateToEncrypted(ADMIN_KEY_STORAGE);
+    return getEncrypted(ADMIN_KEY_STORAGE);
 }
 
 /**
- * Set admin key in localStorage (legacy)
+ * Set admin key in localStorage (legacy) - ENCRYPTED
  */
 export function setAdminKey(key: string): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(ADMIN_KEY_STORAGE, key);
+    setEncrypted(ADMIN_KEY_STORAGE, key);
 }
 
 /**
@@ -36,7 +39,7 @@ export function setAdminKey(key: string): void {
  */
 export function clearAdminKey(): void {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem(ADMIN_KEY_STORAGE);
+    removeEncrypted(ADMIN_KEY_STORAGE);
 }
 
 /**

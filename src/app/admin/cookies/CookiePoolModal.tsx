@@ -413,7 +413,26 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
                                                     </button>
                                                 )}
                                                 <button
-                                                    onClick={() => setShowCookie(showCookie === cookie.id ? null : cookie.id)}
+                                                    onClick={async () => {
+                                                        if (showCookie === cookie.id) {
+                                                            setShowCookie(null);
+                                                        } else {
+                                                            // Fetch decrypted cookie from API
+                                                            try {
+                                                                const res = await fetch(`/api/admin/cookies/pool/${cookie.id}?decrypt=true`);
+                                                                const data = await res.json();
+                                                                if (data.success) {
+                                                                    // Update cookie in local state with decrypted value
+                                                                    setCookies(prev => prev.map(c => 
+                                                                        c.id === cookie.id ? { ...c, cookie: data.data.cookie } : c
+                                                                    ));
+                                                                }
+                                                            } catch {
+                                                                // Fallback to showing masked value
+                                                            }
+                                                            setShowCookie(cookie.id);
+                                                        }
+                                                    }}
                                                     className="p-1.5 rounded hover:bg-[var(--bg-primary)] transition-colors"
                                                     title="Show Cookie"
                                                 >

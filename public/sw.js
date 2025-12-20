@@ -1,5 +1,7 @@
 // XTFetch Service Worker - Offline First PWA
-const CACHE_VERSION = 'v3';
+// Cache version - update this on each deploy or use build timestamp
+const BUILD_TIME = '20251220192715'; // YYYYMMDD format - UPDATE ON DEPLOY
+const CACHE_VERSION = `v5-${BUILD_TIME}`;
 const STATIC_CACHE = `xtfetch-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `xtfetch-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `xtfetch-api-${CACHE_VERSION}`;
@@ -153,29 +155,27 @@ async function handleStaticRequest(request) {
   }
 }
 
-// Handle page requests - Stale while revalidate
+// Handle page requests - Network first with cache fallback
 async function handlePageRequest(request) {
-  const cached = await caches.match(request);
-  
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        const cache = caches.open(DYNAMIC_CACHE);
-        cache.then(c => c.put(request, response.clone()));
-      }
-      return response;
-    })
-    .catch(() => {
-      // If fetch fails and we have cache, that's fine
-      // If no cache, return offline page
-      if (!cached) {
-        return caches.match('/');
-      }
-      return null;
-    });
-  
-  // Return cached immediately, update in background
-  return cached || fetchPromise;
+  // ALWAYS try network first for pages to get fresh content
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      // Cache the fresh response for offline use
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    // Network failed - try cache (offline mode)
+    const cached = await caches.match(request);
+    if (cached) {
+      console.log('[SW] Serving cached page (offline):', request.url);
+      return cached;
+    }
+    // No cache - return home page as fallback
+    return caches.match('/');
+  }
 }
 
 // Handle messages from client

@@ -13,7 +13,7 @@
 
 export type ThemeType = 'light' | 'solarized' | 'dark';
 
-const THEME_KEY = 'th_v1_y7u';
+const THEME_KEY = 'xtf_theme';
 const DEFAULT_THEME: ThemeType = 'solarized';
 
 export function getTheme(): ThemeType {
@@ -58,15 +58,17 @@ export interface AppSettings {
   autoDownload: boolean;
   preferredQuality: 'highest' | 'hd' | 'sd';
   showEngagement: boolean;
+  hideDocs: boolean;
 }
 
-const SETTINGS_KEY = 'stg_v1_r5t';
+const SETTINGS_KEY = 'xtf_settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
   pushNotifications: false,
   autoDownload: false,
   preferredQuality: 'highest',
   showEngagement: true,
+  hideDocs: false,
 };
 
 export function getSettings(): AppSettings {
@@ -97,27 +99,33 @@ export function resetSettings(): void {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PLATFORM COOKIES (User-provided)
+// PLATFORM COOKIES (User-provided) - ENCRYPTED
 // ═══════════════════════════════════════════════════════════════
 
 import { parseCookie, type CookiePlatform } from '@/lib/cookies';
+import { getEncrypted, setEncrypted, removeEncrypted, migrateToEncrypted } from './crypto';
 
 export type { CookiePlatform };
 
-const COOKIE_KEY_PREFIX = 'ck_v1_pre_';
+const COOKIE_KEY_PREFIX = 'xtf_cookie_';
 
 export function getPlatformCookie(platform: CookiePlatform): string | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    const data = localStorage.getItem(COOKIE_KEY_PREFIX + platform);
+    const key = COOKIE_KEY_PREFIX + platform;
+    
+    // Auto-migrate unencrypted data
+    migrateToEncrypted(key);
+    
+    const data = getEncrypted(key);
     if (!data) return null;
 
     // Support old format (with expires) - migrate
     try {
       const parsed = JSON.parse(data);
       if (parsed.cookie) {
-        localStorage.setItem(COOKIE_KEY_PREFIX + platform, parsed.cookie);
+        setEncrypted(key, parsed.cookie);
         return parsed.cookie;
       }
     } catch {
@@ -132,12 +140,12 @@ export function getPlatformCookie(platform: CookiePlatform): string | null {
 export function savePlatformCookie(platform: CookiePlatform, cookie: string): void {
   if (typeof window === 'undefined') return;
   const parsed = parseCookie(cookie, platform);
-  localStorage.setItem(COOKIE_KEY_PREFIX + platform, parsed || cookie);
+  setEncrypted(COOKIE_KEY_PREFIX + platform, parsed || cookie);
 }
 
 export function clearPlatformCookie(platform: CookiePlatform): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(COOKIE_KEY_PREFIX + platform);
+  removeEncrypted(COOKIE_KEY_PREFIX + platform);
 }
 
 export function hasPlatformCookie(platform: CookiePlatform): boolean {
@@ -164,7 +172,7 @@ export const hasValidWeiboCookie = () => hasPlatformCookie('weibo');
 // SKIP CACHE SETTING
 // ═══════════════════════════════════════════════════════════════
 
-const SKIP_CACHE_KEY = 'sc_v1_x2c';
+const SKIP_CACHE_KEY = 'xtf_skip_cache';
 
 /**
  * Get Skip Cache setting (default: false)
@@ -188,3 +196,60 @@ export function setSkipCache(enabled: boolean): void {
   localStorage.setItem(SKIP_CACHE_KEY, enabled ? 'true' : 'false');
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// LANGUAGE PREFERENCE
+// ═══════════════════════════════════════════════════════════════
+
+import { type Locale, locales, defaultLocale } from '@/i18n/config';
+
+export type LanguagePreference = 'auto' | Locale;
+
+const LANGUAGE_KEY = 'xtf_language';
+
+/**
+ * Get language preference
+ * Returns 'auto' or specific locale code
+ */
+export function getLanguagePreference(): LanguagePreference {
+  if (typeof window === 'undefined') return 'auto';
+
+  try {
+    const saved = localStorage.getItem(LANGUAGE_KEY);
+    if (saved === 'auto' || (saved && locales.includes(saved as Locale))) {
+      return saved as LanguagePreference;
+    }
+    return 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+/**
+ * Set language preference
+ */
+export function setLanguagePreference(lang: LanguagePreference): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LANGUAGE_KEY, lang);
+}
+
+/**
+ * Get resolved locale (auto-detect if 'auto')
+ */
+export function getResolvedLocale(): Locale {
+  const pref = getLanguagePreference();
+  
+  if (pref !== 'auto') {
+    return pref;
+  }
+  
+  // Auto-detect from browser
+  if (typeof navigator !== 'undefined') {
+    const browserLang = navigator.language?.split('-')[0];
+    if (browserLang && locales.includes(browserLang as Locale)) {
+      return browserLang as Locale;
+    }
+  }
+  
+  return defaultLocale;
+}

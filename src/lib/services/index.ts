@@ -12,6 +12,7 @@ export { scrapeInstagram } from './instagram';
 export { scrapeTwitter } from './twitter';
 export { scrapeTikTok, fetchTikWM, type TikWMResult } from './tiktok';
 export { scrapeWeibo } from './weibo';
+export { scrapeYouTube, searchYouTube } from './youtube';
 
 // ═══════════════════════════════════════════════════════════════
 // DOWNLOAD HANDLER

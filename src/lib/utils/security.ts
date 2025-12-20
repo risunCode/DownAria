@@ -52,18 +52,41 @@ const ALLOWED_DOMAINS = [
     'instagram.com', 'cdninstagram.com', 'instagr.am',
     'twitter.com', 'x.com', 't.co', 'twimg.com',
     'tiktok.com', 'tiktokcdn.com', 'musical.ly',
-
     'weibo.com', 'weibo.cn', 'sinaimg.cn',
-
+    'youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com',
 ];
 
+// Enhanced SSRF protection patterns
 const BLOCKED_PATTERNS = [
-    /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.|0\.)/,  // Private IPs
+    // Private IPv4 ranges
+    /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.|0\.)/,
+    // Localhost variations
     /localhost/i,
     /\.local$/i,
+    /\.internal$/i,
+    // IPv6 localhost and private
+    /\[::1\]/i,
+    /\[::\]/i,
+    /\[fe80:/i,
+    /\[fc00:/i,
+    /\[fd00:/i,
+    // Cloud metadata endpoints (AWS, GCP, Azure)
+    /169\.254\.169\.254/,
+    /metadata\.google\.internal/i,
+    /metadata\.azure\.com/i,
+    // DNS rebinding protection
+    /\.xip\.io$/i,
+    /\.nip\.io$/i,
+    /\.sslip\.io$/i,
+    // Protocol attacks
     /^file:/i,
     /^ftp:/i,
     /^data:/i,
+    /^gopher:/i,
+    /^dict:/i,
+    // Hex/octal IP encoding bypass attempts
+    /0x[0-9a-f]+\./i,
+    /\d+\.\d+\.\d+\.\d+\.\d+/, // Overflow IP
 ];
 
 export function isValidSocialUrl(url: string): { valid: boolean; error?: string } {
@@ -81,9 +104,17 @@ export function isValidSocialUrl(url: string): { valid: boolean; error?: string 
         return { valid: false, error: 'Invalid URL protocol' };
     }
 
-    // Check blocked patterns (SSRF prevention)
+    // Decode URL to catch encoded bypass attempts
+    let decodedUrl = url;
+    try {
+        decodedUrl = decodeURIComponent(url);
+    } catch {
+        // If decode fails, use original
+    }
+
+    // Check blocked patterns (SSRF prevention) on both original and decoded
     for (const pattern of BLOCKED_PATTERNS) {
-        if (pattern.test(url)) {
+        if (pattern.test(url) || pattern.test(decodedUrl)) {
             return { valid: false, error: 'Invalid URL' };
         }
     }
@@ -92,6 +123,16 @@ export function isValidSocialUrl(url: string): { valid: boolean; error?: string 
     try {
         const parsed = new URL(url);
         const hostname = parsed.hostname.toLowerCase();
+
+        // Block numeric IPs (except allowed CDNs)
+        if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+            return { valid: false, error: 'Direct IP access not allowed' };
+        }
+
+        // Block IPv6 addresses
+        if (hostname.startsWith('[') || hostname.includes(':')) {
+            return { valid: false, error: 'IPv6 not allowed' };
+        }
 
         // Check if domain is allowed
         const isAllowed = ALLOWED_DOMAINS.some(domain =>
@@ -123,12 +164,18 @@ export function isValidCookie(cookie: string): { valid: boolean; error?: string 
         return { valid: false, error: 'Cookie too long' };
     }
 
+    // Check for CRLF injection (header injection attack)
+    if (/[\r\n]/.test(cookie)) {
+        return { valid: false, error: 'Invalid cookie format' };
+    }
+
     // Check for suspicious patterns
     const suspicious = [
         /<script/i,
         /javascript:/i,
         /on\w+\s*=/i,
         /eval\s*\(/i,
+        /\x00/, // Null byte
     ];
 
     for (const pattern of suspicious) {
@@ -138,6 +185,18 @@ export function isValidCookie(cookie: string): { valid: boolean; error?: string 
     }
 
     return { valid: true };
+}
+
+/**
+ * Sanitize cookie string - remove dangerous characters
+ * Use this before passing cookie to HTTP headers
+ */
+export function sanitizeCookie(cookie: string): string {
+    if (!cookie) return '';
+    // Remove CRLF, null bytes, and trim
+    return cookie
+        .replace(/[\r\n\x00]/g, '')
+        .trim();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -150,10 +209,24 @@ const SALT_LENGTH = 16;
 // Get encryption key - MUST be set in production
 function getEncryptionKey(): string {
     const key = process.env.ENCRYPTION_KEY;
-    if (!key && process.env.NODE_ENV === 'production') {
-        throw new Error('ENCRYPTION_KEY environment variable is required in production');
+    
+    // Strict validation in production
+    if (process.env.NODE_ENV === 'production') {
+        if (!key) {
+            throw new Error('ENCRYPTION_KEY environment variable is required in production');
+        }
+        if (key.length < 32) {
+            throw new Error('ENCRYPTION_KEY must be at least 32 characters');
+        }
     }
-    return key || 'default-key-for-development-only';
+    
+    // Development fallback with warning
+    if (!key) {
+        console.warn('[Security] Using default encryption key - NOT FOR PRODUCTION');
+        return 'dev-only-key-do-not-use-in-prod!!';
+    }
+    
+    return key;
 }
 
 /**

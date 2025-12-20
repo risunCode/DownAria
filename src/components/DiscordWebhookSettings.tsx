@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import {
     UserDiscordSettings,
     DEFAULT_USER_DISCORD,
-    DISCORD_STORAGE_KEY,
+    getUserDiscordSettings,
     saveUserDiscordSettings,
 } from '@/lib/utils/discord-webhook';
 import Swal from 'sweetalert2';
@@ -19,12 +19,11 @@ export function DiscordWebhookSettings() {
     const [showTips, setShowTips] = useState(false);
 
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem(DISCORD_STORAGE_KEY);
-            if (saved) {
-                setSettings({ ...DEFAULT_USER_DISCORD, ...JSON.parse(saved) });
-            }
-        } catch { }
+        // Use getUserDiscordSettings which handles decryption
+        const saved = getUserDiscordSettings();
+        if (saved) {
+            setSettings(saved);
+        }
     }, []);
 
     const saveSettings = (newSettings: UserDiscordSettings) => {

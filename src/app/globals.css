@@ -319,11 +319,6 @@ body {
   border-color: var(--accent-primary);
 }
 
-.platform-tab.youtube.active {
-  border-color: var(--youtube);
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
-}
-
 .platform-tab.facebook.active {
   border-color: var(--facebook);
   box-shadow: 0 0 20px rgba(24, 119, 242, 0.2);
@@ -519,4 +514,62 @@ body {
 
 .shiny-border:hover::before {
   opacity: 1;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Keyboard focus styles - only show when using keyboard */
+.keyboard-user *:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Remove focus outline for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: currentColor;
+  }
+  
+  .glass-card {
+    border-width: 2px;
+  }
 }

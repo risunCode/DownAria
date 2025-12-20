@@ -13,8 +13,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { handleDownload } from '@/lib/services/download-handler';
+import { rateLimit, getClientIP } from '@/core/security';
 
 const VALID_PLATFORMS = ['facebook', 'instagram', 'twitter', 'tiktok', 'weibo'];
+
+// Legacy API rate limit: 5 requests per 5 minutes
+const LEGACY_RATE_LIMIT = { maxRequests: 5, windowMs: 5 * 60 * 1000 };
 
 export async function GET(
     request: NextRequest,
@@ -40,6 +44,18 @@ export async function GET(
         }, { status: 400 });
     }
     
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    const rl = await rateLimit(clientIP, `legacy_dl_${platform}`, LEGACY_RATE_LIMIT);
+    if (!rl.allowed) {
+        const resetIn = Math.ceil(rl.resetIn / 1000);
+        return NextResponse.json({ 
+            success: false, 
+            error: `Rate limit exceeded. Try again in ${resetIn}s.`,
+            resetIn 
+        }, { status: 429 });
+    }
+    
     return handleDownload(request, { url, cookie, platform });
 }
 
@@ -58,6 +74,23 @@ export async function POST(
     
     try {
         const body = await request.json();
+        
+        if (!body.url) {
+            return NextResponse.json({ success: false, error: 'URL required' }, { status: 400 });
+        }
+        
+        // Rate limiting
+        const clientIP = getClientIP(request);
+        const rl = await rateLimit(clientIP, `legacy_dl_${platform}`, LEGACY_RATE_LIMIT);
+        if (!rl.allowed) {
+            const resetIn = Math.ceil(rl.resetIn / 1000);
+            return NextResponse.json({ 
+                success: false, 
+                error: `Rate limit exceeded. Try again in ${resetIn}s.`,
+                resetIn 
+            }, { status: 429 });
+        }
+        
         return handleDownload(request, { url: body.url, cookie: body.cookie, platform });
     } catch {
         return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });

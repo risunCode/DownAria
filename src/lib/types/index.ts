@@ -1,5 +1,5 @@
 // Platform types
-export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
+export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
 
 /**
  * Unified Engagement Stats
@@ -21,12 +21,14 @@ export interface MediaFormat {
     url: string;
     size?: string;
     fileSize?: string; // Human-readable file size (e.g. "32.5 MB")
-    hasAudio?: boolean;
+    filesize?: number; // File size in bytes
     format?: string;
     mimeType?: string;
     filename?: string; // Custom filename hint
     itemId?: string; // To group multiple formats of the same item (e.g. multiple images in a post)
     thumbnail?: string; // Specific thumbnail for this item
+    width?: number;
+    height?: number;
 }
 
 // Download response from API
@@ -156,6 +158,18 @@ export const PLATFORMS: PlatformConfig[] = [
         patterns: [
             /^(https?:\/\/)?(www\.|m\.|video\.)?weibo\.(com|cn)\/.+/,
             /^(https?:\/\/)?t\.cn\/.+/,
+        ],
+    },
+    {
+        id: 'youtube',
+        name: 'YouTube',
+        icon: '▶️',
+        color: '#ff0000',
+        placeholder: 'https://www.youtube.com/watch?v=...',
+        patterns: [
+            /^(https?:\/\/)?(www\.|m\.|music\.)?youtube\.com\/(watch|shorts|embed)\?.+/,
+            /^(https?:\/\/)?(www\.|m\.|music\.)?youtube\.com\/shorts\/.+/,
+            /^(https?:\/\/)?youtu\.be\/.+/,
         ],
     },
 ];

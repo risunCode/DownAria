@@ -3,49 +3,74 @@
  * ==============
  * Unified storage interface.
  * 
- * - IndexedDB: History, Media Cache (large data)
+ * - IndexedDB: History, Media Cache (unlimited, local)
  * - LocalStorage: Theme, Settings, Cookies (small data)
  * 
  * Usage:
  *   import { initStorage, addHistory, getCachedMedia } from '@/lib/storage';
  *   import { getTheme, saveSettings } from '@/lib/storage';
+ *   import { exportHistoryAsJSON, importHistoryFromFile } from '@/lib/storage';
  */
 
 // ═══════════════════════════════════════════════════════════════
-// INDEXEDDB (Large data)
+// INDEXEDDB (Large data - unlimited history)
 // ═══════════════════════════════════════════════════════════════
 
 export {
   // Initialization
   initStorage,
-  getDB,
   closeDB,
 
   // History
   addHistory,
   getHistory,
+  getHistoryCount,
   getHistoryByPlatform,
   searchHistory,
   deleteHistory,
   clearHistory,
 
+  // Export / Import
+  exportHistory,
+  exportHistoryAsJSON,
+  exportHistoryAsBlob,
+  downloadHistoryExport,
+  importHistory,
+  importHistoryFromFile,
+  
+  // Full Backup (ZIP)
+  createFullBackup,
+  downloadFullBackupAsZip,
+  importFullBackupFromZip,
+  type FullBackupData,
+
   // Media Cache
   getCachedMedia,
-  getCachedMediaByUrl,
   setCachedMedia,
   deleteCachedMedia,
   clearExpiredCache,
-  clearCacheByPlatform,
   clearAllCache,
-  getCacheStats,
 
-  // Migration
-  migrateFromLocalStorage,
+  // Stats
+  getStorageStats,
 
   // Types
   type HistoryEntry,
   type MediaCacheEntry,
-} from './local-storage-db';
+  type ExportData,
+} from './indexed-db';
+
+// ═══════════════════════════════════════════════════════════════
+// ENCRYPTED STORAGE
+// ═══════════════════════════════════════════════════════════════
+
+export {
+  setEncrypted,
+  getEncrypted,
+  removeEncrypted,
+  isEncrypted,
+  migrateToEncrypted,
+} from './crypto';
 
 // ═══════════════════════════════════════════════════════════════
 // LOCALSTORAGE (Small data)
@@ -82,4 +107,10 @@ export {
   // Skip Cache
   getSkipCache,
   setSkipCache,
+
+  // Language
+  getLanguagePreference,
+  setLanguagePreference,
+  getResolvedLocale,
+  type LanguagePreference,
 } from './settings';

@@ -8,7 +8,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 const getWriteClient = () => supabaseAdmin || supabase;
 const getReadClient = () => supabase;
 
-export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
+export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
 
 export interface PlatformStats { totalRequests: number; successCount: number; errorCount: number; avgResponseTime: number }
 
@@ -18,13 +18,15 @@ export interface PlatformConfig {
     lastUpdated: string; stats: PlatformStats;
 }
 
+export type MaintenanceType = 'off' | 'api' | 'full';
+
 export interface ServiceConfig {
     platforms: Record<PlatformId, PlatformConfig>;
     globalRateLimit: number; playgroundRateLimit: number; playgroundEnabled: boolean;
-    maintenanceMode: boolean; maintenanceMessage: string; apiKeyRequired: boolean; lastUpdated: string;
+    maintenanceMode: boolean; maintenanceType: MaintenanceType; maintenanceMessage: string; apiKeyRequired: boolean; lastUpdated: string;
 }
 
-const PLATFORM_NAMES: Record<PlatformId, string> = { facebook: 'Facebook', instagram: 'Instagram', twitter: 'Twitter/X', tiktok: 'TikTok', weibo: 'Weibo' };
+const PLATFORM_NAMES: Record<PlatformId, string> = { facebook: 'Facebook', instagram: 'Instagram', twitter: 'Twitter/X', tiktok: 'TikTok', weibo: 'Weibo', youtube: 'YouTube' };
 
 const DEFAULT_CONFIG: ServiceConfig = {
     platforms: {
@@ -33,17 +35,30 @@ const DEFAULT_CONFIG: ServiceConfig = {
         twitter: { id: 'twitter', name: 'Twitter/X', enabled: true, method: 'Syndication API', rateLimit: 20, cacheTime: 300, disabledMessage: 'Twitter/X service is temporarily unavailable.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } },
         tiktok: { id: 'tiktok', name: 'TikTok', enabled: true, method: 'TikWM API', rateLimit: 15, cacheTime: 300, disabledMessage: 'TikTok service is temporarily unavailable.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } },
         weibo: { id: 'weibo', name: 'Weibo', enabled: true, method: 'Mobile API', rateLimit: 10, cacheTime: 300, disabledMessage: 'Weibo service is temporarily unavailable.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } },
+        youtube: { id: 'youtube', name: 'YouTube', enabled: true, method: 'External API', rateLimit: 10, cacheTime: 3600, disabledMessage: 'YouTube service is temporarily unavailable.', lastUpdated: new Date().toISOString(), stats: { totalRequests: 0, successCount: 0, errorCount: 0, avgResponseTime: 0 } },
     },
     globalRateLimit: 15, playgroundRateLimit: 5, playgroundEnabled: true,
-    maintenanceMode: false, maintenanceMessage: '🔧 XTFetch is under maintenance. Please try again later.',
+    maintenanceMode: false, maintenanceType: 'off', maintenanceMessage: '🔧 XTFetch is under maintenance. Please try again later.',
     apiKeyRequired: false, lastUpdated: new Date().toISOString()
 };
 
 let serviceConfig: ServiceConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 let lastFetch = 0;
-const CACHE_TTL = 30000;
+
+// Import system config for cache TTL (lazy to avoid circular deps)
+async function getCacheTTL(): Promise<number> {
+    try {
+        const { getCacheTtlConfig } = await import('./system-config');
+        return getCacheTtlConfig();
+    } catch {
+        return 30000; // fallback
+    }
+}
 
 export async function loadConfigFromDB(): Promise<boolean> {
+    const cacheTTL = await getCacheTTL();
+    if (Date.now() - lastFetch < cacheTTL) return true;
+    
     const db = getReadClient();
     if (!db) return false;
     try {
@@ -52,6 +67,7 @@ export async function loadConfigFromDB(): Promise<boolean> {
         for (const row of data) {
             if (row.id === 'global') {
                 serviceConfig.maintenanceMode = row.maintenance_mode ?? false;
+                serviceConfig.maintenanceType = row.maintenance_type ?? 'off';
                 serviceConfig.maintenanceMessage = row.maintenance_message ?? DEFAULT_CONFIG.maintenanceMessage;
                 serviceConfig.apiKeyRequired = row.api_key_required ?? true;
                 serviceConfig.globalRateLimit = row.rate_limit ?? 60;
@@ -74,7 +90,10 @@ export async function loadConfigFromDB(): Promise<boolean> {
     } catch { return false; }
 }
 
-async function ensureFresh() { if (Date.now() - lastFetch > CACHE_TTL) await loadConfigFromDB(); }
+async function ensureFresh() {
+    const cacheTTL = await getCacheTTL();
+    if (Date.now() - lastFetch > cacheTTL) await loadConfigFromDB();
+}
 
 export async function saveGlobalConfig(): Promise<boolean> {
     const db = getWriteClient();
@@ -83,7 +102,8 @@ export async function saveGlobalConfig(): Promise<boolean> {
         const { error } = await db.from('service_config').upsert({
             id: 'global', enabled: true, rate_limit: serviceConfig.globalRateLimit,
             playground_rate_limit: serviceConfig.playgroundRateLimit, playground_enabled: serviceConfig.playgroundEnabled,
-            maintenance_mode: serviceConfig.maintenanceMode, maintenance_message: serviceConfig.maintenanceMessage,
+            maintenance_mode: serviceConfig.maintenanceMode, maintenance_type: serviceConfig.maintenanceType,
+            maintenance_message: serviceConfig.maintenanceMessage,
             api_key_required: serviceConfig.apiKeyRequired, updated_at: new Date().toISOString()
         });
         return !error;
@@ -107,6 +127,7 @@ export async function getServiceConfigAsync(): Promise<ServiceConfig> { await en
 export function getPlatformConfig(platformId: PlatformId): PlatformConfig | null { return serviceConfig.platforms[platformId] || null; }
 export function isPlatformEnabled(platformId: PlatformId): boolean { return serviceConfig.platforms[platformId]?.enabled ?? false; }
 export function isMaintenanceMode(): boolean { return serviceConfig.maintenanceMode; }
+export function getMaintenanceType(): MaintenanceType { return serviceConfig.maintenanceType; }
 export function getMaintenanceMessage(): string { return serviceConfig.maintenanceMessage; }
 export function isApiKeyRequired(): boolean { return serviceConfig.apiKeyRequired; }
 export function isPlaygroundEnabled(): boolean { return serviceConfig.playgroundEnabled; }
@@ -124,9 +145,17 @@ export async function setPlatformEnabled(platformId: PlatformId, enabled: boolea
     return await savePlatformConfig(platformId);
 }
 
-export async function setMaintenanceMode(enabled: boolean, message?: string): Promise<boolean> {
+export async function setMaintenanceMode(enabled: boolean, type?: MaintenanceType, message?: string): Promise<boolean> {
     serviceConfig.maintenanceMode = enabled;
+    serviceConfig.maintenanceType = type ?? (enabled ? 'full' : 'off');
     if (message !== undefined) serviceConfig.maintenanceMessage = message;
+    serviceConfig.lastUpdated = new Date().toISOString();
+    return await saveGlobalConfig();
+}
+
+export async function setMaintenanceType(type: MaintenanceType): Promise<boolean> {
+    serviceConfig.maintenanceType = type;
+    serviceConfig.maintenanceMode = type !== 'off';
     serviceConfig.lastUpdated = new Date().toISOString();
     return await saveGlobalConfig();
 }

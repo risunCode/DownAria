@@ -23,9 +23,27 @@ export interface ApiKey {
 }
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_ENTRIES = 1000;
 let keysCache: ApiKey[] = [];
 let lastCacheTime = 0;
-const CACHE_TTL = 10000;
+
+// Cleanup expired rate limit entries
+function cleanupRateLimits() {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap.entries()) {
+        if (entry.resetAt < now) rateLimitMap.delete(key);
+    }
+}
+
+// Import system config for cache TTL (lazy to avoid circular deps)
+async function getCacheTTL(): Promise<number> {
+    try {
+        const { getCacheTtlApikeys } = await import('./system-config');
+        return getCacheTtlApikeys();
+    } catch {
+        return 10000; // fallback
+    }
+}
 
 function generateKeyId(): string { return crypto.randomBytes(8).toString('hex'); }
 
@@ -63,7 +81,8 @@ async function loadKeysFromDB(): Promise<ApiKey[]> {
 }
 
 async function ensureFreshCache(): Promise<void> {
-    if (Date.now() - lastCacheTime > CACHE_TTL) { keysCache = await loadKeysFromDB(); lastCacheTime = Date.now(); }
+    const cacheTTL = await getCacheTTL();
+    if (Date.now() - lastCacheTime > cacheTTL) { keysCache = await loadKeysFromDB(); lastCacheTime = Date.now(); }
 }
 
 export async function createApiKey(name: string, options?: { rateLimit?: number; expiresInDays?: number; isTest?: boolean; keyLength?: number; keyFormat?: KeyFormat; prefix?: string }): Promise<{ key: ApiKey; plainKey: string }> {
@@ -145,6 +164,10 @@ export async function validateApiKey(plainKey: string): Promise<ValidateResult> 
 function checkKeyRateLimit(keyId: string, limit: number): { allowed: boolean; remaining: number; resetIn: number } {
     const now = Date.now();
     const windowMs = 60 * 1000;
+    
+    // Cleanup if too many entries
+    if (rateLimitMap.size > MAX_RATE_LIMIT_ENTRIES) cleanupRateLimits();
+    
     const entry = rateLimitMap.get(keyId);
     if (!entry || entry.resetAt < now) { rateLimitMap.set(keyId, { count: 1, resetAt: now + windowMs }); return { allowed: true, remaining: limit - 1, resetIn: windowMs }; }
     if (entry.count >= limit) return { allowed: false, remaining: 0, resetIn: entry.resetAt - now };

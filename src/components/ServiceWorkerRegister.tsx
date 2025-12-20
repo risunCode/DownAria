@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useUpdatePrompt } from '@/hooks';
 
 interface UpdatePromptSettings {
   enabled: boolean;
@@ -18,13 +19,53 @@ const DEFAULT_SETTINGS: UpdatePromptSettings = {
   custom_message: '',
 };
 
-const STORAGE_KEY = 'upd_dsm_v1_q2w';
+const STORAGE_KEY = 'xtf_update_dismissed';
+
+/**
+ * Force clear all caches and reload
+ * Can be called from console: window.forceRefresh()
+ */
+export async function forceRefresh(): Promise<void> {
+  if (process.env.NODE_ENV === 'development') console.log('[PWA] Force refreshing...');
+
+  // 1. Clear all caches
+  if ('caches' in window) {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map(name => caches.delete(name)));
+    if (process.env.NODE_ENV === 'development') console.log('[PWA] Cleared caches:', cacheNames);
+  }
+
+  // 2. Unregister service worker
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(reg => reg.unregister()));
+    if (process.env.NODE_ENV === 'development') console.log('[PWA] Unregistered service workers');
+  }
+
+  // 3. Clear localStorage cache keys (keep user settings)
+  const keysToRemove = Object.keys(localStorage).filter(k =>
+    k.startsWith('cache_') || k.startsWith('xtf_cache_')
+  );
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // 4. Hard reload
+  window.location.reload();
+}
+
+// Expose to window for debugging
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).forceRefresh = forceRefresh;
+}
 
 export function ServiceWorkerRegister() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [settings, setSettings] = useState<UpdatePromptSettings>(DEFAULT_SETTINGS);
+
+  // Use SWR for settings (cached, deduplicated)
+  const { behavior } = useUpdatePrompt();
 
   // Check if prompt should be shown based on mode
   const shouldShowPrompt = useCallback((mode: UpdatePromptSettings['mode']): boolean => {
@@ -45,24 +86,23 @@ export function ServiceWorkerRegister() {
     return true;
   }, []);
 
-  // Fetch settings from API
+  // Sync SWR data to local settings
   useEffect(() => {
-    fetch('/api/settings/update-prompt')
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && data.data) {
-          setSettings(data.data);
-        }
-      })
-      .catch(() => { });
-  }, []);
+    if (behavior) {
+      setSettings(prev => ({
+        ...prev,
+        mode: behavior === 'auto' ? 'always' : behavior === 'silent' ? 'session' : 'always',
+        enabled: behavior !== 'silent',
+      }));
+    }
+  }, [behavior]);
 
   // Show prompt when update available (with delay and mode check)
   useEffect(() => {
     if (!updateAvailable || !settings.enabled) return;
 
     if (!shouldShowPrompt(settings.mode)) {
-      console.log('[PWA] Update prompt dismissed by user preference');
+      if (process.env.NODE_ENV === 'development') console.log('[PWA] Update prompt dismissed by user preference');
       return;
     }
 
@@ -84,11 +124,16 @@ export function ServiceWorkerRegister() {
     setIsOffline(!navigator.onLine);
 
     // Register service worker
+    let updateInterval: NodeJS.Timeout | null = null;
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('/sw.js', { updateViaCache: 'none' }) // Always check for SW updates
         .then((registration) => {
-          console.log('[PWA] Service Worker registered');
+          if (process.env.NODE_ENV === 'development') console.log('[PWA] Service Worker registered');
+
+          // Force check for updates immediately on page load
+          registration.update();
 
           // Check for updates
           registration.addEventListener('updatefound', () => {
@@ -98,16 +143,16 @@ export function ServiceWorkerRegister() {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                   // New version available
                   setUpdateAvailable(true);
-                  console.log('[PWA] New version available');
+                  if (process.env.NODE_ENV === 'development') console.log('[PWA] New version available');
                 }
               });
             }
           });
 
-          // Check for updates periodically (every 30 min)
-          setInterval(() => {
+          // Check for updates periodically (every 5 min instead of 30)
+          updateInterval = setInterval(() => {
             registration.update();
-          }, 30 * 60 * 1000);
+          }, 5 * 60 * 1000);
         })
         .catch((error) => {
           console.error('[PWA] SW registration failed:', error);
@@ -123,6 +168,7 @@ export function ServiceWorkerRegister() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (updateInterval) clearInterval(updateInterval);
     };
   }, []);
 

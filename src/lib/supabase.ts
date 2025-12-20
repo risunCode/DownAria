@@ -123,8 +123,8 @@ export async function isAdmin(userId: string): Promise<boolean> {
 }
 
 // Types
-export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo';
-export type Source = 'web' | 'api' | 'discord' | 'telegram';
+export type Platform = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
+export type Source = 'web' | 'api' | 'discord' | 'telegram' | 'playground';
 export type Quality = 'HD' | 'SD' | 'audio' | 'original' | 'unknown';
 
 export interface DownloadRecord {
@@ -157,6 +157,13 @@ export async function trackDownload(record: DownloadRecord) {
             success: record.success,
             error_type: record.error_type || null,
         });
+        
+        // Track success for admin alerts (resets consecutive failure count)
+        if (record.success) {
+            import('@/lib/integrations/admin-alerts').then(({ trackSuccess }) => {
+                trackSuccess(record.platform);
+            }).catch(() => {});
+        }
     } catch {
         // Analytics tracking failed silently
     }
@@ -174,6 +181,11 @@ export async function trackError(record: ErrorRecord) {
             error_type: record.error_type,
             error_message: record.error_message.substring(0, 500), // Limit message length
         });
+        
+        // Trigger admin alert check (fire and forget)
+        import('@/lib/integrations/admin-alerts').then(({ trackError: trackAlertError }) => {
+            trackAlertError(record.platform, record.error_message).catch(() => {});
+        }).catch(() => {});
     } catch {
         // Analytics tracking failed silently
     }

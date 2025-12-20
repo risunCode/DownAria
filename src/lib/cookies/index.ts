@@ -5,6 +5,9 @@
 // Parsing
 export { parseCookie, validateCookie, isCookieLike, getCookieFormat } from '@/lib/utils/cookie-parser';
 
+// Security - sanitization
+export { sanitizeCookie, isValidCookie } from '@/lib/utils/security';
+
 // Pool rotation & management
 export {
     getRotatingCookie,
@@ -17,6 +20,8 @@ export {
     updatePooledCookie,
     deleteCookieFromPool,
     testCookieHealth,
+    getDecryptedCookie,
+    migrateUnencryptedCookies,
     type CookiePoolStats,
     type PooledCookie,
     type CookieStatus,

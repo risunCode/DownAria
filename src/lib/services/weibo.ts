@@ -10,6 +10,7 @@ import { matchesPlatform, getApiEndpoint } from './helper/api-config';
 import { getCache, setCache } from './helper/cache';
 import { createError, ScraperErrorCode, type ScraperResult, type ScraperOptions } from '@/core/scrapers/types';
 import { logger } from './helper/logger';
+import { getScraperTimeout } from './helper/system-config';
 
 export async function scrapeWeibo(url: string, options?: ScraperOptions): Promise<ScraperResult> {
     const startTime = Date.now();
@@ -47,6 +48,7 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
     if (!cookie) return createError(ScraperErrorCode.COOKIE_REQUIRED);
 
     const weiboHeaders = { ...DESKTOP_HEADERS, 'Cookie': cookie };
+    const timeout = getScraperTimeout('weibo');
 
     try {
         // TV URLs
@@ -57,7 +59,7 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
                 const apiUrl = `https://weibo.com/tv/api/component?page=/tv/show/${oid}`;
                 const res = await httpPost(apiUrl, `data={"Component_Play_Playinfo":{"oid":"${oid}"}}`, {
                     headers: { ...weiboHeaders, 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `https://weibo.com/tv/show/${oid}`, 'X-Requested-With': 'XMLHttpRequest' },
-                    timeout: 15000,
+                    timeout,
                 });
 
                 const text = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
@@ -79,7 +81,7 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
             } catch { /* Component API failed */ }
 
             if (!formats.length) {
-                const pageRes = await httpGet(`https://weibo.com/tv/show/${oid}`, { headers: weiboHeaders, timeout: 15000 });
+                const pageRes = await httpGet(`https://weibo.com/tv/show/${oid}`, { headers: weiboHeaders, timeout });
                 if (pageRes.status === 200) {
                     const html = pageRes.data;
                     const videoMatches = html.match(/f\.video\.weibocdn\.com[^"'\s<>\\]+\.mp4[^"'\s<>\\]*/g);
@@ -127,7 +129,7 @@ export async function scrapeWeibo(url: string, options?: ScraperOptions): Promis
         // Regular posts
         if (!formats.length && !isTvUrl) {
             const fetchUrl = url.includes('m.weibo.cn') ? url : url.replace('weibo.com', 'm.weibo.cn');
-            const res = await httpGet(fetchUrl, { platform: 'weibo', timeout: 10000 });
+            const res = await httpGet(fetchUrl, { platform: 'weibo', timeout });
             if (res.status === 200) {
                 const html = res.data;
                 const $ = cheerio.load(html);

@@ -135,6 +135,48 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 | YouTube | Innertube API |
 | Alerts | SweetAlert2 |
 | Icons | FontAwesome + Lucide |
+| Data Fetching | SWR (stale-while-revalidate) |
+
+---
+
+## ⚡ Performance Optimizations
+
+XTFetch is optimized for minimal API calls and fast response times.
+
+### Client-Side Caching (SWR)
+All data fetching uses [SWR](https://swr.vercel.app/) with smart caching:
+
+| Hook | Cache Duration | Purpose |
+|------|----------------|---------|
+| `useStatus` | 60s | Platform status in sidebar |
+| `useAnnouncements` | 2min | Site announcements |
+| `useCookieStatus` | 60s | Cookie availability |
+| `usePlayground` | 10s | Rate limit status |
+| `useUpdatePrompt` | 5min | SW update settings |
+
+### HTTP Cache Headers
+API routes include `Cache-Control` headers for CDN/browser caching:
+- `/api/status` - 30s cache
+- `/api/announcements` - 60s cache
+- `/api/playground` - 30s cache
+
+### Smart Polling
+- Maintenance page only polls when tab is visible
+- Auto-refresh uses SWR's `refreshInterval` (no manual intervals)
+- Request deduplication prevents duplicate calls
+
+### Bundle & UI Optimizations
+- **Error Boundaries** - Graceful error handling with retry
+- **Lazy Loading** - Dynamic imports for heavy components
+- **Skeleton Loading** - Smooth loading states
+- **Accessibility** - Skip links, focus traps, ARIA labels
+- **Reduced Motion** - Respects `prefers-reduced-motion`
+- **High Contrast** - Supports `prefers-contrast: high`
+
+### SEO
+- **Structured Data** - JSON-LD for WebApplication & FAQ
+- **OpenGraph** - Social sharing meta tags
+- **Twitter Cards** - Twitter-specific meta tags
 
 ---
 
@@ -204,20 +246,7 @@ Run these SQL files in Supabase SQL Editor:
 | 🌅 **Solarized** | Warm cream (default) |
 
 ---
-
-## 🍪 Cookie Configuration
-
-### Facebook (Stories, Groups)
-Required cookies: `c_user`, `xs`
-
-### Instagram (Private posts)
-Required cookies: `sessionid`
-
-### Twitter/X (Age-restricted)
-Required cookies: `auth_token`, `ct0`
-
-### Weibo (Always required)
-Required cookies: `SUB`
+ 
 
 **How to get cookies:**
 1. Install "Cookie Editor" browser extension

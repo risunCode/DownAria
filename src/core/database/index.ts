@@ -88,6 +88,7 @@ export {
 
     // Maintenance mode
     isMaintenanceMode,
+    getMaintenanceType,
     getMaintenanceMessage,
 
     // Rate limits
@@ -102,6 +103,7 @@ export {
     // Config setters
     setPlatformEnabled,
     setMaintenanceMode,
+    setMaintenanceType,
     setMaintenanceMessage,
     setGlobalRateLimit,
     setPlaygroundEnabled,
@@ -123,4 +125,49 @@ export {
     type PlatformId,
     type PlatformConfig,
     type ServiceConfig,
+    type MaintenanceType,
 } from '@/lib/services/helper/service-config';
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM CONFIGURATION (Centralized Settings)
+// ═══════════════════════════════════════════════════════════════
+
+export {
+    // Loader
+    loadSystemConfig,
+    getSystemConfig,
+    updateSystemConfig,
+    resetSystemConfig,
+    
+    // Cache TTLs
+    getCacheTtlConfig,
+    getCacheTtlApikeys,
+    getCacheTtlCookies,
+    getCacheTtlUseragents,
+    getCacheTtlPlaygroundUrl,
+    
+    // HTTP Settings
+    getHttpTimeout,
+    getHttpMaxRedirects,
+    
+    // Scraper Settings
+    getScraperTimeout,
+    getScraperMaxRetries,
+    getScraperRetryDelay,
+    
+    // Cookie Pool
+    getCookieCooldownMinutes,
+    getCookieMaxUsesDefault,
+    
+    // Rate Limits (fallback)
+    getRateLimitPublic,
+    getRateLimitApiKey,
+    getRateLimitAuth,
+    getRateLimitAdmin,
+    
+    // Defaults
+    SYSTEM_CONFIG_DEFAULTS,
+    
+    // Types
+    type SystemConfig,
+} from '@/lib/services/helper/system-config';

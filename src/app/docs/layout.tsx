@@ -1,0 +1,11 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Documentation - XTFetch',
+    description: 'Learn how to use XTFetch API to download videos from social media platforms.',
+};
+
+export default function DocsLayout({ children }: { children: React.ReactNode }) {
+    // No separate layout - use main app layout with SidebarLayout
+    return children;
+}

@@ -1,19 +1,42 @@
 # XTFetch API Documentation
 
-Base URL: `https://your-domain.com` atau `http://localhost:3000`
+Base URL: `https://xt-fetch.vercel.app` atau `http://localhost:3001`
+
+---
+
+## Quick Start
+
+### Main Endpoint (Recommended)
+```bash
+# With API Key (higher rate limit)
+curl -X POST https://xt-fetch.vercel.app/api \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{"url":"https://www.facebook.com/share/p/1G8yBgJaPa/"}'
+
+# Playground (demo, 3 req/min)
+curl -X POST https://xt-fetch.vercel.app/api/playground \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.facebook.com/share/p/1G8yBgJaPa/"}'
+```
 
 ---
 
 ## Public Endpoints
 
-### POST /api/meta
-Extract media dari URL. Auto-detect platform.
+### POST /api
+Main download endpoint. Auto-detect platform.
+
+**Headers:**
+- `Content-Type: application/json` (required)
+- `X-API-Key: your_key` (optional, for higher rate limits)
 
 **Request:**
 ```json
 {
-  "url": "https://www.facebook.com/share/1R3ibmnTpJ",
-  "cookie": "optional_cookie_string"
+  "url": "https://www.facebook.com/share/p/1G8yBgJaPa/",
+  "cookie": "optional_cookie_string",
+  "skipCache": false
 }
 ```
 
@@ -48,59 +71,56 @@ Extract media dari URL. Auto-detect platform.
 }
 ```
 
-**cURL:**
-```bash
-curl -X POST http://localhost:3000/api/meta \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://www.facebook.com/share/1R3ibmnTpJ"}'
-```
+**Note:** Direct access blocked. Must be called from `https://xt-fetch.vercel.app` or include valid `X-API-Key`.
 
-**JavaScript:**
-```js
-const res = await fetch('/api/meta', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ url: 'https://www.facebook.com/share/1R3ibmnTpJ' })
-});
-const data = await res.json();
+---
+
+### POST /api/playground
+Guest API for testing. Rate limited to 3 requests/minute.
+
+**Request:** Same as `/api`
+
+**Demo Key:** `demo_caf079daf479ceb1` (3 req/min)
+
+**Browser Test:**
+```
+https://xt-fetch.vercel.app/api/playground?url=https://www.facebook.com/share/p/1G8yBgJaPa/
 ```
 
 ---
 
 ### GET /api/status
-Get status semua platform (enabled/disabled/maintenance).
+Get status semua platform.
 
 **Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "facebook": { "enabled": true, "maintenance": false, "message": null },
-    "instagram": { "enabled": true, "maintenance": false, "message": null },
-    "twitter": { "enabled": true, "maintenance": false, "message": null },
-    "tiktok": { "enabled": true, "maintenance": false, "message": null },
-    "youtube": { "enabled": true, "maintenance": false, "message": null },
-    "weibo": { "enabled": true, "maintenance": false, "message": null }
+  "platforms": [
+    { "id": "facebook", "name": "Facebook", "status": "active" },
+    { "id": "instagram", "name": "Instagram", "status": "active" },
+    { "id": "twitter", "name": "Twitter/X", "status": "active" },
+    { "id": "tiktok", "name": "TikTok", "status": "active" },
+    { "id": "weibo", "name": "Weibo", "status": "active" }
+  ],
+  "cookies": {
+    "facebook": { "available": true },
+    "instagram": { "available": true }
   }
 }
-```
-
-**cURL:**
-```bash
-curl http://localhost:3000/api/status
 ```
 
 ---
 
 ### GET /api/proxy
-Proxy untuk bypass CORS. Load images/videos dari CDN platform.
+Proxy untuk bypass CORS. Load media dari CDN platform.
 
 **Query Params:**
 - `url` (required): URL to proxy
 
-**cURL:**
-```bash
-curl "http://localhost:3000/api/proxy?url=https://scontent.xx.fbcdn.net/image.jpg"
+**Example:**
+```
+/api/proxy?url=https://scontent.xx.fbcdn.net/video.mp4
 ```
 
 ---
@@ -109,229 +129,51 @@ curl "http://localhost:3000/api/proxy?url=https://scontent.xx.fbcdn.net/image.jp
 Get announcements untuk halaman tertentu.
 
 **Query Params:**
-- `page` (optional): Filter by page (home, settings, etc)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "1",
-      "title": "Maintenance Notice",
-      "message": "Facebook akan maintenance besok",
-      "type": "warning",
-      "pages": ["home"],
-      "enabled": true
-    }
-  ]
-}
-```
+- `page` (optional): home, settings, history, about
 
 ---
 
-## Platform-Specific Endpoints
+## Supported Platforms
 
-Semua endpoint ini menerima request yang sama dengan `/api/meta`.
-
-### POST /api/twitter
-Extract Twitter/X content (tweets, videos, GIFs).
-
-### POST /api/tiktok
-Extract TikTok videos via TikWM API.
-
-### POST /api/youtube
-Extract YouTube videos via Innertube API (360p only).
-
-### POST /api/weibo
-Extract Weibo content. Cookie `SUB` required.
-
-### POST /api/douyin
-Extract Douyin (currently offline).
-
-### POST /api/facebook/fetch-source
-Internal: Fetch raw HTML dari Facebook URL.
+| Platform | Status | Cookie Required | Notes |
+|----------|--------|-----------------|-------|
+| Facebook | ✅ Active | Optional | Videos, Reels, Stories |
+| Instagram | ✅ Active | Optional | Posts, Reels, Stories |
+| Twitter/X | ✅ Active | Optional | Tweets, Videos |
+| TikTok | ✅ Active | No | Via TikWM API |
+| Weibo | ✅ Active | Yes (SUB) | Mobile API |
 
 ---
 
-## Admin Endpoints
+## API Keys
 
-Semua admin endpoints require authentication via cookie `xt_admin_session`.
+### Key Formats
+- `demo_xxx` - Demo keys (limited)
+- `beta_xxx` - Beta tester keys
+- `prod_xxx` - Production keys
 
-### POST /api/admin/auth
-Login admin.
-
-**Request:**
-```json
-{
-  "password": "admin_password"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Logged in"
-}
-```
+### Rate Limits
+| Type | Limit |
+|------|-------|
+| No key (playground) | 3 req/min |
+| Demo key | 3 req/min |
+| Beta key | 30 req/min |
+| Production key | 100 req/min |
 
 ---
 
-### GET /api/admin/cookies
-List semua admin cookies per platform.
+## Legacy Endpoints (Rate Limited)
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    { "platform": "facebook", "enabled": true, "updatedAt": "2024-01-01" },
-    { "platform": "weibo", "enabled": true, "updatedAt": "2024-01-01" }
-  ]
-}
-```
+These endpoints are rate limited to 5 req/5 min:
 
-### POST /api/admin/cookies
-Save/update admin cookie.
+- `POST /api/tiktok` - TikTok direct
+- `POST /api/twitter` - Twitter direct
+- `POST /api/weibo` - Weibo direct
+- `POST /api/facebook/fetch-source` - FB HTML source
+- `POST /api/download` - Legacy download
+- `POST /api/download/[platform]` - Platform-specific
 
-**Request:**
-```json
-{
-  "platform": "facebook",
-  "cookie": "c_user=xxx; xs=xxx",
-  "enabled": true
-}
-```
-
----
-
-### GET /api/admin/services
-List semua service config.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "facebook": { "enabled": true, "maintenance": false, "rateLimit": 10, "message": null },
-    "instagram": { "enabled": true, "maintenance": false, "rateLimit": 10, "message": null }
-  }
-}
-```
-
-### POST /api/admin/services
-Update service config.
-
-**Request:**
-```json
-{
-  "platform": "facebook",
-  "enabled": false,
-  "maintenance": true,
-  "message": "Under maintenance"
-}
-```
-
----
-
-### GET /api/admin/apikeys
-List semua API keys.
-
-### POST /api/admin/apikeys
-Create/update/delete API key.
-
-**Request (Create):**
-```json
-{
-  "action": "create",
-  "name": "My App",
-  "rateLimit": 100
-}
-```
-
-**Request (Delete):**
-```json
-{
-  "action": "delete",
-  "id": "key_id"
-}
-```
-
----
-
-### GET /api/admin/stats
-Get analytics data.
-
-**Query Params:**
-- `range`: "7d", "30d", "all"
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "totalDownloads": 1234,
-    "byPlatform": { "facebook": 500, "twitter": 300 },
-    "byCountry": { "ID": 800, "US": 200 },
-    "successRate": 95.5
-  }
-}
-```
-
----
-
-### GET /api/admin/settings
-Get admin settings.
-
-### POST /api/admin/settings
-Update admin settings (maintenance mode, etc).
-
-**Request:**
-```json
-{
-  "maintenanceMode": true,
-  "maintenanceMessage": "Back soon!"
-}
-```
-
----
-
-### GET /api/admin/announcements
-List all announcements (admin view).
-
-### POST /api/admin/announcements
-Create/update/delete announcement.
-
-**Request (Create):**
-```json
-{
-  "action": "create",
-  "title": "New Feature",
-  "message": "We added YouTube support!",
-  "type": "info",
-  "pages": ["home"],
-  "enabled": true
-}
-```
-
----
-
-## Error Codes
-
-- `400` - Bad Request (invalid URL, missing params)
-- `401` - Unauthorized (admin endpoints)
-- `403` - Forbidden (rate limited, service disabled)
-- `404` - Not Found
-- `500` - Internal Server Error
-
----
-
-## Rate Limiting
-
-- Default: 10 requests per minute per IP
-- Configurable per platform via admin panel
-- API keys have separate rate limits
+**Recommendation:** Use `/api` or `/api/playground` instead.
 
 ---
 
@@ -354,21 +196,94 @@ c_user=123456; xs=abcdef; datr=xyz
 
 ---
 
-## Windows CMD Examples
+## Error Codes
 
-CMD butuh escape `\"` untuk JSON:
+| Code | Description |
+|------|-------------|
+| 400 | Bad Request (invalid URL) |
+| 401 | Unauthorized (invalid API key) |
+| 403 | Forbidden (origin blocked, rate limited) |
+| 404 | Not Found |
+| 429 | Too Many Requests |
+| 500 | Internal Server Error |
+| 503 | Service Unavailable (maintenance) |
 
-```cmd
-curl -X POST http://localhost:3000/api/meta -H "Content-Type: application/json" -d "{\"url\":\"https://www.facebook.com/share/1R3ibmnTpJ\"}"
+---
+
+## Code Examples
+
+### JavaScript/TypeScript
+```typescript
+const response = await fetch('https://xt-fetch.vercel.app/api', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'your_api_key'
+  },
+  body: JSON.stringify({
+    url: 'https://www.facebook.com/share/p/1G8yBgJaPa/'
+  })
+});
+
+const data = await response.json();
+if (data.success) {
+  console.log('Media:', data.data.medias);
+}
 ```
 
-Atau pakai file:
-```cmd
-echo {"url":"https://www.facebook.com/share/1R3ibmnTpJ"} > test.json
-curl -X POST http://localhost:3000/api/meta -H "Content-Type: application/json" -d @test.json
+### Python
+```python
+import requests
+
+response = requests.post(
+    'https://xt-fetch.vercel.app/api',
+    headers={
+        'Content-Type': 'application/json',
+        'X-API-Key': 'your_api_key'
+    },
+    json={'url': 'https://www.facebook.com/share/p/1G8yBgJaPa/'}
+)
+
+data = response.json()
+if data['success']:
+    print('Media:', data['data']['medias'])
 ```
 
-PowerShell lebih simple:
+### cURL
+```bash
+curl -X POST https://xt-fetch.vercel.app/api \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{"url":"https://www.facebook.com/share/p/1G8yBgJaPa/"}'
+```
+
+### PowerShell
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:3000/api/meta" -Method POST -ContentType "application/json" -Body '{"url":"https://www.facebook.com/share/1R3ibmnTpJ"}'
+$response = Invoke-RestMethod -Uri "https://xt-fetch.vercel.app/api" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Headers @{"X-API-Key"="your_api_key"} `
+  -Body '{"url":"https://www.facebook.com/share/p/1G8yBgJaPa/"}'
+
+$response.data.medias
 ```
+
+---
+
+## Admin API
+
+Admin endpoints require authentication via Supabase JWT.
+
+See `/admin` panel for management:
+- `/admin/access` - API Keys management
+- `/admin/services` - Platform settings
+- `/admin/cookies/pool` - Cookie pool management
+
+---
+
+## Notes
+
+- All responses are JSON
+- CORS enabled for whitelisted origins
+- Rate limiting uses Redis (Upstash) with memory fallback
+- Cookies are encrypted at rest (AES-256-GCM)

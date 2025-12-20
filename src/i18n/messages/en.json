@@ -1,0 +1,502 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "clear": "Clear",
+    "clearAll": "Clear All",
+    "export": "Export",
+    "import": "Import",
+    "enable": "Enable",
+    "disable": "Disable",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No"
+  },
+
+  "nav": {
+    "home": "Home",
+    "history": "History",
+    "advanced": "Advanced",
+    "docs": "Documentation",
+    "settings": "Settings",
+    "about": "About",
+    "navigation": "Navigation",
+    "supportedPlatforms": "Supported Platforms"
+  },
+
+  "home": {
+    "titlePrefix": "Free",
+    "titleSuffix": "Downloader",
+    "platforms": {
+      "socialMedia": "Social Media",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "tiktok": "TikTok",
+      "twitter": "Twitter",
+      "weibo": "Weibo"
+    },
+    "subtitle": "Paste URL → Auto-detect → Download",
+    "badges": {
+      "noWatermark": "No Watermark",
+      "fastFree": "Fast & Free",
+      "multiQuality": "Multiple Qualities",
+      "noLogin": "No Login Required"
+    }
+  },
+
+  "download": {
+    "pasteUrl": "Paste video URL...",
+    "paste": "Paste",
+    "pasted": "Done",
+    "go": "Go",
+    "downloadingFrom": "Downloading from",
+    "progress": {
+      "starting": "Starting...",
+      "connecting": "Connecting...",
+      "fetching": "Fetching page...",
+      "extracting": "Extracting media...",
+      "validating": "Validating URLs...",
+      "almostDone": "Almost done...",
+      "done": "Done!"
+    },
+    "tips": {
+      "tip1": "Paste any video URL to start",
+      "tip2": "Supports TikTok, Instagram, Facebook & more",
+      "tip3": "Auto-detects platform from URL",
+      "tip4": "Download in multiple qualities",
+      "tip5": "No watermark on most platforms",
+      "tip6": "Works with Reels, Stories & Posts"
+    },
+    "preview": {
+      "download": "Download",
+      "downloadAll": "Download All",
+      "downloadingAll": "Downloading All...",
+      "downloading": "Downloading...",
+      "downloaded": "Downloaded",
+      "done": "✓ Done",
+      "quality": "Quality",
+      "size": "Size",
+      "duration": "Duration",
+      "noPreview": "No preview available",
+      "audio": "Audio",
+      "video": "Video",
+      "image": "Image",
+      "items": "items",
+      "withCookie": "🔒 Private",
+      "guest": "🌐 Public",
+      "sent": "Sent",
+      "discord": "Discord"
+    }
+  },
+
+  "history": {
+    "title": "Download History",
+    "subtitle": "View and manage your past downloads",
+    "empty": "No downloads yet",
+    "emptyDesc": "Your download history will appear here",
+    "clearHistory": "Clear History",
+    "clearConfirm": "Clear all history?",
+    "clearConfirmDesc": "This will remove all download history. This action cannot be undone.",
+    "privacy": {
+      "title": "Your privacy matters.",
+      "description": "Download history is stored locally on your device only. We never collect, track, or send your data anywhere.",
+      "storage": "Saved in browser storage"
+    },
+    "item": {
+      "downloaded": "Downloaded",
+      "redownload": "Re-download",
+      "copyUrl": "Copy URL",
+      "delete": "Delete"
+    }
+  },
+
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Customize your experience",
+    "tabs": {
+      "basic": "Basic",
+      "cookies": "Cookies",
+      "storage": "Storage",
+      "integrations": "Integrations"
+    },
+    "theme": {
+      "title": "Theme",
+      "dark": "Dark",
+      "darkDesc": "Easy on the eyes",
+      "light": "Light",
+      "lightDesc": "Classic bright",
+      "solarized": "Solarized",
+      "solarizedDesc": "Warm tones"
+    },
+    "language": {
+      "title": "Language",
+      "auto": "Auto-detect",
+      "autoDesc": "Use browser language"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "push": "Push Notifications",
+      "notSupported": "Not supported",
+      "blocked": "Blocked by browser",
+      "enabled": "Receiving updates",
+      "disabled": "Get notified"
+    },
+    "discord": {
+      "title": "Discord Webhook",
+      "description": "Get download notifications in your Discord server",
+      "configure": "Configure"
+    },
+    "hideDocs": {
+      "title": "Sidebar",
+      "label": "Hide Documentation",
+      "desc": "Remove Docs link from sidebar navigation"
+    },
+    "pwa": {
+      "title": "Install App",
+      "installed": "Installed ✓",
+      "notInstalled": "Not installed",
+      "androidTip": "Best on Android",
+      "androidDesc": "Use Chrome browser for best experience. Tap menu (⋮) → \"Add to Home screen\" or \"Install app\".",
+      "manualInstall": "Manual Install"
+    },
+    "features": {
+      "title": "App & Features"
+    },
+    "cookies": {
+      "title": "Platform Cookies",
+      "priority": "Priority: Your cookie → Admin cookie → Guest mode",
+      "adminNote": "Admin cookies are pre-configured for most platforms.",
+      "yours": "Yours",
+      "admin": "Admin",
+      "guest": "Guest",
+      "howToGet": "How to get cookies",
+      "howToGetDesc": "Install Cookie Editor extension → Go to platform → Click extension → Export as Header String",
+      "warning": "Warning",
+      "warningDesc": "Using cookies may violate platform ToS. Risk includes shadow ban to permanent ban.",
+      "invalidFormat": "Invalid format",
+      "saved": "Saved!",
+      "cleared": "Cookies Cleared",
+      "clearAll": "Clear All"
+    },
+    "storage": {
+      "title": "Data & Storage",
+      "skipCache": "Skip Cache",
+      "skipCacheDesc": "Bypass Redis cache for fresh results",
+      "backup": {
+        "title": "Full Backup",
+        "description": "Export as ZIP containing history.json + settings.json. Import will merge data.",
+        "historyItems": "{count} history + settings",
+        "exportSuccess": "Backup Created!",
+        "exportSuccessDesc": "History + Settings exported as ZIP.",
+        "exportFailed": "Export Failed",
+        "restoreConfirm": "Restore Backup?",
+        "restoreConfirmDesc": "This will restore history and settings. Duplicates will be skipped.",
+        "restore": "Restore",
+        "restored": "Restored!",
+        "restoredDesc": "{history} history items, {settings} settings",
+        "duplicatesSkipped": "{count} duplicates skipped",
+        "restoreFailed": "Restore Failed",
+        "invalidFile": "Please select a .zip backup file."
+      },
+      "items": {
+        "cookies": "Cookies",
+        "cookiesDesc": "Platform auth",
+        "localStorage": "LocalStorage",
+        "localStorageDesc": "Themes & settings",
+        "historyCache": "History & Cache",
+        "historyCacheDesc": "Cached data",
+        "resetAll": "Reset All",
+        "resetAllDesc": "Factory reset"
+      },
+      "clear": {
+        "cookies": "Clear all cookies?",
+        "cookiesDesc": "This will remove all saved platform cookies.",
+        "localStorage": "Clear LocalStorage?",
+        "localStorageDesc": "This will remove themes and settings.",
+        "historyCache": "Clear History & Cache?",
+        "historyCacheDesc": "This will remove all download history and cached results.",
+        "all": "Reset Everything?",
+        "allDesc": "All cookies, settings, and cache will be deleted.",
+        "resetAllBtn": "Reset All"
+      },
+      "info": {
+        "localStorage": "LocalStorage",
+        "indexedDB": "IndexedDB",
+        "total": "Est. Total"
+      }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "comingSoon": "More integrations coming soon..."
+    }
+  },
+
+  "about": {
+    "title": "About",
+    "subtitle": "Social media downloader without limits.",
+    "story": {
+      "title": "The Story",
+      "p1": "I used to use Telegram bots to download videos from social media. Convenient - just send a link, wait a bit, done.",
+      "p2": "But over time, I got frustrated... 😤",
+      "p3": "So I thought: \"Why not build my own?\"",
+      "p4": "And XTFetch was born — same functionality, but no limits, no queue, and 100% free. 🚀"
+    },
+    "painPoints": {
+      "title": "Why I built this",
+      "limit": "\"Daily limit reached\"",
+      "queue": "\"Please wait in queue\"",
+      "busy": "\"Bot is busy\"",
+      "premium": "\"Subscribe premium\""
+    },
+    "features": {
+      "title": "Features",
+      "noLimits": "No daily limits",
+      "noWatermark": "No watermark",
+      "autoDetect": "Auto-detect platform",
+      "multiQuality": "Multiple quality",
+      "noLogin": "No login required"
+    },
+    "platforms": {
+      "title": "Platforms"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "local": "Data stored locally only",
+      "noTracking": "No tracking, no ads",
+      "noLogs": "URLs never logged",
+      "openSource": "Open source"
+    },
+    "tech": {
+      "title": "Tech Stack"
+    },
+    "startDownloading": "Start Downloading"
+  },
+
+  "maintenance": {
+    "title": "Under Maintenance",
+    "defaultMessage": "🔧 XTFetch is under maintenance. Please try again later.",
+    "checkStatus": "Check Status",
+    "adminPanel": "Admin Panel",
+    "footer": "We're working hard to improve your experience. Thanks for your patience!"
+  },
+
+  "install": {
+    "title": "Install XTFetch",
+    "subtitle": "Get the full app experience on your device",
+    "alreadyInstalled": "Already Installed!",
+    "readyToUse": "XTFetch is ready to use on your device",
+    "openApp": "Open App",
+    "installNow": "Install Now",
+    "howToInstall": "How to Install",
+    "installing": "Installing...",
+    "platform": {
+      "ios": "iOS Device",
+      "android": "Android Device",
+      "desktop": "Desktop Browser"
+    },
+    "features": {
+      "fast": "Lightning Fast",
+      "fastDesc": "Native app performance",
+      "notifications": "Push Notifications",
+      "notificationsDesc": "Get notified instantly",
+      "offline": "Works Offline",
+      "offlineDesc": "Download anytime"
+    },
+    "instructions": {
+      "ios": {
+        "title": "Install on iOS",
+        "step1": "Tap the Share button in Safari",
+        "step2": "Scroll down and tap \"Add to Home Screen\"",
+        "step3": "Tap \"Add\" to confirm",
+        "note": "Make sure you're using Safari browser"
+      },
+      "android": {
+        "title": "Install on Android",
+        "step1": "Tap the menu button (⋮) in Chrome",
+        "step2": "Tap \"Add to Home screen\" or \"Install app\"",
+        "step3": "Tap \"Install\" to confirm",
+        "note": "Works best with Chrome or Samsung Internet"
+      },
+      "desktop": {
+        "title": "Install on Desktop",
+        "step1": "Look for the install icon (⊕) in the address bar",
+        "step2": "Click \"Install\" in the popup",
+        "step3": "The app will open in its own window",
+        "note": "Supported in Chrome, Edge, and other Chromium browsers"
+      }
+    },
+    "gotIt": "Got it!",
+    "backToApp": "← Back to XTFetch"
+  },
+
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "Oops! The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home",
+    "goBack": "Go Back",
+    "suggestion": "Try downloading a video from the homepage"
+  },
+
+  "share": {
+    "title": "Shared Content",
+    "processing": "Processing shared URL...",
+    "noUrl": "No URL detected from share",
+    "backToHome": "← Back to Home",
+    "failed": "Failed",
+    "error": "An error occurred"
+  },
+
+  "errors": {
+    "invalidUrl": "Invalid URL",
+    "enterUrl": "Enter a URL",
+    "invalidPlatformUrl": "Invalid {platform} URL",
+    "fetchFailed": "Failed to fetch",
+    "cookieRequired": "Cookie required",
+    "cookieExpired": "Cookie expired",
+    "maintenance": "Under maintenance",
+    "rateLimit": "Too many requests",
+    "noValidUrl": "No valid URL in clipboard",
+    "pasteHint": "Tap here and press Ctrl+V (or long-press → Paste)",
+    "checkpointRequired": {
+      "title": "🚫 Cookie Blocked",
+      "message": "Facebook detected unusual activity on the admin cookie.",
+      "detail": "The account may be shadow banned or requires verification.",
+      "hint": "Try adding your own cookie in Settings, or wait for admin to update."
+    },
+    "maintenanceError": {
+      "title": "🔧 Under Maintenance",
+      "message": "We're working on improvements. Check back soon!"
+    },
+    "serviceDisabled": {
+      "title": "⏸️ Service Paused"
+    },
+    "extractionFailed": {
+      "title": "Extraction Failed",
+      "withCookie": "⚠️ Cookie is set but extraction still failed.",
+      "hint": "Try: Refresh cookie, use HTML extractor in Advanced, or the post may be restricted."
+    },
+    "fetchFailedPrivate": {
+      "title": "Failed to Fetch",
+      "hint": "This content may be private. Add your cookie in Settings to access."
+    },
+    "weiboCookie": {
+      "title": "Weibo Cookie Required",
+      "message": "Weibo requires a cookie to access videos.",
+      "expired": "⚠️ Your previous cookie has expired or not set.",
+      "hint": "Go to Settings → Weibo and paste a new guest cookie.",
+      "goToSettings": "⚙️ Go to Settings"
+    }
+  },
+
+  "platforms": {
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "twitter": "Twitter/X",
+    "tiktok": "TikTok",
+    "weibo": "Weibo",
+    "youtube": "YouTube",
+    "status": {
+      "active": "Active",
+      "maintenance": "Maintenance",
+      "offline": "Offline"
+    },
+    "cookieDesc": {
+      "facebook": "Stories & groups",
+      "instagram": "Private posts",
+      "twitter": "Age-restricted",
+      "weibo": "Required"
+    }
+  },
+
+  "footer": {
+    "copyright": "© 2025 risunCode",
+    "personalUse": "Enjoy responsibly ✨"
+  },
+
+  "advanced": {
+    "title": "Advanced Tools",
+    "subtitle": "Power user features - extractors and proxies",
+    "warning": {
+      "title": "Experimental:",
+      "message": "These tools are for advanced users. Use responsibly."
+    },
+    "tabs": {
+      "playground": "API Playground",
+      "fbHtml": "FB HTML Extractor",
+      "proxy": "Direct Proxy"
+    },
+    "playground": {
+      "title": "API Playground",
+      "description": "Test the download API without authentication. Rate limited to {limit} requests/2 minutes.",
+      "remaining": "Remaining",
+      "viewApiEndpoint": "View API Endpoint & Example",
+      "placeholder": "Paste any social media URL...",
+      "paste": "Paste",
+      "pasteFailed": "Paste failed",
+      "sendRequest": "Send Request",
+      "rateLimited": "Rate Limited",
+      "privateContent": "Private content",
+      "availableFormats": "Available Formats",
+      "moreFormats": "more formats",
+      "viewJson": "View JSON Response",
+      "api": {
+        "testBrowser": "Test in Browser (GET):",
+        "testBrowserHint": "Paste this in browser address bar to see JSON response",
+        "postHint": "For programmatic use - send URL in request body",
+        "postBody": "POST Body:",
+        "noKeyRequired": "No API key required • GET /api = 15/min • POST /api/playground = 5/2min"
+      },
+      "errors": {
+        "invalidProtocol": "URL must start with http:// or https://",
+        "unsupportedPlatform": "Unsupported platform. Try Facebook, Instagram, Twitter, TikTok, or Weibo",
+        "invalidFormat": "Invalid URL format",
+        "requestFailed": "Request failed"
+      }
+    },
+    "fbHtml": {
+      "title": "Facebook HTML Extractor",
+      "description": "Extract videos from private posts via page source",
+      "step1": "Facebook URL",
+      "step2": "View Source URL",
+      "step3": "Paste HTML Source",
+      "paste": "Paste",
+      "clear": "Clear",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "copyHint": "Paste in new tab",
+      "sourceHint": "Open in new tab → Ctrl+A → Ctrl+C",
+      "extracting": "Extracting media URLs...",
+      "found": "Found {count} media",
+      "extractNew": "Extract New",
+      "extractMedia": "Extract Media",
+      "pasteFromClipboard": "Paste from Clipboard",
+      "pasteHint": "Tip: If paste button doesn't work, manually paste (Ctrl+V) into the box above",
+      "noMediaFound": "No media found",
+      "parseError": "Parse error",
+      "htmlPlaceholder": "Paste the entire HTML source code here (Ctrl+V)...",
+      "pasteFailed": "Paste failed"
+    },
+    "proxy": {
+      "title": "Direct Link Proxy",
+      "description": "Download from Google Drive, Dropbox, Mediafire",
+      "paste": "Paste",
+      "clear": "Clear",
+      "download": "Download",
+      "open": "Open",
+      "pasteFailed": "Paste failed"
+    }
+  }
+}

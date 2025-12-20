@@ -11,6 +11,7 @@ import {
     getServiceConfigAsync,
     updatePlatformConfig,
     setMaintenanceMode,
+    setMaintenanceType,
     setMaintenanceMessage,
     setGlobalRateLimit,
     setApiKeyRequired,
@@ -20,7 +21,8 @@ import {
     resetPlatformStats,
     resetAllStats,
     resetToDefaults,
-    type PlatformId
+    type PlatformId,
+    type MaintenanceType
 } from '@/core/database';
 
 // GET - Get all service configs
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
             }
 
             case 'updateGlobal': {
-                const { playgroundEnabled, playgroundRateLimit, maintenanceMode, maintenanceMessage, globalRateLimit, apiKeyRequired } = updates;
+                const { playgroundEnabled, playgroundRateLimit, maintenanceMode, maintenanceType, maintenanceMessage, globalRateLimit, apiKeyRequired } = updates;
                 
                 if (playgroundEnabled !== undefined) {
                     await setPlaygroundEnabled(playgroundEnabled);
@@ -93,7 +95,9 @@ export async function POST(request: NextRequest) {
                 if (playgroundRateLimit !== undefined) {
                     await setPlaygroundRateLimit(playgroundRateLimit);
                 }
-                if (maintenanceMode !== undefined) {
+                if (maintenanceType !== undefined) {
+                    await setMaintenanceType(maintenanceType as MaintenanceType);
+                } else if (maintenanceMode !== undefined) {
                     await setMaintenanceMode(maintenanceMode);
                 }
                 if (maintenanceMessage !== undefined) {
@@ -130,9 +134,11 @@ export async function PUT(request: NextRequest) {
     
     try {
         const body = await request.json();
-        const { maintenanceMode, maintenanceMessage, globalRateLimit, apiKeyRequired } = body;
+        const { maintenanceMode, maintenanceType, maintenanceMessage, globalRateLimit, apiKeyRequired } = body;
 
-        if (maintenanceMode !== undefined) {
+        if (maintenanceType !== undefined) {
+            await setMaintenanceType(maintenanceType as MaintenanceType);
+        } else if (maintenanceMode !== undefined) {
             await setMaintenanceMode(maintenanceMode);
         }
         

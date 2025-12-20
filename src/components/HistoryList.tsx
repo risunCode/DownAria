@@ -24,6 +24,7 @@ import {
 } from '@/lib/storage';
 import { PlatformIcon, VideoIcon, ImageIcon, MusicIcon } from '@/components/ui/Icons';
 import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { useTranslations } from 'next-intl';
 import Swal from 'sweetalert2';
 
 // Convert IndexedDB entry to HistoryItem format
@@ -55,6 +56,8 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
     const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all');
     const [isLoaded, setIsLoaded] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const t = useTranslations('history');
+    const tCommon = useTranslations('common');
     // Load history from IndexedDB
     const loadHistory = useCallback(async () => {
         try {
@@ -89,10 +92,12 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
 
     const handleDelete = async (id: string, title: string) => {
         const result = await Swal.fire({
-            title: 'Delete this item?',
+            title: t('item.delete') + '?',
             text: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
             icon: 'warning',
             showCancelButton: true,
+            confirmButtonText: tCommon('delete'),
+            cancelButtonText: tCommon('cancel'),
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
             confirmButtonColor: 'var(--error)',
@@ -107,10 +112,12 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
 
     const handleClearAll = async () => {
         const result = await Swal.fire({
-            title: 'Clear all history?',
-            text: 'This action cannot be undone.',
+            title: t('clearConfirm'),
+            text: t('clearConfirmDesc'),
             icon: 'warning',
             showCancelButton: true,
+            confirmButtonText: tCommon('clearAll'),
+            cancelButtonText: tCommon('cancel'),
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
             confirmButtonColor: 'var(--error)',
@@ -122,7 +129,7 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
             setHistory([]);
             Swal.fire({
                 icon: 'success',
-                title: 'History Cleared',
+                title: t('clearHistory'),
                 timer: 1500,
                 showConfirmButton: false,
                 background: 'var(--bg-card)',
@@ -175,10 +182,10 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
             >
                 <Clock className="w-12 h-12 mx-auto text-[var(--text-muted)] mb-4" />
                 <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                    No download history yet
+                    {t('empty')}
                 </h3>
                 <p className="text-[var(--text-secondary)]">
-                    Your downloaded videos will appear here
+                    {t('emptyDesc')}
                 </p>
             </motion.div>
         );
@@ -196,7 +203,7 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <Clock className="w-5 h-5" />
-                    Download History
+                    {t('title')}
                     <span className="text-sm font-normal text-[var(--text-muted)]">
                         ({filteredHistory.length}{mediaFilter !== 'all' ? `/${history.length}` : ''})
                     </span>
@@ -208,7 +215,7 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                             <input
                                 type="text"
-                                placeholder="Search history..."
+                                placeholder={t('title') + '...'}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full sm:w-64 pl-10 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)]"
@@ -221,7 +228,7 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
                         onClick={handleClearAll}
                         leftIcon={<Trash2 className="w-4 h-4" />}
                     >
-                        Clear
+                        {tCommon('clear')}
                     </Button>
                 </div>
             </div>

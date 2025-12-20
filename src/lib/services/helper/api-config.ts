@@ -4,7 +4,7 @@
  */
 
 // ========== PLATFORM TYPES ==========
-export type PlatformId = 'tiktok' | 'instagram' | 'facebook' | 'twitter' | 'weibo';
+export type PlatformId = 'tiktok' | 'instagram' | 'facebook' | 'twitter' | 'weibo' | 'youtube';
 
 export interface PlatformConfig {
     name: string;
@@ -44,6 +44,11 @@ export const PLATFORM_CONFIGS: Record<PlatformId, PlatformConfig> = {
         domain: 'weibo.com',
         aliases: ['weibo.com', 'weibo.cn', 'm.weibo.cn', 'video.weibo.com', 'www.weibo.com', 't.cn'],
         apiEndpoints: { mobile: 'https://m.weibo.cn/statuses/show' },
+    },
+    youtube: {
+        name: 'YouTube',
+        domain: 'youtube.com',
+        aliases: ['youtube.com', 'youtu.be', 'm.youtube.com', 'www.youtube.com', 'music.youtube.com'],
     },
 };
 

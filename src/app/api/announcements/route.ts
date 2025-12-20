@@ -35,7 +35,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, {
+        headers: {
+            // Cache for 60 seconds, allow stale for 2 minutes while revalidating
+            'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+    });
 }
 
 export async function POST(request: NextRequest) {

@@ -3,17 +3,20 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Webhook, Send, MessageSquare, Info, Bell, BellOff } from 'lucide-react';
+import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Info, Bot } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import { useDownloadManager } from '@/components/DownloadManager';
 import Announcements from '@/components/Announcements';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFacebook, faInstagram, faWeibo, faTwitter, faTiktok, IconDefinition } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faInstagram, faWeibo, faTwitter, faTiktok, faYoutube, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import { PLATFORMS as TYPE_PLATFORMS, Platform } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
-type TabType = 'playground' | 'facebook-html' | 'proxy';
+import { usePlayground } from '@/hooks';
+
+type TabType = 'playground' | 'facebook-html' | 'proxy' | 'ai-chat';
 
 // Proxy thumbnail URL for CORS-blocked CDNs (Instagram, Facebook, etc.)
 function getProxiedThumbnail(url: string | undefined): string | undefined {
@@ -27,6 +30,7 @@ function getProxiedThumbnail(url: string | undefined): string | undefined {
 
 export default function AdvancedPage() {
     const [activeTab, setActiveTab] = useState<TabType>('playground');
+    const t = useTranslations('advanced');
 
     return (
         <SidebarLayout>
@@ -34,24 +38,24 @@ export default function AdvancedPage() {
             <div className="py-6 px-4 lg:px-8">
                 <div className="max-w-4xl mx-auto space-y-6">
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-                        <h1 className="text-2xl font-bold gradient-text mb-2">Advanced Tools</h1>
-                        <p className="text-sm text-[var(--text-muted)]">Power user features - extractors and proxies</p>
+                        <h1 className="text-2xl font-bold gradient-text mb-2">{t('title')}</h1>
+                        <p className="text-sm text-[var(--text-muted)]">{t('subtitle')}</p>
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
                         <div className="flex items-start gap-3">
                             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                             <p className="text-sm text-[var(--text-secondary)]">
-                                <span className="font-medium text-amber-400">⚠️ Experimental:</span> These tools are for advanced users. Use responsibly.
+                                <span className="font-medium text-amber-400">{t('warning.title')}</span> {t('warning.message')}
                             </p>
                         </div>
                     </motion.div>
 
                     <div className="flex flex-wrap gap-2">
-                        <TabButton active={activeTab === 'playground'} onClick={() => setActiveTab('playground')} icon={<Play className="w-4 h-4" />} label="API Playground" />
-                        <TabButton active={activeTab === 'facebook-html'} onClick={() => setActiveTab('facebook-html')} icon={<Code className="w-4 h-4" />} label="FB HTML Extractor" />
-                        <TabButton active={activeTab === 'proxy'} onClick={() => setActiveTab('proxy')} icon={<Cloud className="w-4 h-4" />} label="Direct Proxy" />
-
+                        <TabButton active={activeTab === 'playground'} onClick={() => setActiveTab('playground')} icon={<Play className="w-4 h-4" />} label={t('tabs.playground')} />
+                        <TabButton active={activeTab === 'ai-chat'} onClick={() => setActiveTab('ai-chat')} icon={<Bot className="w-4 h-4" />} label="AI Chat" />
+                        <TabButton active={activeTab === 'facebook-html'} onClick={() => setActiveTab('facebook-html')} icon={<Code className="w-4 h-4" />} label={t('tabs.fbHtml')} />
+                        <TabButton active={activeTab === 'proxy'} onClick={() => setActiveTab('proxy')} icon={<Cloud className="w-4 h-4" />} label={t('tabs.proxy')} />
                     </div>
 
                     <AnimatePresence mode="wait">
@@ -63,6 +67,7 @@ export default function AdvancedPage() {
                                 </Suspense>
                             )}
                             {activeTab === 'proxy' && <DirectProxyTab />}
+                            {activeTab === 'ai-chat' && <AIChatTab />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
@@ -101,6 +106,7 @@ const PLATFORM_ICONS: Record<Platform, { icon: IconDefinition; color: string }> 
     twitter: { icon: faTwitter, color: 'text-sky-400' },
     tiktok: { icon: faTiktok, color: 'text-pink-400' },
     weibo: { icon: faWeibo, color: 'text-orange-500' },
+    youtube: { icon: faYoutube, color: 'text-red-500' },
 };
 
 // Get platforms with icons for display
@@ -123,6 +129,7 @@ interface PlaygroundResult {
     };
     error?: string;
     rateLimit?: { remaining: number; limit: number };
+    networkError?: boolean;
 }
 
 function ApiPlaygroundTab() {
@@ -130,21 +137,19 @@ function ApiPlaygroundTab() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<PlaygroundResult | null>(null);
     const [copied, setCopied] = useState(false);
-    const [rateLimit, setRateLimit] = useState({ remaining: 5, limit: 5 });
     const [urlError, setUrlError] = useState('');
     const { startDownload } = useDownloadManager();
-
-    // Fetch current rate limit status on mount
+    const t = useTranslations('advanced.playground');
+    const tCommon = useTranslations('common');
+    
+    // Use SWR for rate limit status (cached, deduplicated)
+    const { remaining, limit, refresh: refreshRateLimit } = usePlayground();
+    const [rateLimit, setRateLimit] = useState({ remaining: 5, limit: 5 });
+    
+    // Sync SWR data to local state
     useEffect(() => {
-        fetch('/api/playground')
-            .then(res => res.json())
-            .then(data => {
-                if (data.rateLimit) {
-                    setRateLimit({ remaining: data.rateLimit.maxRequests, limit: data.rateLimit.maxRequests });
-                }
-            })
-            .catch(() => { });
-    }, []);
+        setRateLimit({ remaining, limit });
+    }, [remaining, limit]);
 
     // Simple URL validation (client-side)
     const validateUrl = (input: string): boolean => {
@@ -155,20 +160,20 @@ function ApiPlaygroundTab() {
         try {
             const parsed = new URL(input);
             if (!['http:', 'https:'].includes(parsed.protocol)) {
-                setUrlError('URL must start with http:// or https://');
+                setUrlError(t('errors.invalidProtocol'));
                 return false;
             }
             // Check if it's a supported platform
-            const supportedDomains = ['facebook.com', 'fb.com', 'fb.watch', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'weibo.com', 'weibo.cn'];
+            const supportedDomains = ['facebook.com', 'fb.com', 'fb.watch', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'weibo.com', 'weibo.cn', 'youtube.com', 'youtu.be'];
             const isSupported = supportedDomains.some(d => parsed.hostname.includes(d));
             if (!isSupported) {
-                setUrlError('Unsupported platform. Try Facebook, Instagram, Twitter, TikTok, or Weibo');
+                setUrlError(t('errors.unsupportedPlatform'));
                 return false;
             }
             setUrlError('');
             return true;
         } catch {
-            setUrlError('Invalid URL format');
+            setUrlError(t('errors.invalidFormat'));
             return false;
         }
     };
@@ -190,8 +195,24 @@ function ApiPlaygroundTab() {
             if (data.rateLimit) {
                 setRateLimit(data.rateLimit);
             }
+            // Refresh SWR cache after request
+            refreshRateLimit();
         } catch (err) {
-            setResult({ success: false, error: err instanceof Error ? err.message : 'Request failed' });
+            // Check for network errors
+            const { analyzeNetworkError, isOnline } = await import('@/lib/utils/network');
+            const networkStatus = analyzeNetworkError(err);
+            const errorMsg = err instanceof Error ? err.message : '';
+            
+            if (networkStatus.type === 'offline' || networkStatus.type === 'timeout' || 
+                errorMsg.toLowerCase().includes('failed to fetch') || !isOnline()) {
+                setResult({ 
+                    success: false, 
+                    error: `${networkStatus.message}: ${networkStatus.suggestion}`,
+                    networkError: true
+                });
+            } else {
+                setResult({ success: false, error: err instanceof Error ? err.message : t('errors.requestFailed') });
+            }
         } finally {
             setLoading(false);
         }
@@ -209,7 +230,7 @@ function ApiPlaygroundTab() {
             const text = await navigator.clipboard.readText();
             setUrl(text);
         } catch {
-            Swal.fire({ icon: 'error', title: 'Paste failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            Swal.fire({ icon: 'error', title: t('pasteFailed'), timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
         }
     };
 
@@ -219,14 +240,14 @@ function ApiPlaygroundTab() {
             <div className="glass-card p-4">
                 <div className="flex items-start gap-3">
                     <Play className="w-5 h-5 text-[var(--accent-primary)] shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                        <h2 className="font-semibold">API Playground</h2>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="font-semibold">{t('title')}</h2>
                         <p className="text-xs text-[var(--text-muted)] mt-1">
-                            Test the download API without authentication. Rate limited to {rateLimit.limit} requests/2 minutes.
+                            {t('description', { limit: rateLimit.limit })}
                         </p>
                     </div>
-                    <div className="text-right">
-                        <div className="text-xs text-[var(--text-muted)]">Remaining</div>
+                    <div className="text-right flex-shrink-0">
+                        <div className="text-xs text-[var(--text-muted)]">{t('remaining')}</div>
                         <div className={`text-lg font-bold ${rateLimit.remaining > 2 ? 'text-green-400' : rateLimit.remaining > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                             {rateLimit.remaining}/{rateLimit.limit}
                         </div>
@@ -236,68 +257,37 @@ function ApiPlaygroundTab() {
                 {/* API Endpoint Info */}
                 <details className="mt-3 pt-3 border-t border-[var(--border-color)]">
                     <summary className="text-xs text-[var(--accent-primary)] cursor-pointer hover:underline flex items-center gap-1">
-                        <Code className="w-3 h-3" /> View API Endpoint & Example
+                        <Code className="w-3 h-3" /> {t('viewApiEndpoint')}
                     </summary>
-                    <div className="mt-2 space-y-3 text-xs">
+                    <div className="mt-2 space-y-3 text-xs overflow-hidden">
                         {/* Browser Test - GET */}
                         <div className="p-2 rounded bg-green-500/10 border border-green-500/20">
                             <p className="text-green-400 font-medium mb-1 flex items-center gap-1">
-                                <ExternalLink className="w-3 h-3" /> Test in Browser (GET):
+                                <ExternalLink className="w-3 h-3" /> {t('api.testBrowser')}
                             </p>
-                            <code className="text-[10px] break-all">/api/playground?url=https://www.instagram.com/reel/C6O6Wp-yXHy/</code>
-                            <p className="text-[var(--text-muted)] text-[10px] mt-1">Paste this in browser address bar to see JSON response</p>
+                            <code className="text-[10px] break-all block">/api/playground?url=https://instagram.com/reel/...</code>
+                            <p className="text-[var(--text-muted)] text-[10px] mt-1">{t('api.testBrowserHint')}</p>
                         </div>
 
                         {/* POST Endpoint */}
                         <div className="p-2 rounded bg-[var(--bg-secondary)] font-mono">
                             <span className="text-purple-400 font-bold">POST</span> <span className="text-[var(--text-primary)]">/api/playground</span>
-                            <p className="text-[var(--text-muted)] text-[10px] mt-1 font-sans">For programmatic use - send URL in request body</p>
+                            <p className="text-[var(--text-muted)] text-[10px] mt-1 font-sans">{t('api.postHint')}</p>
                         </div>
 
                         {/* Request Body */}
                         <div>
                             <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
-                                <Code className="w-3 h-3" /> POST Body:
-                            </p>
-                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto">
-                                {`{
-  "url": "https://www.instagram.com/reel/C6O6Wp-yXHy/"
-}`}
-                            </pre>
-                        </div>
-
-                        {/* cURL */}
-                        <div>
-                            <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
-                                <Code className="w-3 h-3" /> cURL:
+                                <Code className="w-3 h-3" /> {t('api.postBody')}
                             </p>
                             <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
-                                {`curl -X POST https://xt-fetch.vercel.app/api/playground \\
-  -H "Content-Type: application/json" \\
-  -d '{"url":"https://www.instagram.com/reel/C6O6Wp-yXHy/"}'`}
+                                {`{ "url": "https://..." }`}
                             </pre>
                         </div>
 
-                        {/* JavaScript */}
-                        <div>
-                            <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
-                                <Code className="w-3 h-3" /> JavaScript:
-                            </p>
-                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
-                                {`const response = await fetch('/api/playground', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ 
-    url: 'https://www.instagram.com/reel/C6O6Wp-yXHy/' 
-  })
-});
-const data = await response.json();
-console.log(data);`}
-                            </pre>
-                        </div>
-
-                        <p className="text-[var(--text-muted)] text-[10px] p-2 rounded bg-blue-500/10 border border-blue-500/20 flex items-center gap-1">
-                            <Info className="w-3 h-3 text-blue-400" /> No API key required • GET /api = 15/min • POST /api/playground = 5/2min
+                        <p className="text-[var(--text-muted)] text-[10px] p-2 rounded bg-blue-500/10 border border-blue-500/20 flex items-start gap-1">
+                            <Info className="w-3 h-3 text-blue-400 flex-shrink-0 mt-0.5" /> 
+                            <span className="break-words">{t('api.noKeyRequired')}</span>
                         </p>
                     </div>
                 </details>
@@ -325,11 +315,11 @@ console.log(data);`}
                             else setUrlError('');
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && !urlError && executeRequest()}
-                        placeholder="Paste any social media URL..."
+                        placeholder={t('placeholder')}
                         className={`input-url text-sm flex-1 ${urlError ? 'border-red-500/50' : ''}`}
                     />
                     <Button onClick={handlePaste} variant="secondary" leftIcon={<Clipboard className="w-4 h-4" />}>
-                        Paste
+                        {t('paste')}
                     </Button>
                 </div>
                 {urlError && (
@@ -343,7 +333,7 @@ console.log(data);`}
                     className="w-full"
                     leftIcon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                 >
-                    {loading ? 'Processing...' : rateLimit.remaining === 0 ? 'Rate Limited' : 'Send Request'}
+                    {loading ? tCommon('loading') : rateLimit.remaining === 0 ? t('rateLimited') : t('sendRequest')}
                 </Button>
             </div>
 
@@ -351,15 +341,15 @@ console.log(data);`}
             {result && (
                 <div className="glass-card p-4 space-y-3">
                     {/* Status Header */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             {result.success ? (
                                 <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
-                                    <CheckCircle className="w-3 h-3" /> Success
+                                    <CheckCircle className="w-3 h-3" /> {tCommon('success')}
                                 </span>
                             ) : (
                                 <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-bold">
-                                    <AlertCircle className="w-3 h-3" /> Error
+                                    <AlertCircle className="w-3 h-3" /> {tCommon('error')}
                                 </span>
                             )}
                             {result.platform && (
@@ -378,7 +368,7 @@ console.log(data);`}
 
                     {/* Error Message */}
                     {!result.success && result.error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400">
+                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400 break-all">
                             {result.error}
                         </div>
                     )}
@@ -389,7 +379,7 @@ console.log(data);`}
                             {/* Media Info */}
                             <div className="flex gap-3">
                                 {result.data.thumbnail && (
-                                    <img src={getProxiedThumbnail(result.data.thumbnail)} alt="" className="w-20 h-20 rounded-lg object-cover" />
+                                    <img src={getProxiedThumbnail(result.data.thumbnail)} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <p className="font-medium text-sm truncate">{result.data.title || 'Untitled'}</p>
@@ -398,7 +388,7 @@ console.log(data);`}
                                     )}
                                     {result.data.usedCookie && (
                                         <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px]">
-                                            🔒 Private content
+                                            🔒 Private
                                         </span>
                                     )}
                                 </div>
@@ -407,7 +397,7 @@ console.log(data);`}
                             {/* Formats */}
                             {result.data.formats && result.data.formats.length > 0 && (
                                 <div className="space-y-2">
-                                    <p className="text-xs font-medium text-[var(--text-muted)]">Available Formats ({result.data.formats.length})</p>
+                                    <p className="text-xs font-medium text-[var(--text-muted)]">{t('availableFormats')} ({result.data.formats.length})</p>
                                     <div className="space-y-1 max-h-40 overflow-y-auto">
                                         {result.data.formats.slice(0, 5).map((fmt, i) => (
                                             <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)]">
@@ -423,7 +413,7 @@ console.log(data);`}
                                         ))}
                                         {result.data.formats.length > 5 && (
                                             <p className="text-xs text-[var(--text-muted)] text-center py-1">
-                                                +{result.data.formats.length - 5} more formats
+                                                +{result.data.formats.length - 5} {t('moreFormats')}
                                             </p>
                                         )}
                                     </div>
@@ -435,7 +425,7 @@ console.log(data);`}
                     {/* JSON Preview */}
                     <details className="group">
                         <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
-                            View JSON Response
+                            {t('viewJson')}
                         </summary>
                         <pre className="mt-2 p-3 rounded-lg bg-[var(--bg-secondary)] text-[10px] font-mono overflow-x-auto overflow-y-auto max-h-48 max-w-full whitespace-pre-wrap break-all">
                             {JSON.stringify(result, null, 2)}
@@ -465,6 +455,7 @@ function FacebookHtmlTab() {
     const [results, setResults] = useState<ExtractedMedia[]>([]);
     const { startDownload } = useDownloadManager();
     const [htmlSize, setHtmlSize] = useState(0);
+    const t = useTranslations('advanced.fbHtml');
 
     useEffect(() => {
         const urlParam = searchParams.get('url');
@@ -475,7 +466,7 @@ function FacebookHtmlTab() {
         if (fbUrl.trim()) { setFbUrl(''); setResults([]); }
         else {
             try { setFbUrl(await navigator.clipboard.readText()); }
-            catch { Swal.fire({ icon: 'error', title: 'Paste failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
+            catch { Swal.fire({ icon: 'error', title: t('pasteFailed'), timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
         }
     };
 
@@ -487,7 +478,7 @@ function FacebookHtmlTab() {
                 setHtmlSize(text.length);
                 setHtml(text);
                 setTimeout(() => extractFromHtml(text), 100);
-            } catch { Swal.fire({ icon: 'error', title: 'Paste failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
+            } catch { Swal.fire({ icon: 'error', title: t('pasteFailed'), timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
         }
     };
 
@@ -575,9 +566,9 @@ function FacebookHtmlTab() {
 
             setResults(found);
             setHtml('');
-            if (!found.length) Swal.fire({ icon: 'warning', title: 'No media found', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            if (!found.length) Swal.fire({ icon: 'warning', title: t('noMediaFound'), timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
         } catch {
-            Swal.fire({ icon: 'error', title: 'Parse error', timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            Swal.fire({ icon: 'error', title: t('parseError'), timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
         } finally {
             setIsLoading(false);
         }
@@ -588,8 +579,8 @@ function FacebookHtmlTab() {
             <div className="flex items-center gap-3">
                 <FileVideo className="w-5 h-5 text-blue-500" />
                 <div>
-                    <h2 className="font-semibold">Facebook HTML Extractor</h2>
-                    <p className="text-xs text-[var(--text-muted)]">Extract videos from private posts via page source</p>
+                    <h2 className="font-semibold">{t('title')}</h2>
+                    <p className="text-xs text-[var(--text-muted)]">{t('description')}</p>
                 </div>
             </div>
 
@@ -597,12 +588,12 @@ function FacebookHtmlTab() {
             <div className="space-y-2">
                 <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-[var(--accent-primary)] text-white text-xs flex items-center justify-center font-bold">1</span>
-                    <label className="text-sm font-medium">Facebook URL</label>
+                    <label className="text-sm font-medium">{t('step1')}</label>
                 </div>
                 <div className="flex gap-2">
                     <input type="url" value={fbUrl} onChange={(e) => setFbUrl(e.target.value)} placeholder="https://www.facebook.com/..." className="input-url text-sm flex-1" />
                     <Button onClick={handlePasteUrl} variant={fbUrl.trim() ? 'secondary' : 'primary'} leftIcon={<Clipboard className="w-4 h-4" />}>
-                        {fbUrl.trim() ? 'Clear' : 'Paste'}
+                        {fbUrl.trim() ? t('clear') : t('paste')}
                     </Button>
                 </div>
             </div>
@@ -612,16 +603,16 @@ function FacebookHtmlTab() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
                         <span className="w-6 h-6 rounded-full bg-[var(--accent-primary)] text-white text-xs flex items-center justify-center font-bold">2</span>
-                        <label className="text-sm font-medium">View Source URL</label>
+                        <label className="text-sm font-medium">{t('step2')}</label>
                     </div>
                     <div className="flex gap-2">
                         <input type="text" value={`view-source:${fbUrl}`} readOnly className="input-url text-sm flex-1 font-mono text-[var(--text-muted)]" />
                         <Button onClick={async () => {
                             await navigator.clipboard.writeText(`view-source:${fbUrl}`);
-                            Swal.fire({ icon: 'success', title: 'Copied!', text: 'Paste in new tab', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
-                        }} leftIcon={<Clipboard className="w-4 h-4" />}>Copy</Button>
+                            Swal.fire({ icon: 'success', title: t('copied'), text: t('copyHint'), timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+                        }} leftIcon={<Clipboard className="w-4 h-4" />}>{t('copy')}</Button>
                     </div>
-                    <p className="text-xs text-[var(--text-muted)]">Open in new tab → Ctrl+A → Ctrl+C</p>
+                    <p className="text-xs text-[var(--text-muted)]">{t('sourceHint')}</p>
                 </div>
             )}
 
@@ -630,26 +621,26 @@ function FacebookHtmlTab() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
                         <span className="w-6 h-6 rounded-full bg-[var(--accent-primary)] text-white text-xs flex items-center justify-center font-bold">3</span>
-                        <label className="text-sm font-medium">Paste HTML Source</label>
+                        <label className="text-sm font-medium">{t('step3')}</label>
                         {html.length > 0 && <span className="text-xs text-[var(--text-muted)]">({(html.length / 1024).toFixed(0)} KB)</span>}
                     </div>
 
                     {isLoading ? (
                         <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--bg-secondary)]">
                             <Loader2 className="w-5 h-5 animate-spin text-[var(--accent-primary)]" />
-                            <span className="text-sm">Extracting media URLs...</span>
+                            <span className="text-sm">{t('extracting')}</span>
                         </div>
                     ) : results.length > 0 ? (
                         <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                            <span className="text-sm text-green-400">✓ Found {results.length} media</span>
-                            <Button size="sm" variant="secondary" onClick={() => { setResults([]); setHtml(''); }} leftIcon={<Clipboard className="w-3 h-3" />}>Extract New</Button>
+                            <span className="text-sm text-green-400">✓ {t('found', { count: results.length })}</span>
+                            <Button size="sm" variant="secondary" onClick={() => { setResults([]); setHtml(''); }} leftIcon={<Clipboard className="w-3 h-3" />}>{t('extractNew')}</Button>
                         </div>
                     ) : (
                         <div className="space-y-2">
                             <textarea
                                 value={html}
                                 onChange={(e) => setHtml(e.target.value)}
-                                placeholder="Paste the entire HTML source code here (Ctrl+V)..."
+                                placeholder={t('htmlPlaceholder')}
                                 className="w-full h-32 px-3 py-2 text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg font-mono resize-none focus:outline-none focus:border-[var(--accent-primary)]"
                             />
                             <div className="flex gap-2">
@@ -658,18 +649,18 @@ function FacebookHtmlTab() {
                                     disabled={!html.trim()}
                                     leftIcon={<FileVideo className="w-4 h-4" />}
                                 >
-                                    Extract Media
+                                    {t('extractMedia')}
                                 </Button>
                                 <Button
                                     variant="secondary"
                                     onClick={handlePasteHtml}
                                     leftIcon={<Clipboard className="w-4 h-4" />}
                                 >
-                                    Paste from Clipboard
+                                    {t('pasteFromClipboard')}
                                 </Button>
                             </div>
                             <p className="text-xs text-[var(--text-muted)]">
-                                Tip: If paste button doesn&apos;t work, manually paste (Ctrl+V) into the box above
+                                {t('pasteHint')}
                             </p>
                         </div>
                     )}
@@ -704,6 +695,7 @@ function DirectProxyTab() {
     const [filename, setFilename] = useState('');
     const [fileSize, setFileSize] = useState('');
     const { startDownload } = useDownloadManager();
+    const t = useTranslations('advanced.proxy');
 
     const handlePaste = async () => {
         if (url.trim()) { setUrl(''); setDownloadUrl(''); setFilename(''); setFileSize(''); }
@@ -712,7 +704,7 @@ function DirectProxyTab() {
                 const text = await navigator.clipboard.readText();
                 setUrl(text);
                 processUrl(text);
-            } catch { Swal.fire({ icon: 'error', title: 'Paste failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
+            } catch { Swal.fire({ icon: 'error', title: t('pasteFailed'), timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' }); }
         }
     };
 
@@ -759,8 +751,8 @@ function DirectProxyTab() {
             <div className="flex items-center gap-3">
                 <Cloud className="w-5 h-5 text-purple-500" />
                 <div>
-                    <h2 className="font-semibold">Direct Link Proxy</h2>
-                    <p className="text-xs text-[var(--text-muted)]">Download from Google Drive, Dropbox, Mediafire</p>
+                    <h2 className="font-semibold">{t('title')}</h2>
+                    <p className="text-xs text-[var(--text-muted)]">{t('description')}</p>
                 </div>
             </div>
 
@@ -780,7 +772,7 @@ function DirectProxyTab() {
                 />
                 <Button onClick={handlePaste} variant={url.trim() ? 'secondary' : 'primary'} disabled={isLoading}
                     leftIcon={isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clipboard className="w-4 h-4" />}>
-                    {url.trim() ? 'Clear' : 'Paste'}
+                    {url.trim() ? t('clear') : t('paste')}
                 </Button>
             </div>
 
@@ -792,8 +784,8 @@ function DirectProxyTab() {
                         {fileSize && <span className="px-2 py-1 text-xs rounded bg-purple-500/20 text-purple-400">{fileSize}</span>}
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={() => startDownload(downloadUrl, filename, 'generic')} leftIcon={<Download className="w-4 h-4" />}>Download</Button>
-                        <Button variant="secondary" onClick={() => window.open(downloadUrl, '_blank')} leftIcon={<Link2 className="w-4 h-4" />}>Open</Button>
+                        <Button onClick={() => startDownload(downloadUrl, filename, 'generic')} leftIcon={<Download className="w-4 h-4" />}>{t('download')}</Button>
+                        <Button variant="secondary" onClick={() => window.open(downloadUrl, '_blank')} leftIcon={<Link2 className="w-4 h-4" />}>{t('open')}</Button>
                     </div>
                 </div>
             )}
@@ -804,3 +796,12 @@ function DirectProxyTab() {
 
 // Re-export from utility for backward compatibility
 export { getUserDiscordSettings, sendDiscordNotification } from '@/lib/utils/discord-webhook';
+
+// ═══════════════════════════════════════════════════════════════
+// AI CHAT TAB
+// ═══════════════════════════════════════════════════════════════
+function AIChatTab() {
+    const { ChatContainer } = require('@/components/chat');
+    
+    return <ChatContainer />;
+}

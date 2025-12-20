@@ -25,7 +25,7 @@ interface PendingDownloadContextType {
 
 const PendingDownloadContext = createContext<PendingDownloadContextType | null>(null);
 
-const QUEUE_STORAGE_KEY = 'pd_q_v1_m4n';
+const QUEUE_STORAGE_KEY = 'xtf_pending_queue';
 
 export function PendingDownloadProvider({ children }: { children: ReactNode }) {
   const [mediaData, setMediaDataState] = useState<MediaData | null>(null);

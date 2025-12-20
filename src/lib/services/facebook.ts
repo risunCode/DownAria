@@ -10,6 +10,7 @@ import { matchesPlatform } from './helper/api-config';
 import { getCache, setCache } from './helper/cache';
 import { createError, ScraperErrorCode, type ScraperResult, type ScraperOptions } from '@/core/scrapers/types';
 import { logger } from './helper/logger';
+import { getScraperTimeout } from './helper/system-config';
 
 // ============================================================================
 // CONSTANTS & HELPERS
@@ -23,11 +24,11 @@ const getQuality = (h: number) => h >= 1080 ? 'HD 1080p' : h >= 720 ? 'HD 720p' 
 const getResValue = (q: string) => { const m = q.match(/(\d{3,4})/); return m ? parseInt(m[1]) : 0; };
 
 const AGE_RESTRICTED_PATTERNS = ['You must be 18 years or older', 'age-restricted', 'AdultContentWarning', '"is_adult_content":true', 'content_age_gate'];
-const PRIVATE_CONTENT_PATTERNS = ['This content isn\'t available', 'content isn\'t available right now', 'Sorry, this content isn\'t available', 'The link you followed may be broken'];
+const PRIVATE_CONTENT_PATTERNS = ['This content isn\'t available', 'content isn\'t available right now', 'Sorry, this content isn\'t available', 'The link you followed may be broken', 'This video is no longer available', 'video may have been removed'];
 
 const detectContentIssue = (html: string): ScraperErrorCode | null => {
     const lower = html.toLowerCase();
-    const hasMediaPatterns = html.includes('browser_native') || html.includes('all_subattachments') || html.includes('viewer_image') || html.includes('playable_url');
+    const hasMediaPatterns = html.includes('browser_native') || html.includes('all_subattachments') || html.includes('viewer_image') || html.includes('playable_url') || html.includes('photo_image');
     if (hasMediaPatterns) return null;
     for (const p of AGE_RESTRICTED_PATTERNS) { if (html.includes(p) || lower.includes(p.toLowerCase())) return ScraperErrorCode.AGE_RESTRICTED; }
     for (const p of PRIVATE_CONTENT_PATTERNS) { const idx = html.indexOf(p); if (idx > -1 && idx < 50000) return ScraperErrorCode.PRIVATE_CONTENT; }
@@ -46,7 +47,18 @@ const detectType = (url: string): ContentType => {
 
 const extractVideoId = (url: string): string | null => url.match(/\/(?:reel|videos?)\/(\d+)/)?.[1] || null;
 const extractPostId = (url: string): string | null => {
-    const patterns = [/\/posts\/(pfbid[a-zA-Z0-9]+)/, /\/posts\/(\d+)/, /\/permalink\/(\d+)/, /story_fbid=(pfbid[a-zA-Z0-9]+)/, /story_fbid=(\d+)/, /\/photos?\/[^/]+\/(\d+)/, /\/share\/p\/([a-zA-Z0-9]+)/, /fbid=(\d+)/];
+    const patterns = [
+        /\/groups\/[^/]+\/permalink\/(\d+)/, // Group permalink
+        /\/groups\/[^/]+\/posts\/(\d+)/, // Group posts
+        /\/posts\/(pfbid[a-zA-Z0-9]+)/, 
+        /\/posts\/(\d+)/, 
+        /\/permalink\/(\d+)/, 
+        /story_fbid=(pfbid[a-zA-Z0-9]+)/, 
+        /story_fbid=(\d+)/, 
+        /\/photos?\/[^/]+\/(\d+)/, 
+        /\/share\/p\/([a-zA-Z0-9]+)/, 
+        /fbid=(\d+)/
+    ];
     for (const re of patterns) { const m = url.match(re); if (m) return m[1]; }
     return null;
 };
@@ -62,12 +74,47 @@ function findTargetBlock(html: string, id: string | null, type: 'post' | 'video'
 
     const searchKey = id.startsWith('pfbid') ? id.substring(5, 30) : id;
     let targetPos = -1;
-    const idPatterns = type === 'video'
-        ? [`"id":"${id}"`, `"video_id":"${id}"`, `/reel/${id}`, `/videos/${id}`, `"videoId":"${id}"`]
-        : [`/posts/${id}`, `story_fbid=${id}`, `/permalink/${id}`, `"post_id":"${id}"`, id];
-
-    for (const p of idPatterns) { const pos = html.indexOf(p); if (pos > -1) { targetPos = pos; break; } }
+    
+    // For group posts, find the specific post block first
+    const postIdPatterns = [
+        `"post_id":"${id}"`,
+        `"story_fbid":"${id}"`,
+        `/permalink/${id}`,
+        `/posts/${id}`,
+        `"id":"${id}"`,
+    ];
+    
+    for (const p of postIdPatterns) { 
+        const pos = html.indexOf(p); 
+        if (pos > -1) { 
+            targetPos = pos; 
+            break; 
+        } 
+    }
+    
     if (targetPos === -1 && id.startsWith('pfbid')) targetPos = html.indexOf(searchKey);
+    if (targetPos === -1) targetPos = html.indexOf(id);
+
+    // For video type, look for video URLs near the post ID
+    if (type === 'video' && targetPos > -1) {
+        // Search for video patterns within a reasonable range of the post ID
+        const searchStart = Math.max(0, targetPos - 5000);
+        const searchEnd = Math.min(html.length, targetPos + 50000);
+        const searchArea = html.substring(searchStart, searchEnd);
+        
+        const videoKeys = ['"browser_native_hd_url":', '"browser_native_sd_url":', '"playable_url_quality_hd":', '"playable_url":', '"progressive_url":'];
+        for (const key of videoKeys) {
+            const pos = searchArea.indexOf(key);
+            if (pos > -1) {
+                const blockStart = Math.max(0, pos - 1000);
+                const blockEnd = Math.min(searchArea.length, pos + 15000);
+                return searchArea.substring(blockStart, blockEnd);
+            }
+        }
+        
+        // If no video found near post ID, return the area around post ID
+        return searchArea;
+    }
 
     if (type === 'post') {
         const subKey = '"all_subattachments":{"count":';
@@ -99,21 +146,9 @@ function findTargetBlock(html: string, id: string | null, type: 'post' | 'video'
         }
     }
 
-    if (type === 'video') {
-        const videoKeys = ['"browser_native_hd_url":', '"playable_url_quality_hd":', '"playable_url":', '"progressive_url":'];
-        for (const key of videoKeys) {
-            let pos = targetPos > -1 ? html.indexOf(key, Math.max(0, targetPos - 2000)) : -1;
-            if (pos === -1) pos = html.indexOf(key);
-            if (pos > -1) {
-                const blockSize = key.includes('progressive') ? 15000 : 10000;
-                return html.substring(Math.max(0, pos - 1000), Math.min(html.length, pos + blockSize));
-            }
-        }
-    }
-
     if (targetPos > -1) {
-        const before = type === 'video' ? 1500 : 5000;
-        const after = type === 'video' ? 10000 : 20000;
+        const before = type === 'video' ? 5000 : 5000;
+        const after = type === 'video' ? 50000 : 20000;
         return html.substring(Math.max(0, targetPos - before), Math.min(html.length, targetPos + after));
     }
 
@@ -280,10 +315,11 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, tar
         const expectedCount = countMatch ? parseInt(countMatch[1]) : 0;
         const nodesStart = target.indexOf('"nodes":[', subStart);
         if (nodesStart > -1 && nodesStart - subStart < 100) {
-            let depth = 0, nodesEnd = nodesStart + 9;
-            for (let i = nodesStart + 8; i < target.length && i < nodesStart + 30000; i++) {
+            // Start from index 9 (after '"nodes":[') with depth 1 (we're inside the array)
+            let depth = 1, nodesEnd = nodesStart + 9;
+            for (let i = nodesStart + 9; i < target.length && i < nodesStart + 30000; i++) {
                 if (target[i] === '[') depth++;
-                if (target[i] === ']') { if (depth === 0) { nodesEnd = i + 1; break; } depth--; }
+                if (target[i] === ']') { depth--; if (depth === 0) { nodesEnd = i + 1; break; } }
             }
             const nodesBlock = target.substring(nodesStart, nodesEnd);
             const viewerRe = /"viewer_image":\{"height":(\d+),"width":(\d+),"uri":"(https:[^"]+)"/g;
@@ -315,12 +351,14 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, tar
     }
 
     if (idx === 0) {
+        // Search in full decoded HTML for photo_image pattern (not just target block)
         const photoRe = /"photo_image":\{"uri":"(https:[^"]+)"/g;
         const photoUrls: string[] = [];
-        while ((m = photoRe.exec(target)) !== null && photoUrls.length < 5) {
+        while ((m = photoRe.exec(decoded)) !== null && photoUrls.length < 5) {
             const url = clean(m[1]);
             if (/scontent|fbcdn/.test(url) && /t39\.30808-6/.test(url) && !photoUrls.includes(url)) photoUrls.push(url);
         }
+        logger.debug('facebook', `[extractImages] photo_image found: ${photoUrls.length}`);
         for (const url of photoUrls) add(url);
     }
 
@@ -331,17 +369,19 @@ function extractImages(html: string, decoded: string, seenUrls: Set<string>, tar
     }
 
     if (idx === 0) {
+        // Search in full HTML for image.uri pattern
         const imageUriRe = /"image":\{"uri":"(https:[^"]+t39\.30808[^"]+)"/g;
-        while ((m = imageUriRe.exec(html)) !== null && idx < 3) {
+        while ((m = imageUriRe.exec(decoded)) !== null && idx < 3) {
             const url = clean(m[1]);
             if (/scontent|fbcdn/.test(url) && !/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\//.test(url)) add(url);
         }
     }
 
     if (idx === 0) {
+        // Last resort: search for t39.30808 URLs in full decoded HTML
         const t39Re = /https:\/\/scontent[^"'\s<>\\]+t39\.30808-6[^"'\s<>\\]+\.jpg/gi;
         let count = 0;
-        while ((m = t39Re.exec(target)) !== null && count < 5) {
+        while ((m = t39Re.exec(decoded)) !== null && count < 5) {
             const url = decodeUrl(m[0]);
             if (!/\/[ps]\d{2,3}x\d{2,3}\/|\/cp0\/|_s\d+x\d+|\/s\d{2,3}x\d{2,3}\//.test(url)) { if (add(url)) count++; }
         }
@@ -424,7 +464,8 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
             });
 
             logger.debug('facebook', `Fetching ${inputUrl.substring(0, 50)}... (cookie: ${useCookie})`);
-            const res = await httpGet(inputUrl, { headers, timeout: 10000 });
+            const timeout = getScraperTimeout('facebook');
+            const res = await httpGet(inputUrl, { headers, timeout });
 
             if (res.finalUrl.includes('/checkpoint/')) throw new Error('CHECKPOINT_REQUIRED');
             const html = res.data;
@@ -442,7 +483,7 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
                 if (countMedia(html) === 0) {
                     for (let i = 0; i < 2; i++) {
                         await new Promise(r => setTimeout(r, 200));
-                        const retry = await httpGet(finalUrl, { headers, timeout: 15000 });
+                        const retry = await httpGet(finalUrl, { headers, timeout: timeout + 5000 });
                         if (countMedia(retry.data) > 0) break;
                     }
                 }
@@ -452,7 +493,7 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
                 return createError(ScraperErrorCode.API_ERROR, 'Facebook returned error page');
             }
 
-            const hasMediaPatterns = html.includes('browser_native') || html.includes('all_subattachments') || html.includes('viewer_image');
+            const hasMediaPatterns = html.includes('browser_native') || html.includes('all_subattachments') || html.includes('viewer_image') || html.includes('photo_image');
             if (!hasMediaPatterns && html.length < 500000 && (html.includes('login_form') || html.includes('Log in to Facebook'))) {
                 return createError(ScraperErrorCode.COOKIE_REQUIRED, 'This content requires login.');
             }
@@ -463,6 +504,11 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
                 if (contentIssue === ScraperErrorCode.PRIVATE_CONTENT) return createError(ScraperErrorCode.PRIVATE_CONTENT, 'This content is private or unavailable.');
             }
 
+            // Check if the main attachment is unavailable (deleted/restricted video in group post)
+            const hasUnavailableAttachment = html.includes('"UnavailableAttachment"') || 
+                html.includes('"unavailable_attachment_style"') ||
+                (html.includes("This content isn't available") && html.includes('attachment'));
+
             const decoded = decodeHtml(html);
             const meta = extractMeta(html);
             const seenUrls = new Set<string>();
@@ -472,9 +518,47 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
             const isVideo = actualType === 'video' || actualType === 'reel';
             const isPost = actualType === 'post' || actualType === 'group' || actualType === 'unknown';
 
-            if (actualType === 'story') formats = extractStories(decoded, seenUrls);
-            else if (isVideo) formats = extractVideos(decoded, seenUrls, extractVideoId(finalUrl));
-            if (isPost || (isVideo && formats.length === 0)) formats.push(...extractImages(html, decoded, seenUrls, extractPostId(finalUrl)));
+            // For group posts, if the main attachment is unavailable, don't extract other videos
+            // This prevents returning unrelated videos from the group feed
+            if (hasUnavailableAttachment && actualType === 'group') {
+                logger.debug('facebook', 'Group post attachment is unavailable (deleted or restricted)');
+                return createError(ScraperErrorCode.PRIVATE_CONTENT, 'The shared content is no longer available or has been deleted.');
+            }
+
+            if (actualType === 'story') {
+                formats = extractStories(decoded, seenUrls);
+            } else if (isVideo) {
+                formats = extractVideos(decoded, seenUrls, extractVideoId(finalUrl));
+                // Fallback to images if no video found
+                if (formats.length === 0) {
+                    formats = extractImages(html, decoded, seenUrls, extractPostId(finalUrl));
+                }
+            } else if (isPost) {
+                // For /share/p/ URLs (post shares), prioritize images since they're typically image posts
+                // Videos in the HTML are often from related content, not the actual post
+                const isPostShare = /\/share\/p\//.test(inputUrl);
+                // Check for subattachments in both raw and decoded HTML (handles different encodings)
+                const hasSubattachments = html.includes('all_subattachments') || decoded.includes('all_subattachments');
+                
+                if (isPostShare || hasSubattachments) {
+                    // Try images first for post shares or posts with multiple attachments
+                    formats = extractImages(html, decoded, seenUrls, extractPostId(finalUrl));
+                    // Only try video if no images found
+                    if (formats.length === 0) {
+                        formats = extractVideos(decoded, seenUrls, extractPostId(finalUrl));
+                    }
+                } else {
+                    // For other posts/groups without subattachments, try video extraction first
+                    const videoFormats = extractVideos(decoded, seenUrls, extractPostId(finalUrl));
+                    if (videoFormats.length > 0) {
+                        formats = videoFormats;
+                        logger.debug('facebook', `Found ${videoFormats.length} video(s) in ${actualType} content`);
+                    } else {
+                        // Only extract images if no video found
+                        formats = extractImages(html, decoded, seenUrls, extractPostId(finalUrl));
+                    }
+                }
+            }
 
             if (formats.length === 0) {
                 if (contentIssue === ScraperErrorCode.AGE_RESTRICTED) return createError(ScraperErrorCode.AGE_RESTRICTED, 'Age-restricted content. Try with a different cookie.');
@@ -494,7 +578,8 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
             logger.media('facebook', { videos: formats.filter(f => f.type === 'video').length, images: formats.filter(f => f.type === 'image').length });
             logger.complete('facebook', Date.now() - startTime);
 
-            const result: ScraperResult = { success: true, data: { title, thumbnail: meta.thumbnail || formats.find(f => f.thumbnail)?.thumbnail || '', author: extractAuthor(decoded, finalUrl), description, postedAt: extractPostDate(decoded), engagement: extractEngagement(decoded), formats, url: inputUrl } };
+            // useCookie parameter tells us if cookie was actually used for this request
+            const result: ScraperResult = { success: true, data: { title, thumbnail: meta.thumbnail || formats.find(f => f.thumbnail)?.thumbnail || '', author: extractAuthor(decoded, finalUrl), description, postedAt: extractPostDate(decoded), engagement: extractEngagement(decoded), formats, url: inputUrl, usedCookie: useCookie } };
             setCache('facebook', inputUrl, result);
             return result;
 
@@ -506,10 +591,29 @@ export async function scrapeFacebook(inputUrl: string, options?: ScraperOptions)
     };
 
     const isStory = /\/stories\//.test(inputUrl);
+    const isGroup = /\/groups\//.test(inputUrl);
+    const isVideoShare = /\/share\/v\//.test(inputUrl); // Video share URL - expect video result
+    
+    // Stories, groups, and video shares often require login - try with cookie first if available
     if (isStory) return doScrape(true);
+    if ((isGroup || isVideoShare) && hasCookie) {
+        logger.debug('facebook', `${isGroup ? 'Group' : 'Video share'} URL detected, trying with cookie first...`);
+        const cookieResult = await doScrape(true);
+        if (cookieResult.success && (cookieResult.data?.formats?.length || 0) > 0) {
+            // For video shares, verify we got video (not just images)
+            const hasVideo = cookieResult.data?.formats?.some(f => f.type === 'video') || false;
+            if (!isVideoShare || hasVideo) return cookieResult;
+        }
+        // If cookie fails or no video for video share, still try guest
+    }
 
     const guestResult = await doScrape(false);
-    const shouldRetry = hasCookie && (!guestResult.success || (guestResult.data?.formats?.length === 0) || guestResult.errorCode === ScraperErrorCode.AGE_RESTRICTED || guestResult.errorCode === ScraperErrorCode.COOKIE_REQUIRED || guestResult.errorCode === ScraperErrorCode.PRIVATE_CONTENT || guestResult.errorCode === ScraperErrorCode.NO_MEDIA);
+    
+    // For video share URLs, if we only got images (no video), retry with cookie
+    const hasVideo = guestResult.data?.formats?.some(f => f.type === 'video') || false;
+    const shouldRetryVideoShare = isVideoShare && hasCookie && guestResult.success && !hasVideo;
+    
+    const shouldRetry = hasCookie && (!guestResult.success || (guestResult.data?.formats?.length === 0) || guestResult.errorCode === ScraperErrorCode.AGE_RESTRICTED || guestResult.errorCode === ScraperErrorCode.COOKIE_REQUIRED || guestResult.errorCode === ScraperErrorCode.PRIVATE_CONTENT || guestResult.errorCode === ScraperErrorCode.NO_MEDIA || shouldRetryVideoShare);
 
     if (shouldRetry) {
         logger.debug('facebook', 'Retrying with cookie...');

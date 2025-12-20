@@ -129,6 +129,9 @@ export const ALLOWED_SOCIAL_DOMAINS = [
 
     // Weibo
     'weibo.com', 'weibo.cn', 'sinaimg.cn',
+
+    // YouTube
+    'youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com',
 ];
 
 export const ALLOWED_CDN_DOMAINS = [

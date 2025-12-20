@@ -6,6 +6,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { PendingDownloadProvider } from "@/lib/contexts/PendingDownloadContext";
 import { DownloadManagerProvider } from "@/components/DownloadManager";
+import { IntlProvider } from "@/components/IntlProvider";
+import { StructuredData, FAQStructuredData } from "@/components/StructuredData";
+import { SkipToContent } from "@/components/ui/Accessibility";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -73,16 +76,21 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#0d1117" />
         <meta name="screen-orientation" content="portrait" />
+        <StructuredData />
+        <FAQStructuredData />
       </head>
       <body
         className={`${jetbrainsMono.variable} font-mono antialiased bg-[var(--bg-primary)] text-[var(--text-primary)]`}
       >
-        <PendingDownloadProvider>
-          <DownloadManagerProvider>
-            <ServiceWorkerRegister />
-            {children}
-          </DownloadManagerProvider>
-        </PendingDownloadProvider>
+        <SkipToContent />
+        <IntlProvider>
+          <PendingDownloadProvider>
+            <DownloadManagerProvider>
+              <ServiceWorkerRegister />
+              {children}
+            </DownloadManagerProvider>
+          </PendingDownloadProvider>
+        </IntlProvider>
         <Analytics />
         <SpeedInsights />
       </body>

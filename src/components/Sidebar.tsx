@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench } from 'lucide-react';
+import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -12,20 +12,16 @@ import {
     TiktokIcon,
     WeiboIcon,
 } from '@/components/ui/Icons';
-import { ThemeType, saveTheme, initTheme } from '@/lib/storage';
+import { ThemeType, saveTheme, initTheme, getSettings } from '@/lib/storage';
+import { useTranslations } from 'next-intl';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useStatus } from '@/hooks/useStatus';
 
 const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
     { id: 'dark', label: 'Dark', icon: Moon },
     { id: 'light', label: 'Light', icon: Sun },
     { id: 'solarized', label: 'Solarized', icon: Sparkles },
 ];
-
-interface PlatformStatus {
-    id: string;
-    name: string;
-    enabled: boolean;
-    status: 'active' | 'maintenance' | 'offline';
-}
 
 interface SidebarProps {
     children: React.ReactNode;
@@ -35,21 +31,20 @@ export function SidebarLayout({ children }: SidebarProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [themeOpen, setThemeOpen] = useState(false);
     const [currentTheme, setCurrentTheme] = useState<ThemeType>('dark');
-    const [platformStatus, setPlatformStatus] = useState<PlatformStatus[]>([]);
+    const [hideDocs, setHideDocs] = useState<boolean | null>(null); // null = loading
     const themeRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
+    
+    // Use SWR for platform status (auto-cached, deduplicated)
+    const { platforms: platformStatus } = useStatus();
 
     useEffect(() => {
         const theme = initTheme();
         setCurrentTheme(theme);
-
-        // Fetch platform status from API
-        fetch('/api/status')
-            .then(res => res.json())
-            .then(data => {
-                if (data.platforms) setPlatformStatus(data.platforms);
-            })
-            .catch(() => { }); // Silently fail
+        
+        // Load hide docs setting
+        const settings = getSettings();
+        setHideDocs(settings.hideDocs || false);
     }, []);
 
     useEffect(() => {
@@ -71,11 +66,13 @@ export function SidebarLayout({ children }: SidebarProps) {
     const CurrentThemeIcon = THEMES.find(t => t.id === currentTheme)?.icon || Palette;
 
     const navLinks = [
-        { href: '/', label: 'Home', icon: Home },
-        { href: '/history', label: 'History', icon: History },
-        { href: '/advanced', label: 'Advanced', icon: Wrench },
-        { href: '/settings', label: 'Settings', icon: Settings },
-        { href: '/about', label: 'About', icon: Info },
+        { href: '/', labelKey: 'home', icon: Home },
+        { href: '/history', labelKey: 'history', icon: History },
+        { href: '/advanced', labelKey: 'advanced', icon: Wrench },
+        // Only show docs link after settings loaded AND hideDocs is false
+        ...(hideDocs === false ? [{ href: '/docs', labelKey: 'docs', icon: BookOpen }] : []),
+        { href: '/settings', labelKey: 'settings', icon: Settings },
+        { href: '/about', labelKey: 'about', icon: Info },
     ];
 
     // Default platforms with dynamic status from API
@@ -120,8 +117,11 @@ export function SidebarLayout({ children }: SidebarProps) {
                         </Link>
                     </div>
 
-                    {/* Right: Theme, Home & Settings */}
+                    {/* Right: Language, Theme, Home & Settings */}
                     <div className="flex items-center gap-1">
+                        {/* Language Switcher */}
+                        <LanguageSwitcher showLabel={false} />
+                        
                         {/* Theme Dropdown */}
                         <div ref={themeRef} className="relative">
                             <button
@@ -232,13 +232,17 @@ export function SidebarLayout({ children }: SidebarProps) {
 }
 
 interface SidebarContentProps {
-    navLinks: { href: string; label: string; icon: React.FC<{ className?: string }> }[];
+    navLinks: { href: string; labelKey: string; icon: React.FC<{ className?: string }> }[];
     platforms: { id: string; icon: React.FC<{ className?: string }>; label: string; color: string; status: 'active' | 'maintenance' | 'offline' }[];
     isActive: (href: string) => boolean;
     onLinkClick?: () => void;
 }
 
 function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarContentProps) {
+    const t = useTranslations('nav');
+    const tPlatforms = useTranslations('platforms');
+    const tFooter = useTranslations('footer');
+    
     return (
         <div className="flex flex-col h-full">
             {/* Logo */}
@@ -260,7 +264,7 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-1">
                 <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider px-3 mb-3">
-                    Navigation
+                    {t('navigation')}
                 </p>
                 {navLinks.map((link) => (
                     <Link
@@ -273,14 +277,14 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                             }`}
                     >
                         <link.icon className="w-5 h-5" />
-                        <span className="font-medium">{link.label}</span>
+                        <span className="font-medium">{t(link.labelKey)}</span>
                     </Link>
                 ))}
 
                 {/* Platforms Section */}
                 <div className="pt-6">
                     <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider px-3 mb-3">
-                        Supported Platforms
+                        {t('supportedPlatforms')}
                     </p>
                     <div className="space-y-1">
                         {platforms.map((platform, index) => (
@@ -290,14 +294,14 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                                         }`}
                                 >
                                     <platform.icon className={`w-5 h-5 ${platform.color}`} />
-                                    <span className="text-sm text-[var(--text-secondary)] flex-1">{platform.label}</span>
+                                    <span className="text-sm text-[var(--text-secondary)] flex-1">{tPlatforms(platform.id)}</span>
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${platform.status === 'active'
                                             ? 'bg-green-500/20 text-green-400'
                                             : platform.status === 'maintenance'
                                                 ? 'bg-yellow-500/20 text-yellow-400'
                                                 : 'bg-red-500/20 text-red-400'
                                         }`}>
-                                        {platform.status === 'active' ? 'Active' : platform.status === 'maintenance' ? 'Maintenance' : 'Offline'}
+                                        {tPlatforms(`status.${platform.status}`)}
                                     </span>
                                 </div>
                             ))}
@@ -309,7 +313,7 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
             <div className="p-4 border-t border-[var(--border-color)]">
                 <div className="px-4">
                     <p className="text-xs text-[var(--text-muted)]">
-                        © 2025{' '}
+                        {tFooter('copyright').split('risunCode')[0]}
                         <Link
                             href="/auth"
                             onClick={onLinkClick}
@@ -320,7 +324,7 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                         </Link>
                     </p>
                     <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                        For personal use only
+                        {tFooter('personalUse')}
                     </p>
                 </div>
             </div>

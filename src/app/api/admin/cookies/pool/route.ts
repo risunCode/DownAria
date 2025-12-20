@@ -50,13 +50,14 @@ export async function GET(req: NextRequest) {
         }
 
         // Get cookies for specific platform
+        // getCookiesByPlatform already handles decryption and adds cookiePreview
         if (platform) {
             const cookies = await getCookiesByPlatform(platform);
-            // Mask cookie values for security
+            // Cookie values are already masked with preview from getCookiesByPlatform
+            // Just ensure we don't expose full encrypted cookie
             const masked = cookies.map(c => ({
                 ...c,
-                cookie: c.cookie.substring(0, 50) + '...',
-                cookiePreview: extractCookiePreview(c.cookie, platform)
+                cookie: (c as { cookiePreview?: string }).cookiePreview || '[encrypted]', // Use preview instead of raw
             }));
             return NextResponse.json({ success: true, data: masked });
         }
@@ -81,34 +82,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Missing platform or cookie' }, { status: 400 });
         }
 
+        // addCookieToPool handles encryption automatically
         const result = await addCookieToPool(platform, cookie, { label, note, max_uses_per_hour });
         
         return NextResponse.json({ success: true, data: result });
     } catch (e) {
         return NextResponse.json({ success: false, error: (e as Error).message }, { status: 500 });
     }
-}
-
-// Helper: Extract preview info from cookie
-function extractCookiePreview(cookie: string, platform: string): string {
-    try {
-        const parsed = JSON.parse(cookie);
-        if (Array.isArray(parsed)) {
-            const keys: Record<string, string[]> = {
-                facebook: ['c_user', 'xs'],
-                instagram: ['ds_user_id', 'sessionid'],
-                twitter: ['auth_token', 'ct0'],
-                weibo: ['SUB']
-            };
-            const found = parsed
-                .filter((c: { name: string }) => keys[platform]?.includes(c.name))
-                .map((c: { name: string; value: string }) => `${c.name}=${c.value.substring(0, 8)}...`);
-            return found.join(', ') || 'No key cookies found';
-        }
-    } catch {
-        // String format
-        const match = cookie.match(/c_user=(\d+)|sessionid=([^;]+)|auth_token=([^;]+)|SUB=([^;]+)/);
-        if (match) return match[0].substring(0, 30) + '...';
-    }
-    return 'Unknown format';
 }

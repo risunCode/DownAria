@@ -5,8 +5,11 @@ import { HistoryList } from '@/components/HistoryList';
 import Announcements from '@/components/Announcements';
 import { motion } from 'framer-motion';
 import { Shield, HardDrive } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function HistoryPage() {
+    const t = useTranslations('history');
+    
     return (
         <SidebarLayout>
             <Announcements page="history" />
@@ -19,10 +22,10 @@ export default function HistoryPage() {
                     >
                         <div className="text-center py-4">
                             <h1 className="text-2xl lg:text-3xl font-bold gradient-text mb-2">
-                                Download History
+                                {t('title')}
                             </h1>
                             <p className="text-[var(--text-muted)]">
-                                View and manage your past downloads
+                                {t('subtitle')}
                             </p>
                         </div>
 
@@ -38,12 +41,11 @@ export default function HistoryPage() {
                             </div>
                             <div className="text-sm">
                                 <p className="text-[var(--text-secondary)]">
-                                    <span className="font-medium text-[var(--text-primary)]">Your privacy matters.</span>{' '}
-                                    Download history is stored locally on your device only. 
-                                    We never collect, track, or send your data anywhere.
+                                    <span className="font-medium text-[var(--text-primary)]">{t('privacy.title')}</span>{' '}
+                                    {t('privacy.description')}
                                 </p>
                                 <p className="text-[var(--text-muted)] text-xs mt-1 flex items-center gap-1">
-                                    <HardDrive className="w-3 h-3" /> Saved in browser localStorage
+                                    <HardDrive className="w-3 h-3" /> {t('privacy.storage')}
                                 </p>
                             </div>
                         </motion.div>

@@ -7,15 +7,16 @@
 import { ScraperErrorCode, ScraperResult, isRetryable } from '@/core/scrapers/types';
 import { shouldRetryWithCookie } from './error-ui';
 import { randomSleep } from '@/lib/http';
+import { getScraperMaxRetries, getScraperRetryDelay } from '@/lib/services/helper/system-config';
 
 // ═══════════════════════════════════════════════════════════════
 // RETRY OPTIONS
 // ═══════════════════════════════════════════════════════════════
 
 export interface RetryOptions {
-    /** Maximum retry attempts (default: 2) */
+    /** Maximum retry attempts (default from system config) */
     maxRetries?: number;
-    /** Base delay in ms (default: 1000) */
+    /** Base delay in ms (default from system config) */
     baseDelay?: number;
     /** Backoff strategy (default: 'exponential') */
     backoff?: 'linear' | 'exponential' | 'none';
@@ -39,8 +40,8 @@ export async function withRetry<T extends ScraperResult>(
     options: RetryOptions = {}
 ): Promise<T> {
     const {
-        maxRetries = 2,
-        baseDelay = 1000,
+        maxRetries = getScraperMaxRetries(),
+        baseDelay = getScraperRetryDelay(),
         backoff = 'exponential',
         retryWithCookie = true,
         cookie,

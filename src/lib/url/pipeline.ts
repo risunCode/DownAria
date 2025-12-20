@@ -50,19 +50,80 @@ const SHORT_URL_PATTERNS: Record<string, RegExp> = {
   weibo: /t\.cn\//i,
 };
 
-// CONTENT ID EXTRACTORS
+// CONTENT ID EXTRACTORS - Extract CANONICAL content ID from resolved URL
+// These should match the logic in src/lib/redis.ts getCanonicalContentId()
 const CONTENT_ID_EXTRACTORS: Record<PlatformId, (url: string) => string | null> = {
   twitter: (url) => url.match(/status(?:es)?\/(\d+)/)?.[1] || null,
-  instagram: (url) => url.match(/(?:\/p\/|\/reel\/|\/reels\/|\/tv\/)([A-Za-z0-9_-]+)/)?.[1] || null,
-  facebook: (url) => {
-    const patterns = [/\/videos\/(\d+)/, /\/reel\/(\d+)/, /\/watch\/?\?v=(\d+)/, /\/v\/(\d+)/, /\/share\/[vr]\/(\d+)/, /story_fbid=(\d+)/, /\/posts\/([a-zA-Z0-9]+)/];
-    for (const p of patterns) { const m = url.match(p); if (m?.[1]) return m[1]; }
+  
+  instagram: (url) => {
+    // Shortcode is canonical for Instagram
+    const shortcode = url.match(/\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
+    if (shortcode) return shortcode[1];
+    // Story ID
+    const storyId = url.match(/\/stories\/[^/]+\/(\d+)/i);
+    if (storyId) return `story:${storyId[1]}`;
     return null;
   },
-  tiktok: (url) => url.match(/\/video\/(\d+)/)?.[1] || null,
+  
+  facebook: (url) => {
+    // Priority 1: Numeric video/reel ID (most canonical)
+    const videoId = url.match(/\/(?:videos?|watch|reel)\/(\d+)/i);
+    if (videoId) return videoId[1];
+    // Priority 2: Watch query param
+    const watchParam = url.match(/[?&]v=(\d+)/i);
+    if (watchParam) return watchParam[1];
+    // Priority 3: story_fbid param
+    const storyFbid = url.match(/story_fbid=(\d+)/i);
+    if (storyFbid) return storyFbid[1];
+    // Priority 4: pfbid
+    const pfbid = url.match(/pfbid([A-Za-z0-9]+)/i);
+    if (pfbid) return `pfbid${pfbid[1]}`;
+    // Priority 5: Share URL ID (case-sensitive!)
+    const shareId = url.match(/\/share\/[prvs]\/([A-Za-z0-9]+)/i);
+    if (shareId) return `share:${shareId[1]}`;
+    // Priority 6: Numeric post ID
+    const postId = url.match(/\/posts\/(\d+)/i);
+    if (postId) return postId[1];
+    // Priority 7: Story ID
+    const storyId = url.match(/\/stories\/[^/]+\/(\d+)/i);
+    if (storyId) return `story:${storyId[1]}`;
+    return null;
+  },
+  
+  tiktok: (url) => {
+    const videoId = url.match(/\/video\/(\d+)/i);
+    if (videoId) return videoId[1];
+    const fullUrl = url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i);
+    if (fullUrl) return fullUrl[1];
+    return null;
+  },
+  
   weibo: (url) => {
-    const patterns = [/\/status\/([A-Za-z0-9]+)/, /\/detail\/([A-Za-z0-9]+)/, /weibo\.com\/\d+\/([A-Za-z0-9]+)/, /m\.weibo\.cn\/status\/([A-Za-z0-9]+)/];
-    for (const p of patterns) { const m = url.match(p); if (m?.[1]) return m[1]; }
+    // Long numeric ID
+    const longId = url.match(/\/(\d{16,})/);
+    if (longId) return longId[1];
+    // User:Post format
+    const userPost = url.match(/weibo\.(?:com|cn)\/(\d+)\/([A-Za-z0-9]+)/);
+    if (userPost) return `${userPost[1]}:${userPost[2]}`;
+    // Detail/Status page
+    const detail = url.match(/\/(?:detail|status)\/(\d+)/i);
+    if (detail) return detail[1];
+    return null;
+  },
+  
+  youtube: (url) => {
+    // Standard watch URL
+    const watchId = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    if (watchId) return watchId[1];
+    // Short URL (youtu.be)
+    const shortId = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+    if (shortId) return shortId[1];
+    // Embed URL
+    const embedId = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (embedId) return embedId[1];
+    // Shorts URL
+    const shortsId = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (shortsId) return shortsId[1];
     return null;
   },
 };
@@ -74,6 +135,7 @@ const CONTENT_TYPE_DETECTORS: Record<PlatformId, (url: string) => ContentType> =
   facebook: (url) => /\/stories\//.test(url) ? 'story' : /\/reel/.test(url) ? 'reel' : /\/videos\/|\/watch\//.test(url) ? 'video' : /\/photos\//.test(url) ? 'image' : 'post',
   tiktok: () => 'video',
   weibo: () => 'post',
+  youtube: (url) => /\/shorts\//.test(url) ? 'reel' : 'video',
 };
 
 // COOKIE REQUIREMENT PATTERNS
@@ -83,6 +145,7 @@ const COOKIE_REQUIRED_PATTERNS: Record<PlatformId, RegExp | null> = {
   facebook: /\/stories\/|\/groups\//i,
   tiktok: null,
   weibo: /./,
+  youtube: null, // YouTube doesn't need cookies
 };
 
 // HELPER FUNCTIONS

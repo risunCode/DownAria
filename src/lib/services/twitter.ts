@@ -12,6 +12,7 @@ import { matchesPlatform, getApiEndpoint } from './helper/api-config';
 import { getCache, setCache } from './helper/cache';
 import { createError, ScraperErrorCode, type ScraperResult, type ScraperOptions } from '@/core/scrapers/types';
 import { logger } from './helper/logger';
+import { getScraperTimeout } from './helper/system-config';
 
 const BEARER_TOKEN = 'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA';
 
@@ -58,8 +59,9 @@ async function fetchWithGraphQL(tweetId: string, cookie: string): Promise<{ data
         
         const url = `https://x.com/i/api/graphql/xOhkmRac04YFZmOzU9PJHg/TweetDetail?variables=${encodeURIComponent(JSON.stringify(variables))}&features=${encodeURIComponent(JSON.stringify(features))}`;
         
+        const timeout = getScraperTimeout('twitter');
         const res = await httpGet(url, {
-            timeout: 15000,
+            timeout,
             headers: { ...BROWSER_HEADERS, 'Authorization': `Bearer ${BEARER_TOKEN}`, 'Cookie': cookie, 'X-Csrf-Token': ct0, 'X-Twitter-Auth-Type': 'OAuth2Session', 'X-Twitter-Active-User': 'yes', 'X-Twitter-Client-Language': 'en' },
         });
         

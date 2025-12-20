@@ -44,7 +44,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-.kiro
+
+# Kiro
+.kiro/
 
 # Vercel
 .vercel
@@ -53,19 +55,27 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Project specific
+# Project specific - Internal docs/planning
+/Proposal/
 /planning/
 /.planning/
-/cookies/
-/cookie-test/
+
+# Project specific - Testing & Development
 /.xtf-pentest/
 /pentest-xtf-brutal/
+/cookies/
+/cookie-test/
 
 # Temporary files
 *.tmp
 *.temp
 *-player-script.js
 
-# SQL files (sensitive data)
-*.sql
-REMOVE-BEFORE-DEPLOY.md
+# Migration SQL (contains sensitive seed data)
+migration/*.sql
+!migration/README.md
+
+# Lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock

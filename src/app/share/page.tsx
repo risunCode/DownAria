@@ -11,10 +11,13 @@ import type { HistoryEntry } from '@/lib/storage';
 import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
 import { AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
+import { useTranslations } from 'next-intl';
 
 function ShareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const t = useTranslations('share');
+  const tErrors = useTranslations('errors');
 
   const [platform, setPlatform] = useState<Platform>('facebook');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,23 +104,23 @@ function ShareContent() {
           setIsLoading(false);
           Swal.fire({
             icon: 'warning',
-            title: 'Weibo Cookie Required',
-            text: 'Go to Settings to add Weibo cookie first.',
+            title: tErrors('weiboCookie.title'),
+            text: tErrors('weiboCookie.hint'),
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
             confirmButtonColor: 'var(--accent-primary)',
           });
           return;
         }
-        throw new Error(data.error || 'Failed to fetch');
+        throw new Error(data.error || tErrors('fetchFailed'));
       }
 
       setMediaData(data.data);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'An error occurred';
+      const errorMsg = error instanceof Error ? error.message : t('error');
       Swal.fire({
         icon: 'error',
-        title: 'Failed',
+        title: t('failed'),
         text: errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg,
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
@@ -139,10 +142,10 @@ function ShareContent() {
           {/* Header */}
           <div className="text-center py-2 sm:py-4">
             <h1 className="text-xl sm:text-2xl font-bold gradient-text mb-1">
-              Shared Content
+              {t('title')}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-muted)]">
-              {sharedUrl ? 'Processing shared URL...' : 'No URL detected from share'}
+              {sharedUrl ? t('processing') : t('noUrl')}
             </p>
           </div>
 
@@ -177,7 +180,7 @@ function ShareContent() {
               onClick={() => router.push('/')}
               className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
-              ← Back to Home
+              {t('backToHome')}
             </button>
           </div>
         </div>

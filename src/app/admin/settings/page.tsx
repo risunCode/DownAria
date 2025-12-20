@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Shield, Database, Globe, Save, RefreshCw, Webhook, ExternalLink, Bell } from 'lucide-react';
+import { Settings, Shield, Database, Globe, Save, RefreshCw, Webhook, ExternalLink, Bell, Lock, AlertTriangle, Activity } from 'lucide-react';
 import Swal from 'sweetalert2';
 import AdminGuard from '@/components/AdminGuard';
+import { useSettings, useAlerts } from '@/hooks/admin';
 
 interface GlobalSettings {
     site_name: string;
@@ -52,100 +53,30 @@ export default function AdminSettingsPage() {
 }
 
 function SettingsContent() {
-    const [settings, setSettings] = useState<GlobalSettings>(DEFAULT_SETTINGS);
-    const [loading, setLoading] = useState(true);
+    const [localSettings, setLocalSettings] = useState<GlobalSettings>(DEFAULT_SETTINGS);
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
     
-    // Security settings (from service_config)
-    const [apiKeyRequired, setApiKeyRequired] = useState(false);
-    const [maintenanceMode, setMaintenanceMode] = useState(false);
-    const [maintenanceMessage, setMaintenanceMessage] = useState('');
-    const [securitySaving, setSecuritySaving] = useState(false);
-
-    // Load settings from DB
-    useEffect(() => {
-        // Load global settings
-        fetch('/api/admin/settings')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success && data.data) {
-                    setSettings(prev => ({ ...prev, ...data.data }));
-                }
-            })
-            .catch(() => {});
-        
-        // Load service config (security settings)
-        fetch('/api/admin/services')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success && data.data) {
-                    setApiKeyRequired(data.data.apiKeyRequired ?? false);
-                    setMaintenanceMode(data.data.maintenanceMode ?? false);
-                    setMaintenanceMessage(data.data.maintenanceMessage ?? '');
-                }
-            })
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    }, []);
+    // Use SWR hooks for data fetching
+    const { settings: dbSettings, loading, updateSettings: saveToDb } = useSettings();
     
-    const saveSecuritySettings = async (updates: { apiKeyRequired?: boolean; maintenanceMode?: boolean; maintenanceMessage?: string }) => {
-        setSecuritySaving(true);
-        try {
-            const res = await fetch('/api/admin/services', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'updateGlobal', ...updates })
-            });
-            const data = await res.json();
-            if (data.success) {
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
-            }
-        } catch {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to save', showConfirmButton: false, timer: 2000 });
-        } finally {
-            setSecuritySaving(false);
+    // Sync DB settings to local state
+    useEffect(() => {
+        if (dbSettings) {
+            setLocalSettings(prev => ({ ...prev, ...dbSettings }));
         }
-    };
+    }, [dbSettings]);
 
     const updateSetting = (key: string, value: string) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
+        setLocalSettings(prev => ({ ...prev, [key]: value }));
         setHasChanges(true);
     };
 
     const saveSettings = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ settings })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setHasChanges(false);
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Settings saved',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                });
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (err) {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'error',
-                title: err instanceof Error ? err.message : 'Failed to save',
-                showConfirmButton: false,
-                timer: 2000,
-            });
+            await saveToDb(localSettings);
+            setHasChanges(false);
         } finally {
             setSaving(false);
         }
@@ -237,7 +168,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Site Name</label>
                             <input
                                 type="text"
-                                value={settings.site_name}
+                                value={localSettings.site_name}
                                 onChange={e => updateSetting('site_name', e.target.value)}
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
                             />
@@ -246,7 +177,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Description</label>
                             <input
                                 type="text"
-                                value={settings.site_description}
+                                value={localSettings.site_description}
                                 onChange={e => updateSetting('site_description', e.target.value)}
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
                             />
@@ -265,7 +196,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Discord Invite</label>
                             <input
                                 type="url"
-                                value={settings.discord_invite}
+                                value={localSettings.discord_invite}
                                 onChange={e => updateSetting('discord_invite', e.target.value)}
                                 placeholder="https://discord.gg/xxx"
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
@@ -275,7 +206,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Telegram Channel</label>
                             <input
                                 type="url"
-                                value={settings.telegram_channel}
+                                value={localSettings.telegram_channel}
                                 onChange={e => updateSetting('telegram_channel', e.target.value)}
                                 placeholder="https://t.me/xxx"
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
@@ -285,7 +216,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">GitHub Repo</label>
                             <input
                                 type="url"
-                                value={settings.github_repo}
+                                value={localSettings.github_repo}
                                 onChange={e => updateSetting('github_repo', e.target.value)}
                                 placeholder="https://github.com/xxx"
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
@@ -305,7 +236,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Webhook URL</label>
                             <input
                                 type="url"
-                                value={settings.discord_webhook_url}
+                                value={localSettings.discord_webhook_url}
                                 onChange={e => updateSetting('discord_webhook_url', e.target.value)}
                                 placeholder="https://discord.com/api/webhooks/..."
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm font-mono"
@@ -314,7 +245,7 @@ function SettingsContent() {
                         <label className="flex items-center gap-2 text-sm">
                             <input
                                 type="checkbox"
-                                checked={settings.discord_notify_enabled === 'true'}
+                                checked={localSettings.discord_notify_enabled === 'true'}
                                 onChange={e => updateSetting('discord_notify_enabled', e.target.checked ? 'true' : 'false')}
                                 className="rounded"
                             />
@@ -322,6 +253,9 @@ function SettingsContent() {
                         </label>
                     </div>
                 </motion.div>
+
+                {/* Admin Alerts */}
+                <AdminAlertsSection />
 
                 {/* PWA Update Prompt */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card p-4">
@@ -340,20 +274,20 @@ function SettingsContent() {
                                 <p className="text-xs text-[var(--text-muted)]">Display notification when new version available</p>
                             </div>
                             <button
-                                onClick={() => updateSetting('update_prompt_enabled', settings.update_prompt_enabled === 'true' ? 'false' : 'true')}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${settings.update_prompt_enabled === 'true' ? 'bg-cyan-500' : 'bg-gray-600'}`}
+                                onClick={() => updateSetting('update_prompt_enabled', localSettings.update_prompt_enabled === 'true' ? 'false' : 'true')}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${localSettings.update_prompt_enabled === 'true' ? 'bg-cyan-500' : 'bg-gray-600'}`}
                             >
-                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${settings.update_prompt_enabled === 'true' ? 'left-7' : 'left-1'}`} />
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${localSettings.update_prompt_enabled === 'true' ? 'left-7' : 'left-1'}`} />
                             </button>
                         </div>
 
-                        {settings.update_prompt_enabled === 'true' && (
+                        {localSettings.update_prompt_enabled === 'true' && (
                             <>
                                 {/* Mode Selection */}
                                 <div>
                                     <label className="block text-xs text-[var(--text-muted)] mb-1">Display Mode</label>
                                     <select
-                                        value={settings.update_prompt_mode}
+                                        value={localSettings.update_prompt_mode}
                                         onChange={e => updateSetting('update_prompt_mode', e.target.value)}
                                         className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
                                     >
@@ -368,7 +302,7 @@ function SettingsContent() {
                                     <label className="block text-xs text-[var(--text-muted)] mb-1">Delay (seconds)</label>
                                     <input
                                         type="number"
-                                        value={settings.update_prompt_delay_seconds}
+                                        value={localSettings.update_prompt_delay_seconds}
                                         onChange={e => updateSetting('update_prompt_delay_seconds', e.target.value)}
                                         min={0}
                                         max={60}
@@ -381,7 +315,7 @@ function SettingsContent() {
                                 <label className="flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
-                                        checked={settings.update_prompt_dismissable === 'true'}
+                                        checked={localSettings.update_prompt_dismissable === 'true'}
                                         onChange={e => updateSetting('update_prompt_dismissable', e.target.checked ? 'true' : 'false')}
                                         className="rounded"
                                     />
@@ -393,7 +327,7 @@ function SettingsContent() {
                                     <label className="block text-xs text-[var(--text-muted)] mb-1">Custom Message (optional)</label>
                                     <input
                                         type="text"
-                                        value={settings.update_prompt_custom_message}
+                                        value={localSettings.update_prompt_custom_message}
                                         onChange={e => updateSetting('update_prompt_custom_message', e.target.value)}
                                         placeholder="Refresh to get the latest features."
                                         className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
@@ -415,7 +349,7 @@ function SettingsContent() {
                             <label className="block text-xs text-[var(--text-muted)] mb-1">Cache TTL (seconds)</label>
                             <input
                                 type="number"
-                                value={settings.cache_ttl}
+                                value={localSettings.cache_ttl}
                                 onChange={e => updateSetting('cache_ttl', e.target.value)}
                                 min={0}
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
@@ -426,79 +360,13 @@ function SettingsContent() {
                             <label className="flex items-center gap-2 text-sm">
                                 <input
                                     type="checkbox"
-                                    checked={settings.logging_enabled === 'true'}
+                                    checked={localSettings.logging_enabled === 'true'}
                                     onChange={e => updateSetting('logging_enabled', e.target.checked ? 'true' : 'false')}
                                     className="rounded"
                                 />
                                 Enable request logging
                             </label>
                         </div>
-                    </div>
-                </motion.div>
-
-                {/* Security */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Shield className="w-4 h-4 text-amber-400" />
-                        <h2 className="font-semibold text-sm">Security & Access Control</h2>
-                    </div>
-                    <div className="space-y-4">
-                        {/* API Key Required Toggle */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
-                            <div>
-                                <p className="text-sm font-medium">Require API Key for Downloads</p>
-                                <p className="text-xs text-[var(--text-muted)]">When enabled, all download requests need valid API key</p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    const newValue = !apiKeyRequired;
-                                    setApiKeyRequired(newValue);
-                                    saveSecuritySettings({ apiKeyRequired: newValue });
-                                }}
-                                disabled={securitySaving}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${apiKeyRequired ? 'bg-amber-500' : 'bg-gray-600'}`}
-                            >
-                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${apiKeyRequired ? 'left-7' : 'left-1'}`} />
-                            </button>
-                        </div>
-                        
-                        {/* Maintenance Mode Toggle */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
-                            <div>
-                                <p className="text-sm font-medium">Maintenance Mode</p>
-                                <p className="text-xs text-[var(--text-muted)]">Temporarily disable all services</p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    const newValue = !maintenanceMode;
-                                    setMaintenanceMode(newValue);
-                                    saveSecuritySettings({ maintenanceMode: newValue });
-                                }}
-                                disabled={securitySaving}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${maintenanceMode ? 'bg-red-500' : 'bg-gray-600'}`}
-                            >
-                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${maintenanceMode ? 'left-7' : 'left-1'}`} />
-                            </button>
-                        </div>
-                        
-                        {/* Maintenance Message */}
-                        {maintenanceMode && (
-                            <div>
-                                <label className="block text-xs text-[var(--text-muted)] mb-1">Maintenance Message</label>
-                                <input
-                                    type="text"
-                                    value={maintenanceMessage}
-                                    onChange={e => setMaintenanceMessage(e.target.value)}
-                                    onBlur={() => saveSecuritySettings({ maintenanceMessage })}
-                                    placeholder="We're updating things..."
-                                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
-                                />
-                            </div>
-                        )}
-                        
-                        <p className="text-[10px] text-[var(--text-muted)] p-2 rounded bg-blue-500/10 border border-blue-500/20">
-                            API Key Required adds extra security layer. Public endpoints (/api, /api/playground) will require valid API key when enabled.
-                        </p>
                     </div>
                 </motion.div>
 
@@ -516,9 +384,271 @@ function SettingsContent() {
                             <RefreshCw className="w-4 h-4" />
                             Clear Cache
                         </button>
+                        <button
+                            onClick={async () => {
+                                const result = await Swal.fire({
+                                    title: 'Migrate Cookies?',
+                                    text: 'This will encrypt all unencrypted cookies in the pool.',
+                                    icon: 'question',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#8b5cf6',
+                                    confirmButtonText: 'Migrate',
+                                    background: 'var(--bg-card)',
+                                    color: 'var(--text-primary)',
+                                });
+                                if (!result.isConfirmed) return;
+                                
+                                try {
+                                    const res = await fetch('/api/admin/cookies/migrate', { method: 'POST' });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                        Swal.fire({
+                                            toast: true,
+                                            position: 'top-end',
+                                            icon: 'success',
+                                            title: data.message,
+                                            showConfirmButton: false,
+                                            timer: 3000,
+                                            background: 'var(--bg-card)',
+                                            color: 'var(--text-primary)',
+                                        });
+                                    } else {
+                                        throw new Error(data.error);
+                                    }
+                                } catch (err) {
+                                    Swal.fire({
+                                        toast: true,
+                                        position: 'top-end',
+                                        icon: 'error',
+                                        title: err instanceof Error ? err.message : 'Migration failed',
+                                        showConfirmButton: false,
+                                        timer: 2000,
+                                    });
+                                }
+                            }}
+                            className="px-4 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm flex items-center gap-2 hover:border-purple-500/50 hover:text-purple-400 transition-colors"
+                        >
+                            <Lock className="w-4 h-4" />
+                            Encrypt Cookies
+                        </button>
                     </div>
+                    <p className="text-[10px] text-[var(--text-muted)] mt-3">
+                        Cookie encryption uses AES-256-GCM. Run &quot;Encrypt Cookies&quot; once to migrate existing unencrypted cookies.
+                    </p>
                 </motion.div>
             </div>
         </div>
+    );
+}
+
+
+// Admin Alerts Section Component
+function AdminAlertsSection() {
+    const { config, loading, testing, runningHealthCheck, updateConfig, testWebhook, runHealthCheck } = useAlerts();
+    const [localWebhook, setLocalWebhook] = useState('');
+
+    useEffect(() => {
+        if (config?.webhookUrl) {
+            setLocalWebhook(config.webhookUrl);
+        }
+    }, [config?.webhookUrl]);
+
+    const handleTest = async () => {
+        if (!localWebhook) return;
+        const result = await testWebhook(localWebhook);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: result.success ? 'success' : 'error',
+            title: result.success ? 'Test alert sent!' : result.error || 'Test failed',
+            showConfirmButton: false,
+            timer: 2000,
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+        });
+    };
+
+    const handleHealthCheck = async () => {
+        const result = await runHealthCheck();
+        if (result) {
+            Swal.fire({
+                title: 'Health Check Complete',
+                html: `
+                    <div class="text-left text-sm space-y-2">
+                        <p><strong>Checked:</strong> ${result.summary.totalChecked} cookies</p>
+                        <p class="text-green-400"><strong>Healthy:</strong> ${result.summary.totalHealthy}</p>
+                        <p class="text-red-400"><strong>Failed:</strong> ${result.summary.totalFailed}</p>
+                    </div>
+                `,
+                icon: result.summary.totalFailed > 0 ? 'warning' : 'success',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+            });
+        }
+    };
+
+    if (loading) {
+        return (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }} className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                    <h2 className="font-semibold text-sm">Admin Alerts</h2>
+                </div>
+                <div className="h-32 flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5 animate-spin text-[var(--accent-primary)]" />
+                </div>
+            </motion.div>
+        );
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }} className="glass-card p-4">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                    <h2 className="font-semibold text-sm">Admin Alerts</h2>
+                </div>
+                <button
+                    onClick={() => updateConfig({ enabled: !config?.enabled })}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${config?.enabled ? 'bg-green-500' : 'bg-gray-600'}`}
+                >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config?.enabled ? 'left-5' : 'left-0.5'}`} />
+                </button>
+            </div>
+            
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+                Get Discord alerts for errors, low cookie pool, and platform issues
+            </p>
+
+            <div className="space-y-3">
+                {/* Webhook URL */}
+                <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Alert Webhook URL</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="url"
+                            value={localWebhook}
+                            onChange={e => setLocalWebhook(e.target.value)}
+                            onBlur={() => {
+                                if (localWebhook !== config?.webhookUrl) {
+                                    updateConfig({ webhookUrl: localWebhook || null });
+                                }
+                            }}
+                            placeholder="https://discord.com/api/webhooks/..."
+                            className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm font-mono"
+                        />
+                        <button
+                            onClick={handleTest}
+                            disabled={testing || !localWebhook}
+                            className="px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm hover:border-[var(--accent-primary)]/50 disabled:opacity-50"
+                        >
+                            {testing ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Test'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Alert Types */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <label className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={config?.alertErrorSpike ?? true}
+                            onChange={e => updateConfig({ alertErrorSpike: e.target.checked })}
+                            className="rounded"
+                        />
+                        <span>Error Spike</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={config?.alertCookieLow ?? true}
+                            onChange={e => updateConfig({ alertCookieLow: e.target.checked })}
+                            className="rounded"
+                        />
+                        <span>Cookie Low</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)] text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={config?.alertPlatformDown ?? true}
+                            onChange={e => updateConfig({ alertPlatformDown: e.target.checked })}
+                            className="rounded"
+                        />
+                        <span>Platform Down</span>
+                    </label>
+                </div>
+
+                {/* Thresholds */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div>
+                        <label className="block text-[10px] text-[var(--text-muted)] mb-1">Error Threshold</label>
+                        <input
+                            type="number"
+                            value={config?.errorSpikeThreshold ?? 10}
+                            onChange={e => updateConfig({ errorSpikeThreshold: parseInt(e.target.value) || 10 })}
+                            min={1}
+                            max={100}
+                            className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-[var(--text-muted)] mb-1">Window (min)</label>
+                        <input
+                            type="number"
+                            value={config?.errorSpikeWindow ?? 5}
+                            onChange={e => updateConfig({ errorSpikeWindow: parseInt(e.target.value) || 5 })}
+                            min={1}
+                            max={60}
+                            className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-[var(--text-muted)] mb-1">Cookie Low</label>
+                        <input
+                            type="number"
+                            value={config?.cookieLowThreshold ?? 2}
+                            onChange={e => updateConfig({ cookieLowThreshold: parseInt(e.target.value) || 2 })}
+                            min={1}
+                            max={10}
+                            className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] text-[var(--text-muted)] mb-1">Cooldown (min)</label>
+                        <input
+                            type="number"
+                            value={config?.cooldownMinutes ?? 15}
+                            onChange={e => updateConfig({ cooldownMinutes: parseInt(e.target.value) || 15 })}
+                            min={1}
+                            max={120}
+                            className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Cookie Health Check */}
+                <div className="pt-3 border-t border-[var(--border-color)]">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-cyan-400" />
+                            <span className="text-sm font-medium">Cookie Health Check</span>
+                        </div>
+                        <button
+                            onClick={handleHealthCheck}
+                            disabled={runningHealthCheck}
+                            className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white text-xs hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                        >
+                            {runningHealthCheck ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+                            {runningHealthCheck ? 'Checking...' : 'Run Now'}
+                        </button>
+                    </div>
+                    {config?.lastHealthCheckAt && (
+                        <p className="text-[10px] text-[var(--text-muted)]">
+                            Last check: {new Date(config.lastHealthCheckAt).toLocaleString()}
+                        </p>
+                    )}
+                </div>
+            </div>
+        </motion.div>
     );
 }

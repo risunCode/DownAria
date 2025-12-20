@@ -11,8 +11,10 @@ import { Platform, MediaData, detectPlatform, sanitizeUrl } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
 import { MagicIcon, BoltIcon, LayersIcon, LockIcon } from '@/components/ui/Icons';
 import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
+import { useTranslations } from 'next-intl';
 import Swal from 'sweetalert2';
 import Announcements from '@/components/Announcements';
+import { analyzeNetworkError, isOnline } from '@/lib/utils/network';
 
 // ============================================================================
 // CONSTANTS
@@ -32,6 +34,7 @@ const SWAL_CONFIG = {
 
 function AnimatedTitle() {
   const [index, setIndex] = useState(0);
+  const t = useTranslations('home');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -42,7 +45,7 @@ function AnimatedTitle() {
 
   return (
     <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 h-8 sm:h-10">
-      <span className="text-[var(--text-primary)]">Free </span>
+      <span className="text-[var(--text-primary)]">{t('titlePrefix')} </span>
       <AnimatePresence mode="wait">
         <motion.span
           key={index}
@@ -55,7 +58,7 @@ function AnimatedTitle() {
           {TITLE_VARIANTS[index]}
         </motion.span>
       </AnimatePresence>
-      <span className="text-[var(--text-primary)]"> Downloader</span>
+      <span className="text-[var(--text-primary)]"> {t('titleSuffix')}</span>
     </h1>
   );
 }
@@ -67,10 +70,12 @@ function AnimatedTitle() {
 function showError(title: string, message: string, options?: {
   showSettings?: boolean;
   showAdvanced?: boolean;
+  showRetry?: boolean;
+  onRetry?: () => void;
   icon?: 'error' | 'warning' | 'info';
   buttonColor?: string;
 }) {
-  const { showSettings, showAdvanced, icon = 'error', buttonColor } = options || {};
+  const { showSettings, showAdvanced, showRetry, onRetry, icon = 'error', buttonColor } = options || {};
 
   Swal.fire({
     icon,
@@ -78,14 +83,37 @@ function showError(title: string, message: string, options?: {
     html: message,
     ...SWAL_CONFIG,
     confirmButtonColor: buttonColor || SWAL_CONFIG.confirmButtonColor,
-    showCancelButton: showSettings || showAdvanced,
-    confirmButtonText: showSettings ? '⚙️ Settings' : showAdvanced ? '🔧 Advanced' : 'OK',
+    showCancelButton: showSettings || showAdvanced || showRetry,
+    confirmButtonText: showSettings ? '⚙️ Settings' : showAdvanced ? '🔧 Advanced' : showRetry ? '🔄 Retry' : 'OK',
     cancelButtonText: 'Close',
   }).then((result) => {
     if (result.isConfirmed) {
       if (showSettings) window.location.href = '/settings';
       if (showAdvanced) window.location.href = '/advanced';
+      if (showRetry && onRetry) onRetry();
     }
+  });
+}
+
+function showNetworkError(error: unknown, onRetry?: () => void) {
+  const status = analyzeNetworkError(error);
+  
+  const iconMap = {
+    'offline': '📡',
+    'timeout': '⏱️',
+    'server-error': '🔧',
+    'cors': '🚫',
+    'unknown': '❌',
+  };
+
+  showError(`${iconMap[status.type]} ${status.message}`, `
+    <p style="margin-bottom: 12px; font-size: 14px;">${status.suggestion}</p>
+    ${!status.online ? '<p style="font-size: 12px; color: #f87171;">Check your WiFi or mobile data connection.</p>' : ''}
+  `, { 
+    icon: status.type === 'server-error' ? 'warning' : 'error',
+    buttonColor: '#6366f1',
+    showRetry: true,
+    onRetry,
   });
 }
 
@@ -112,13 +140,19 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
+  const t = useTranslations('home');
+  const tErrors = useTranslations('errors');
 
   // Unified fetch for all platforms
   const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; platform?: string }> => {
+    // Check if skip cache is enabled in settings
+    const { getSkipCache } = await import('@/lib/storage');
+    const skipCache = getSkipCache();
+    
     const response = await fetch('/api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, cookie }),
+      body: JSON.stringify({ url, cookie, skipCache }),
     });
     return response.json();
   };
@@ -150,7 +184,8 @@ export default function Home() {
       const result = await fetchMedia(sanitizedUrl, platformCookie);
 
       if (result.success && result.data) {
-        const mediaResult = { ...result.data, usedCookie: result.data.usedCookie || !!platformCookie };
+        // Use usedCookie from API response - scraper knows if cookie was actually used
+        const mediaResult = { ...result.data, usedCookie: result.data.usedCookie === true };
         setMediaData(mediaResult);
         // Caching handled by IndexedDB when download completes
         return;
@@ -167,14 +202,14 @@ export default function Home() {
 
           const { isConfirmed } = await Swal.fire({
             icon: 'warning',
-            title: 'Weibo Cookie Required',
+            title: tErrors('weiboCookie.title'),
             html: `
-              <p style="margin-bottom: 8px;">Weibo requires a cookie to access videos.</p>
-              <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">⚠️ Your previous cookie has expired or not set.</p>
-              <p style="font-size: 13px; color: #a1a1aa;">Go to <b>Settings</b> → <b>Weibo</b> and paste a new guest cookie.</p>
+              <p style="margin-bottom: 8px;">${tErrors('weiboCookie.message')}</p>
+              <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">${tErrors('weiboCookie.expired')}</p>
+              <p style="font-size: 13px; color: #a1a1aa;">${tErrors('weiboCookie.hint')}</p>
             `,
             showCancelButton: true,
-            confirmButtonText: '⚙️ Go to Settings',
+            confirmButtonText: tErrors('weiboCookie.goToSettings'),
             cancelButtonText: 'Cancel',
             background: '#1a1a1a',
             color: '#fff',
@@ -192,6 +227,28 @@ export default function Home() {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
+
+      // Check for network errors FIRST (offline, timeout, server unreachable)
+      const networkStatus = analyzeNetworkError(error);
+      if (networkStatus.type === 'offline' || networkStatus.type === 'timeout' || 
+          errorMsg.toLowerCase().includes('failed to fetch') || !isOnline()) {
+        showNetworkError(error, () => handleSubmit(url));
+        return;
+      }
+
+      // Handle rate limit errors
+      if (errorMsg.includes('Rate limit') || errorMsg.includes('rate limit') || errorMsg.includes('429')) {
+        const resetMatch = errorMsg.match(/(\d+)s/);
+        const resetIn = resetMatch ? parseInt(resetMatch[1]) : 60;
+        
+        showError('⏳ Slow Down!', `
+          <p style="margin-bottom: 12px; font-size: 14px;">Whoops, calm down bro!</p>
+          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">You've made too many requests.</p>
+          <p style="font-size: 16px; font-weight: bold; color: #f87171;">Please wait ${resetIn} seconds</p>
+          <p style="font-size: 11px; color: #a1a1aa; margin-top: 8px;">Rate limiting helps keep the service fast for everyone.</p>
+        `, { icon: 'warning', buttonColor: '#f59e0b' });
+        return;
+      }
 
       // Handle different error types
       if (errorMsg.includes('CHECKPOINT_REQUIRED')) {
@@ -234,21 +291,21 @@ export default function Home() {
           <div className="text-center py-2 sm:py-4">
             <AnimatedTitle />
             <p className="text-xs sm:text-sm text-[var(--text-muted)] mb-3">
-              Paste URL → Auto-detect → Download
+              {t('subtitle')}
             </p>
             {/* Feature badges */}
             <div className="flex flex-wrap justify-center gap-2 text-[10px] sm:text-xs">
               <span className="px-2 py-1 rounded-full bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] flex items-center gap-1">
-                <MagicIcon className="w-3 h-3 text-purple-400" /> No Watermark
+                <MagicIcon className="w-3 h-3 text-purple-400" /> {t('badges.noWatermark')}
               </span>
               <span className="px-2 py-1 rounded-full bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] flex items-center gap-1">
-                <BoltIcon className="w-3 h-3 text-yellow-400" /> Fast & Free
+                <BoltIcon className="w-3 h-3 text-yellow-400" /> {t('badges.fastFree')}
               </span>
               <span className="px-2 py-1 rounded-full bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] flex items-center gap-1">
-                <LayersIcon className="w-3 h-3 text-blue-400" /> Multiple Qualities
+                <LayersIcon className="w-3 h-3 text-blue-400" /> {t('badges.multiQuality')}
               </span>
               <span className="px-2 py-1 rounded-full bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-color)] flex items-center gap-1">
-                <LockIcon className="w-3 h-3 text-green-400" /> No Login Required
+                <LockIcon className="w-3 h-3 text-green-400" /> {t('badges.noLogin')}
               </span>
             </div>
           </div>

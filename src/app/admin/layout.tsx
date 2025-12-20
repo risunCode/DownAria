@@ -5,9 +5,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    LayoutDashboard, Key, Bot, Settings, LogOut, 
-    ChevronLeft, Menu, Shield, Server, Code, Cookie, Users,
-    ChevronDown, X, Megaphone
+    LayoutDashboard, Key, Settings, LogOut, 
+    ChevronLeft, Menu, Shield, Server, Users,
+    ChevronDown, X, MessageSquare, Code
 } from 'lucide-react';
 import { signOut, getSession, getUserProfile, supabase } from '@/lib/supabase';
 import { installAdminFetchGlobal } from '@/lib/utils/admin-fetch';
@@ -44,21 +44,19 @@ const AdminContext = createContext<AdminContextType>({
 export const useAdmin = () => useContext(AdminContext);
 
 // ═══════════════════════════════════════════════════════════════
-// NAVIGATION CONFIG
+// NAVIGATION CONFIG - Redesigned 6-item structure
 // ═══════════════════════════════════════════════════════════════
 
 const NAV_ITEMS = {
     user: [
-        { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { href: '/admin/apikey', label: 'API Keys', icon: Key },
+        { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+        { href: '/admin/access', label: 'Access', icon: Key },
         { href: '/admin/playground', label: 'Playground', icon: Code },
-        { href: '/admin/telegram', label: 'Telegram', icon: Bot },
     ],
     admin: [
         { href: '/admin/services', label: 'Services', icon: Server },
-        { href: '/admin/cookies', label: 'Cookies', icon: Cookie },
-        { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
         { href: '/admin/users', label: 'Users', icon: Users },
+        { href: '/admin/communications', label: 'Communications', icon: MessageSquare },
         { href: '/admin/settings', label: 'Settings', icon: Settings },
     ],
 };
@@ -281,7 +279,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </p>
                         )}
                         {NAV_ITEMS.user.map((item) => {
-                            const isActive = pathname === item.href;
+                            const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
                             return (
                                 <Link
                                     key={item.href}
@@ -308,7 +306,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </p>
                                 )}
                                 {NAV_ITEMS.admin.map((item) => {
-                                    const isActive = pathname === item.href;
+                                    const isActive = pathname.startsWith(item.href);
                                     return (
                                         <Link
                                             key={item.href}
@@ -367,7 +365,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 </div>
                                 <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                                     {navItems.map((item) => {
-                                        const isActive = pathname === item.href;
+                                        const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
                                         return (
                                             <Link
                                                 key={item.href}

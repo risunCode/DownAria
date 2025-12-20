@@ -2,9 +2,14 @@
  * Cookie Pool Manager
  * ====================
  * Multi-cookie rotation with health tracking & rate limiting
+ * Cookies are encrypted at rest using AES-256-GCM
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { encrypt, decrypt } from '@/lib/utils/security';
+
+// Encryption prefix to identify encrypted cookies
+const ENCRYPTED_PREFIX = 'enc:';
 
 // Lazy init supabase client
 let supabase: SupabaseClient | null = null;
@@ -61,6 +66,29 @@ export interface CookiePoolStats {
 let lastUsedCookieId: string | null = null;
 
 /**
+ * Encrypt cookie for storage
+ */
+function encryptCookie(cookie: string): string {
+    if (cookie.startsWith(ENCRYPTED_PREFIX)) return cookie; // Already encrypted
+    return ENCRYPTED_PREFIX + encrypt(cookie);
+}
+
+/**
+ * Decrypt cookie for use
+ */
+function decryptCookie(cookie: string): string {
+    if (!cookie.startsWith(ENCRYPTED_PREFIX)) return cookie; // Not encrypted (legacy)
+    return decrypt(cookie.slice(ENCRYPTED_PREFIX.length));
+}
+
+/**
+ * Check if cookie is encrypted
+ */
+function isEncrypted(cookie: string): boolean {
+    return cookie.startsWith(ENCRYPTED_PREFIX);
+}
+
+/**
  * Get best available cookie for platform (rotation)
  * Priority: healthy > least recently used > lowest use count
  */
@@ -111,7 +139,7 @@ export async function getRotatingCookie(platform: string): Promise<string | null
                 .eq('id', fallback.id);
             
             lastUsedCookieId = fallback.id;
-            return fallback.cookie;
+            return decryptCookie(fallback.cookie);
         }
 
         // Update usage stats
@@ -124,7 +152,7 @@ export async function getRotatingCookie(platform: string): Promise<string | null
             .eq('id', data.id);
 
         lastUsedCookieId = data.id;
-        return data.cookie;
+        return decryptCookie(data.cookie);
     } catch (e) {
         console.error('[CookiePool] getRotatingCookie error:', e);
         return null;
@@ -157,12 +185,23 @@ export async function markCookieSuccess(): Promise<void> {
 /**
  * Mark cookie as rate limited (put in cooldown)
  */
-export async function markCookieCooldown(minutes: number = 30, error?: string): Promise<void> {
+export async function markCookieCooldown(minutes?: number, error?: string): Promise<void> {
     if (!lastUsedCookieId) return;
     const db = getSupabase();
     if (!db) return;
     
-    const cooldownUntil = new Date(Date.now() + minutes * 60000).toISOString();
+    // Get cooldown minutes from system config if not provided
+    let cooldownMinutes = minutes;
+    if (cooldownMinutes === undefined) {
+        try {
+            const { getCookieCooldownMinutes } = await import('@/lib/services/helper/system-config');
+            cooldownMinutes = getCookieCooldownMinutes();
+        } catch {
+            cooldownMinutes = 30; // fallback
+        }
+    }
+    
+    const cooldownUntil = new Date(Date.now() + cooldownMinutes * 60000).toISOString();
     
     const { data } = await db
         .from('admin_cookie_pool')
@@ -200,6 +239,7 @@ export async function markCookieExpired(error?: string): Promise<void> {
 
 /**
  * Get all cookies for a platform
+ * Returns cookies with encrypted data masked for display
  */
 export async function getCookiesByPlatform(platform: string): Promise<PooledCookie[]> {
     const db = getSupabase();
@@ -211,7 +251,23 @@ export async function getCookiesByPlatform(platform: string): Promise<PooledCook
         .eq('platform', platform)
         .order('created_at', { ascending: false });
     
-    return data || [];
+    if (!data) return [];
+    
+    // Add preview for display (first 20 chars of decrypted cookie)
+    return data.map(cookie => ({
+        ...cookie,
+        cookiePreview: getCookiePreview(cookie.cookie),
+        isEncrypted: isEncrypted(cookie.cookie),
+    }));
+}
+
+/**
+ * Get cookie preview for display (masked)
+ */
+function getCookiePreview(cookie: string): string {
+    const decrypted = decryptCookie(cookie);
+    if (decrypted.length <= 30) return decrypted.slice(0, 10) + '...';
+    return decrypted.slice(0, 20) + '...[' + decrypted.length + ' chars]';
 }
 
 /**
@@ -229,7 +285,7 @@ export async function getCookiePoolStats(): Promise<CookiePoolStats[]> {
 }
 
 /**
- * Add new cookie to pool
+ * Add new cookie to pool (encrypted)
  */
 export async function addCookieToPool(
     platform: string,
@@ -239,14 +295,17 @@ export async function addCookieToPool(
     const db = getSupabase();
     if (!db) throw new Error('Database not configured');
 
-    // Extract user ID from cookie
+    // Extract user ID from cookie (before encryption)
     const userId = extractUserId(cookie, platform);
+    
+    // Encrypt cookie before storing
+    const encryptedCookie = encryptCookie(cookie);
     
     const { data, error } = await db
         .from('admin_cookie_pool')
         .insert({
             platform,
-            cookie,
+            cookie: encryptedCookie,
             user_id: userId,
             label: options?.label,
             note: options?.note,
@@ -269,7 +328,9 @@ export async function updatePooledCookie(
     const db = getSupabase();
     if (!db) throw new Error('Database not configured');
 
-    // If cookie is updated, re-extract user ID
+    const updateData: Record<string, unknown> = { ...updates };
+
+    // If cookie is updated, encrypt it and re-extract user ID
     if (updates.cookie) {
         const { data: existing } = await db
             .from('admin_cookie_pool')
@@ -278,13 +339,14 @@ export async function updatePooledCookie(
             .single();
         
         if (existing) {
-            (updates as Record<string, unknown>).user_id = extractUserId(updates.cookie, existing.platform);
+            updateData.user_id = extractUserId(updates.cookie, existing.platform);
+            updateData.cookie = encryptCookie(updates.cookie);
         }
     }
     
     const { data, error } = await db
         .from('admin_cookie_pool')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -323,13 +385,16 @@ export async function testCookieHealth(id: string): Promise<{ healthy: boolean; 
     
     if (!data) return { healthy: false, error: 'Cookie not found' };
     
+    // Decrypt cookie for testing
+    const decryptedCookie = decryptCookie(data.cookie);
+    
     // Platform-specific health check
     try {
         const testUrl = getTestUrl(data.platform);
         if (!testUrl) return { healthy: true }; // No test available
         
         const res = await fetch(testUrl, {
-            headers: { Cookie: data.cookie },
+            headers: { Cookie: decryptedCookie },
             redirect: 'follow'
         });
         
@@ -396,4 +461,53 @@ function getTestUrl(platform: string): string | null {
         weibo: 'https://weibo.com/ajax/profile/info'
     };
     return urls[platform] || null;
+}
+
+
+/**
+ * Get decrypted cookie value (for admin display)
+ */
+export function getDecryptedCookie(encryptedCookie: string): string {
+    return decryptCookie(encryptedCookie);
+}
+
+/**
+ * Migrate existing unencrypted cookies to encrypted format
+ * Run this once to encrypt all existing cookies
+ */
+export async function migrateUnencryptedCookies(): Promise<{ migrated: number; errors: number }> {
+    const db = getSupabase();
+    if (!db) return { migrated: 0, errors: 0 };
+
+    let migrated = 0;
+    let errors = 0;
+
+    try {
+        // Get all cookies
+        const { data: cookies } = await db
+            .from('admin_cookie_pool')
+            .select('id, cookie');
+        
+        if (!cookies) return { migrated: 0, errors: 0 };
+
+        for (const cookie of cookies) {
+            // Skip already encrypted cookies
+            if (cookie.cookie.startsWith(ENCRYPTED_PREFIX)) continue;
+
+            try {
+                const encrypted = encryptCookie(cookie.cookie);
+                await db
+                    .from('admin_cookie_pool')
+                    .update({ cookie: encrypted })
+                    .eq('id', cookie.id);
+                migrated++;
+            } catch {
+                errors++;
+            }
+        }
+
+        return { migrated, errors };
+    } catch {
+        return { migrated, errors };
+    }
 }

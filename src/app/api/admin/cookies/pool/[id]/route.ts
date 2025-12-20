@@ -1,13 +1,13 @@
 /**
  * Cookie Pool Item API
- * GET - Get single cookie (full)
+ * GET - Get single cookie (full, decrypted for admin view)
  * PATCH - Update cookie
  * DELETE - Delete cookie
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminSession } from '@/core/security';
-import { deleteCookieFromPool, testCookieHealth, updatePooledCookie } from '@/lib/cookies';
+import { deleteCookieFromPool, testCookieHealth, updatePooledCookie, getDecryptedCookie } from '@/lib/cookies';
 import { supabaseAdmin, supabase } from '@/core/database';
 
 export async function GET(
@@ -22,6 +22,7 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const test = searchParams.get('test');
+    const decrypt = searchParams.get('decrypt');
 
     const db = supabaseAdmin || supabase;
     if (!db) {
@@ -44,6 +45,11 @@ export async function GET(
 
         if (error || !data) {
             return NextResponse.json({ success: false, error: 'Cookie not found' }, { status: 404 });
+        }
+
+        // Decrypt cookie for admin view if requested
+        if (decrypt === 'true') {
+            data.cookie = getDecryptedCookie(data.cookie);
         }
 
         return NextResponse.json({ success: true, data });

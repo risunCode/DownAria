@@ -6,13 +6,14 @@
  * This module consolidates:
  * - lib/utils/discord-webhook.ts (Discord notifications)
  * - lib/utils/push-notifications.ts (Web push)
+ * - lib/integrations/admin-alerts.ts (Admin Discord alerts)
  * 
  * Usage:
  *   import { sendDiscordNotification, subscribeToPush } from '@/lib/integrations';
  */
 
 // ═══════════════════════════════════════════════════════════════
-// DISCORD
+// DISCORD (User-side)
 // ═══════════════════════════════════════════════════════════════
 
 export {
@@ -23,6 +24,22 @@ export {
     DISCORD_STORAGE_KEY,
     type UserDiscordSettings,
 } from '@/lib/utils/discord-webhook';
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN ALERTS (Discord)
+// ═══════════════════════════════════════════════════════════════
+
+export {
+    getAlertConfig,
+    updateAlertConfig,
+    trackError,
+    trackSuccess,
+    checkCookiePoolHealth,
+    sendTestAlert,
+    updateLastHealthCheck,
+    clearConfigCache,
+    type AlertConfig,
+} from '@/lib/integrations/admin-alerts';
 
 // ═══════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS

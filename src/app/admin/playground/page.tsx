@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Play, Copy, Check, Clock, AlertCircle, CheckCircle, 
     X, RefreshCw, Image, Film, Download, Code, Zap,
-    ExternalLink, ChevronDown
+    ExternalLink, ChevronDown, Plus, Trash2, Edit3
 } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGlobe, faLock, faKey, faUserEdit, faChartBar, faMusic } from '@fortawesome/free-solid-svg-icons';
-import { faFacebook, faInstagram, faYoutube, faWeibo, faTwitter } from '@fortawesome/free-brands-svg-icons';
+import { faGlobe, faLock, faKey, faUserEdit, faChartBar, faMusic, faCookie } from '@fortawesome/free-solid-svg-icons';
+import { faFacebook, faInstagram, faWeibo, faTwitter } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import Swal from 'sweetalert2';
 
 interface EndpointBase {
     id: string;
@@ -20,7 +21,13 @@ interface EndpointBase {
     path: string;
     method: 'GET' | 'POST';
     description: string;
-    samples: { name: string; url: string }[];
+}
+
+interface PlaygroundExample {
+    id: string;
+    platform: string;
+    name: string;
+    url: string;
 }
 
 interface PlatformStats {
@@ -30,60 +37,14 @@ interface PlatformStats {
 }
 
 const ENDPOINT_CONFIGS: EndpointBase[] = [
-    { 
-        id: 'facebook', name: 'Facebook', icon: faFacebook, iconColor: 'text-blue-500', path: '/api', method: 'POST',
-        description: 'Download videos, reels, stories & images',
-        samples: [
-            { name: 'Public Post (5 images)', url: 'https://www.facebook.com/share/p/1HBDxpAhPu/' },
-            { name: 'Reel HD+SD', url: 'https://www.facebook.com/share/r/1A1cbTcJjn/' },
-            { name: 'Group Post', url: 'https://web.facebook.com/share/p/17UTWNWYUb/' },
-        ]
-    },
-    { 
-        id: 'instagram', name: 'Instagram', icon: faInstagram, iconColor: 'text-pink-500', path: '/api', method: 'POST',
-        description: 'Reels, posts, stories via Embed API',
-        samples: [
-            { name: 'Reel Video', url: 'https://www.instagram.com/reel/DKxABC123/' },
-            { name: 'Carousel Post', url: 'https://www.instagram.com/p/DKxABC123/' },
-        ]
-    },
-    { 
-        id: 'twitter', name: 'Twitter/X', icon: faTwitter, iconColor: 'text-sky-400', path: '/api', method: 'POST',
-        description: 'Videos & images via Syndication API',
-        samples: [
-            { name: 'Video Tweet', url: 'https://x.com/elonmusk/status/1234567890' },
-        ]
-    },
-    { 
-        id: 'tiktok', name: 'TikTok', icon: faMusic, iconColor: 'text-pink-400', path: '/api', method: 'POST',
-        description: 'No watermark videos via TikWM',
-        samples: [
-            { name: 'TikTok Video', url: 'https://www.tiktok.com/@tiktok/video/7000000000000000000' },
-        ]
-    },
-    { 
-        id: 'youtube', name: 'YouTube', icon: faYoutube, iconColor: 'text-red-500', path: '/api', method: 'POST',
-        description: 'Videos & Shorts via Innertube (360p)',
-        samples: [
-            { name: 'YouTube Video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        ]
-    },
-    { 
-        id: 'weibo', name: 'Weibo', icon: faWeibo, iconColor: 'text-orange-500', path: '/api', method: 'POST',
-        description: 'Requires cookie (SUB)',
-        samples: [
-            { name: 'Weibo Post', url: 'https://weibo.com/1234567890/abc123' },
-        ]
-    },
+    { id: 'facebook', name: 'Facebook', icon: faFacebook, iconColor: 'text-blue-500', path: '/api', method: 'POST', description: 'Download videos, reels, stories & images' },
+    { id: 'instagram', name: 'Instagram', icon: faInstagram, iconColor: 'text-pink-500', path: '/api', method: 'POST', description: 'Reels, posts, stories via Embed API' },
+    { id: 'twitter', name: 'Twitter/X', icon: faTwitter, iconColor: 'text-sky-400', path: '/api', method: 'POST', description: 'Videos & images via Syndication API' },
+    { id: 'tiktok', name: 'TikTok', icon: faMusic, iconColor: 'text-pink-400', path: '/api', method: 'POST', description: 'No watermark videos via TikWM' },
+    { id: 'weibo', name: 'Weibo', icon: faWeibo, iconColor: 'text-orange-500', path: '/api', method: 'POST', description: 'Requires cookie (SUB)' },
 ];
 
-interface TestEndpoint {
-    name: string;
-    path: string;
-    icon: IconDefinition;
-    iconColor: string;
-}
-
+interface TestEndpoint { name: string; path: string; icon: IconDefinition; iconColor: string; }
 const TEST_ENDPOINTS: TestEndpoint[] = [
     { name: 'Service Status', path: '/api/status', icon: faChartBar, iconColor: 'text-green-400' },
 ];
@@ -102,15 +63,26 @@ export default function PlaygroundPage() {
     const [showSamples, setShowSamples] = useState(false);
     const [adminCookies, setAdminCookies] = useState<AdminCookieStatus>({});
     const [platformStats, setPlatformStats] = useState<Record<string, PlatformStats>>({});
+    
+    // DB-based examples
+    const [examples, setExamples] = useState<PlaygroundExample[]>([]);
+    const [showAddExample, setShowAddExample] = useState(false);
+    const [newExample, setNewExample] = useState({ name: '', url: '' });
 
-    // Fetch admin cookie status and platform stats on mount
+    const fetchExamples = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/playground-examples');
+            const json = await res.json();
+            if (json.success) setExamples(json.data || []);
+        } catch { /* ignore */ }
+    }, []);
+
     useEffect(() => {
         fetch('/api/admin/cookies/status')
             .then(res => res.json())
             .then(data => setAdminCookies(data))
             .catch(() => {});
         
-        // Fetch real stats from service config (admin API)
         fetch('/api/admin/services')
             .then(res => res.json())
             .then(data => {
@@ -129,7 +101,9 @@ export default function PlaygroundPage() {
                 }
             })
             .catch(() => {});
-    }, []);
+        
+        fetchExamples();
+    }, [fetchExamples]);
 
     const openModal = (ep: EndpointBase) => {
         setModalEndpoint(ep);
@@ -137,9 +111,11 @@ export default function PlaygroundPage() {
         setCookie('');
         setResult(null);
         setActiveTab('gallery');
+        setShowAddExample(false);
     };
     
     const hasAdminCookie = modalEndpoint ? adminCookies[modalEndpoint.id] : false;
+    const platformExamples = modalEndpoint ? examples.filter(e => e.platform === modalEndpoint.id) : [];
 
     const closeModal = () => { setModalEndpoint(null); setResult(null); };
 
@@ -164,12 +140,58 @@ export default function PlaygroundPage() {
     };
 
     const selectSample = (sampleUrl: string) => { setUrl(sampleUrl); setShowSamples(false); };
+    
     const copyJson = async () => {
         if (!result) return;
         await navigator.clipboard.writeText(JSON.stringify(result.data, null, 2));
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const handleAddExample = async () => {
+        if (!modalEndpoint || !newExample.name.trim() || !newExample.url.trim()) return;
+        try {
+            const res = await fetch('/api/admin/playground-examples', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform: modalEndpoint.id, name: newExample.name, url: newExample.url })
+            });
+            const json = await res.json();
+            if (json.success) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Example added', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+                setNewExample({ name: '', url: '' });
+                setShowAddExample(false);
+                fetchExamples();
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: json.error, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            }
+        } catch { /* ignore */ }
+    };
+
+    const handleDeleteExample = async (id: string) => {
+        const confirm = await Swal.fire({
+            title: 'Delete example?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+        });
+        if (!confirm.isConfirmed) return;
+        
+        try {
+            const res = await fetch('/api/admin/playground-examples', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            if ((await res.json()).success) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted', showConfirmButton: false, timer: 1500, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+                fetchExamples();
+            }
+        } catch { /* ignore */ }
+    };
+
     const isSuccess = result?.status && result.status >= 200 && result.status < 300;
 
     return (
@@ -192,9 +214,10 @@ export default function PlaygroundPage() {
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {ENDPOINT_CONFIGS.map((ep, i) => {
                             const stats = platformStats[ep.id];
-                            const isEnabled = stats?.enabled !== false; // default true if not loaded
+                            const isEnabled = stats?.enabled !== false;
                             const avgTime = stats?.avgResponseTime ? `${stats.avgResponseTime}ms` : '—';
                             const successRate = stats?.successRate !== undefined ? `${stats.successRate}%` : '—';
+                            const exampleCount = examples.filter(e => e.platform === ep.id).length;
                             return (
                                 <motion.div key={ep.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                                     className={`glass-card p-4 flex flex-col ${!isEnabled ? 'opacity-60' : ''}`}>
@@ -204,9 +227,7 @@ export default function PlaygroundPage() {
                                             <div className="flex items-center gap-2">
                                                 <h3 className="font-semibold">{ep.name}</h3>
                                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-400">POST</span>
-                                                {!isEnabled && (
-                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400">OFF</span>
-                                                )}
+                                                {!isEnabled && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400">OFF</span>}
                                             </div>
                                             <p className="text-xs text-[var(--text-muted)] mt-0.5">{ep.description}</p>
                                         </div>
@@ -216,6 +237,9 @@ export default function PlaygroundPage() {
                                         <span className="flex items-center gap-1">
                                             {isEnabled ? <CheckCircle className="w-3 h-3 text-green-400" /> : <AlertCircle className="w-3 h-3 text-red-400" />}
                                             {successRate}
+                                        </span>
+                                        <span className="flex items-center gap-1 text-purple-400">
+                                            <Edit3 className="w-3 h-3" />{exampleCount} examples
                                         </span>
                                     </div>
                                     <button onClick={() => openModal(ep)}
@@ -258,9 +282,7 @@ export default function PlaygroundPage() {
                         <Code className="w-4 h-4 text-[var(--accent-primary)]" />
                         API Documentation
                     </h2>
-                    
                     <div className="grid md:grid-cols-2 gap-4">
-                        {/* Endpoints */}
                         <div>
                             <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Public Endpoints</h3>
                             <div className="space-y-2 text-xs font-mono">
@@ -277,8 +299,6 @@ export default function PlaygroundPage() {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Rate Limits */}
                         <div>
                             <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Rate Limits</h3>
                             <div className="space-y-2 text-xs font-mono">
@@ -297,8 +317,6 @@ export default function PlaygroundPage() {
                             </div>
                         </div>
                     </div>
-
-                    {/* Example */}
                     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                         <h3 className="text-xs font-medium text-[var(--text-muted)] mb-2">Usage Example</h3>
                         <div className="p-3 rounded bg-[var(--bg-secondary)] font-mono text-xs overflow-x-auto">
@@ -306,7 +324,7 @@ export default function PlaygroundPage() {
                             <span className="text-[var(--text-muted)]">Body:</span> {'{'} <span className="text-blue-400">&quot;url&quot;</span>: <span className="text-green-400">&quot;https://instagram.com/p/xxx&quot;</span> {'}'}
                         </div>
                         <p className="text-[10px] text-[var(--text-muted)] mt-2">
-                            Platforms: facebook, instagram, twitter, tiktok, youtube, weibo • No API key required
+                            Platforms: facebook, instagram, twitter, tiktok, weibo • No API key required
                         </p>
                     </div>
                 </div>
@@ -349,12 +367,36 @@ export default function PlaygroundPage() {
                                         {showSamples && (
                                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                                                 <div className="p-2 bg-[var(--bg-secondary)] rounded-lg space-y-1">
-                                                    {modalEndpoint.samples.map((s, i) => (
-                                                        <button key={i} onClick={() => selectSample(s.url)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-primary)] text-sm">
-                                                            <p className="font-medium">{s.name}</p>
-                                                            <code className="text-[10px] text-[var(--text-muted)] truncate block">{s.url}</code>
-                                                        </button>
+                                                    {platformExamples.length === 0 ? (
+                                                        <p className="text-xs text-[var(--text-muted)] text-center py-2">No examples yet</p>
+                                                    ) : platformExamples.map((s) => (
+                                                        <div key={s.id} className="flex items-center gap-2">
+                                                            <button onClick={() => selectSample(s.url)} className="flex-1 text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-primary)] text-sm">
+                                                                <p className="font-medium">{s.name}</p>
+                                                                <code className="text-[10px] text-[var(--text-muted)] truncate block">{s.url}</code>
+                                                            </button>
+                                                            <button onClick={() => handleDeleteExample(s.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400">
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
                                                     ))}
+                                                    {/* Add Example */}
+                                                    {showAddExample ? (
+                                                        <div className="p-2 border-t border-[var(--border-color)] space-y-2">
+                                                            <input type="text" placeholder="Example name" value={newExample.name} onChange={(e) => setNewExample(p => ({ ...p, name: e.target.value }))}
+                                                                className="w-full px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-xs" />
+                                                            <input type="text" placeholder="URL" value={newExample.url} onChange={(e) => setNewExample(p => ({ ...p, url: e.target.value }))}
+                                                                className="w-full px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded text-xs font-mono" />
+                                                            <div className="flex gap-2">
+                                                                <button onClick={handleAddExample} className="flex-1 py-1.5 rounded bg-[var(--accent-primary)] text-white text-xs">Save</button>
+                                                                <button onClick={() => { setShowAddExample(false); setNewExample({ name: '', url: '' }); }} className="px-3 py-1.5 rounded bg-[var(--bg-primary)] text-xs">Cancel</button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <button onClick={() => setShowAddExample(true)} className="w-full flex items-center justify-center gap-1 py-2 text-xs text-[var(--accent-primary)] hover:bg-[var(--bg-primary)] rounded-lg">
+                                                            <Plus className="w-3.5 h-3.5" /> Add Example
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </motion.div>
                                         )}
@@ -365,14 +407,12 @@ export default function PlaygroundPage() {
                                         <label className="text-sm font-medium text-[var(--text-muted)]">Cookie (optional)</label>
                                         {hasAdminCookie && !cookie.trim() && (
                                             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[10px] font-semibold">
-                                                <FontAwesomeIcon icon={faKey} className="w-2.5 h-2.5" />
-                                                Admin cookie ready
+                                                <FontAwesomeIcon icon={faKey} className="w-2.5 h-2.5" />Admin cookie ready
                                             </span>
                                         )}
                                         {cookie.trim() && (
                                             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-semibold">
-                                                <FontAwesomeIcon icon={faUserEdit} className="w-2.5 h-2.5" />
-                                                Using your cookie
+                                                <FontAwesomeIcon icon={faUserEdit} className="w-2.5 h-2.5" />Using your cookie
                                             </span>
                                         )}
                                     </div>
@@ -396,17 +436,14 @@ export default function PlaygroundPage() {
                                                 <span className="text-sm text-[var(--text-muted)] flex items-center gap-1"><Clock className="w-3 h-3" />{result.timing}ms</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {/* Public/Private Badge */}
                                                 {isSuccess && (
                                                     (result.data as MediaData)?.data?.usedCookie ? (
                                                         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold">
-                                                            <FontAwesomeIcon icon={faLock} className="w-3 h-3" />
-                                                            Private
+                                                            <FontAwesomeIcon icon={faCookie} className="w-3 h-3" />Cookie
                                                         </span>
                                                     ) : (
                                                         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold">
-                                                            <FontAwesomeIcon icon={faGlobe} className="w-3 h-3" />
-                                                            Public
+                                                            <FontAwesomeIcon icon={faGlobe} className="w-3 h-3" />Guest
                                                         </span>
                                                     )
                                                 )}
@@ -435,6 +472,7 @@ export default function PlaygroundPage() {
     );
 }
 
+
 interface MediaFormat { url: string; quality?: string; type?: string; thumbnail?: string; }
 interface MediaData { success?: boolean; error?: string; data?: { title?: string; author?: string; thumbnail?: string; formats?: MediaFormat[]; usedCookie?: boolean; }; }
 
@@ -447,38 +485,22 @@ function MediaGallery({ data }: { data: unknown }) {
     if (!d?.success || !d?.data) return <div className="p-4 rounded-xl bg-[var(--bg-secondary)] text-center text-[var(--text-muted)] text-sm">No media found</div>;
     
     const { title, author, thumbnail, formats = [] } = d.data;
-    
-    // Dedupe by URL
     const seen = new Set<string>();
-    const uniqueFormats = formats.filter(f => {
-        if (seen.has(f.url)) return false;
-        seen.add(f.url);
-        return true;
-    });
-    
+    const uniqueFormats = formats.filter(f => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
     const videos = uniqueFormats.filter(f => f.type === 'video');
     const images = uniqueFormats.filter(f => f.type === 'image');
     const allMedia = [...videos, ...images];
     const hasMultiple = allMedia.length > 1;
     const currentMedia = allMedia[currentIndex];
-    
     const goNext = () => setCurrentIndex((i) => (i + 1) % allMedia.length);
     const goPrev = () => setCurrentIndex((i) => (i - 1 + allMedia.length) % allMedia.length);
     
     return (
         <div className="space-y-3">
-            {/* Compact Header - Click thumbnail to expand */}
             <div className="flex gap-3 items-center">
-                <button 
-                    onClick={() => allMedia.length > 0 && setExpanded(true)}
-                    className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--bg-secondary)] flex-shrink-0 group cursor-pointer"
-                >
+                <button onClick={() => allMedia.length > 0 && setExpanded(true)} className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--bg-secondary)] flex-shrink-0 group cursor-pointer">
                     {thumbnail && <img src={thumbnail} alt="" className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} />}
-                    {hasMultiple && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">+{allMedia.length}</span>
-                        </div>
-                    )}
+                    {hasMultiple && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white text-xs font-bold">+{allMedia.length}</span></div>}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                         <ExternalLink className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -492,80 +514,43 @@ function MediaGallery({ data }: { data: unknown }) {
                     </div>
                 </div>
             </div>
-
-            {/* Download Buttons */}
             <div className="flex flex-wrap gap-2">
                 {uniqueFormats.map((f, i) => (
-                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 text-white text-xs font-medium">
-                        <Download className="w-3 h-3" />
-                        {f.quality || (f.type === 'video' ? 'Video' : 'Image')}
+                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 text-white text-xs font-medium">
+                        <Download className="w-3 h-3" />{f.quality || (f.type === 'video' ? 'Video' : 'Image')}
                     </a>
                 ))}
             </div>
-
-            {/* Expanded Gallery Modal */}
             <AnimatePresence>
                 {expanded && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center"
-                        onClick={() => setExpanded(false)}
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-                            className="relative max-w-4xl max-h-[90vh] w-full mx-4"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* Close Button */}
-                            <button onClick={() => setExpanded(false)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white">
-                                <X className="w-6 h-6" />
-                            </button>
-                            
-                            {/* Main Preview */}
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center" onClick={() => setExpanded(false)}>
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="relative max-w-4xl max-h-[90vh] w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => setExpanded(false)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
                             <div className="relative aspect-video rounded-xl overflow-hidden bg-black">
                                 {currentMedia?.type === 'video' ? (
                                     <video key={currentMedia.url} src={currentMedia.url} poster={currentMedia.thumbnail || thumbnail} controls autoPlay className="w-full h-full object-contain" />
                                 ) : (
                                     <img key={currentMedia?.url} src={currentMedia?.url} alt="" className="w-full h-full object-contain" />
                                 )}
-                                
-                                {/* Nav Arrows */}
                                 {hasMultiple && (
                                     <>
-                                        <button onClick={goPrev} className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center">
-                                            <ChevronDown className="w-6 h-6 rotate-90" />
-                                        </button>
-                                        <button onClick={goNext} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center">
-                                            <ChevronDown className="w-6 h-6 -rotate-90" />
-                                        </button>
+                                        <button onClick={goPrev} className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center"><ChevronDown className="w-6 h-6 rotate-90" /></button>
+                                        <button onClick={goNext} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center"><ChevronDown className="w-6 h-6 -rotate-90" /></button>
                                     </>
                                 )}
-                                
-                                {/* Counter */}
-                                {hasMultiple && (
-                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm">
-                                        {currentIndex + 1} / {allMedia.length}
-                                    </div>
-                                )}
+                                {hasMultiple && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm">{currentIndex + 1} / {allMedia.length}</div>}
                             </div>
-                            
-                            {/* Thumbnail Strip */}
                             {hasMultiple && (
                                 <div className="flex gap-2 mt-3 justify-center overflow-x-auto">
                                     {allMedia.map((m, i) => (
-                                        <button key={i} onClick={() => setCurrentIndex(i)}
-                                            className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden ${i === currentIndex ? 'ring-2 ring-white' : 'opacity-50 hover:opacity-100'}`}>
+                                        <button key={i} onClick={() => setCurrentIndex(i)} className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden ${i === currentIndex ? 'ring-2 ring-white' : 'opacity-50 hover:opacity-100'}`}>
                                             <img src={m.thumbnail || m.url} alt="" className="w-full h-full object-cover" />
                                             {m.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Play className="w-3 h-3 text-white" /></div>}
                                         </button>
                                     ))}
                                 </div>
                             )}
-                            
-                            {/* Download Current */}
-                            <a href={currentMedia?.url} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 mt-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white font-medium">
+                            <a href={currentMedia?.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 mt-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white font-medium">
                                 <Download className="w-4 h-4" />Download {currentMedia?.quality || 'Media'}
                             </a>
                         </motion.div>

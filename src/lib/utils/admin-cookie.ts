@@ -37,6 +37,15 @@ function getSupabase(): SupabaseClient | null {
 // Cache config
 const CACHE_TTL = 300; // 5 minutes in seconds
 const memCache = new Map<string, { cookie: string | null; expires: number }>();
+const MAX_CACHE_SIZE = 50;
+
+// Cleanup expired entries
+function cleanupMemCache() {
+    const now = Date.now();
+    for (const [key, entry] of memCache.entries()) {
+        if (entry.expires < now) memCache.delete(key);
+    }
+}
 
 async function getCached(key: string): Promise<string | null | undefined> {
     if (redis) {
@@ -44,12 +53,19 @@ async function getCached(key: string): Promise<string | null | undefined> {
     }
     const entry = memCache.get(key);
     if (entry && entry.expires > Date.now()) return entry.cookie;
+    if (entry) memCache.delete(key); // Remove expired
     return undefined;
 }
 
 async function setCached(key: string, value: string | null): Promise<void> {
     if (redis) {
         try { await redis.set(key, value ?? '', { ex: CACHE_TTL }); return; } catch { /* fallback */ }
+    }
+    // Cleanup if at capacity
+    if (memCache.size >= MAX_CACHE_SIZE) cleanupMemCache();
+    if (memCache.size >= MAX_CACHE_SIZE) {
+        const oldest = memCache.keys().next().value;
+        if (oldest) memCache.delete(oldest);
     }
     memCache.set(key, { cookie: value, expires: Date.now() + CACHE_TTL * 1000 });
 }

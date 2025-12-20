@@ -23,6 +23,7 @@ import {
     faXTwitter,
     faTiktok,
     faWeibo,
+    faYoutube,
 } from '@fortawesome/free-brands-svg-icons';
 
 // Platform icons
@@ -44,6 +45,10 @@ export const TiktokIcon = ({ className }: { className?: string }) => (
 
 export const WeiboIcon = ({ className }: { className?: string }) => (
     <FontAwesomeIcon icon={faWeibo} className={className} />
+);
+
+export const YoutubeIcon = ({ className }: { className?: string }) => (
+    <FontAwesomeIcon icon={faYoutube} className={className} />
 );
 
 // Media type icons

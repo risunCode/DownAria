@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit, getClientIP } from '@/core/security';
 
 const DEFAULT_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 
+// Rate limit: 10 requests per minute (prevent webhook spam)
+const WEBHOOK_RATE_LIMIT = { maxRequests: 10, windowMs: 60 * 1000 };
+
 export async function POST(request: NextRequest) {
+    const clientIP = getClientIP(request);
+    
+    // Rate limiting
+    const rl = await rateLimit(clientIP, 'discord_webhook', WEBHOOK_RATE_LIMIT);
+    if (!rl.allowed) {
+        const resetIn = Math.ceil(rl.resetIn / 1000);
+        return NextResponse.json({ 
+            success: false, 
+            error: `Rate limit exceeded. Try again in ${resetIn}s.`,
+            resetIn 
+        }, { status: 429 });
+    }
+    
     try {
         const { message, embed, webhookUrl } = await request.json();
 

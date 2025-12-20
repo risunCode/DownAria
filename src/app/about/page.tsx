@@ -22,6 +22,7 @@ import {
 import { SidebarLayout } from '@/components/Sidebar';
 import Announcements from '@/components/Announcements';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
     FacebookIcon,
     InstagramIcon,
@@ -50,10 +51,10 @@ function ChangelogSection() {
             </h3>
 
             <div className="space-y-4">
-                {/* Latest Version - v1.0.3 */}
+                {/* Latest Version - v1.0.4 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.3</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.4</span>
                         <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
@@ -64,24 +65,22 @@ function ChangelogSection() {
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Settings page redesign - Tab-based navigation (Basic, Cookies, Storage, Integrations)</li>
-                            <li>• Moved Discord Webhook from Advanced to Settings → Integrations</li>
-                            <li>• Discord Webhook now supports tagging (@everyone, @here, or User ID)</li>
-                            <li>• Redis result caching for faster repeated downloads</li>
-                            <li>• SEO metadata for all pages (better Google search visibility)</li>
-                            <li>• Skip Cache toggle in Storage settings</li>
+                            <li>• <strong>Multi-language</strong> - English + Bahasa Indonesia support</li>
+                            <li>• Language selector in Settings → Basic</li>
+                            <li>• <strong>Full Backup</strong> - Export/Import history + settings as ZIP</li>
+                            <li>• <strong>Faster Downloads</strong> - Improved caching system</li>
                         </ul>
                     </div>
 
-                    {/* What's Fixed */}
+                    {/* What's Improved */}
                     <div className="mb-3">
                         <h4 className="text-xs font-semibold text-blue-400 mb-1.5 flex items-center gap-1">
-                            <span>🔧</span> What&apos;s Fixed
+                            <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Fixed Facebook 403 errors with improved proxy headers</li>
-                            <li>• Fixed cache key case sensitivity for share URLs</li>
-                            <li>• Improved Instagram regex pattern matching</li>
+                            <li>• Better error messages with localization</li>
+                            <li>• Friendlier UI text and labels</li>
+                            <li>• Performance optimizations</li>
                         </ul>
                     </div>
                 </div>
@@ -95,7 +94,6 @@ function ChangelogSection() {
                     </h4>
                     <ul className="text-xs text-[var(--text-muted)] space-y-1.5 ml-4">
                         <li>• <strong>Facebook carousels 6+ images</strong> - Only first 5 images extracted (Facebook lazy-loads)</li>
-                        <li>• <strong>YouTube</strong> - Temporarily removed (looking for free API)</li>
                     </ul>
 
                     {/* Solutions */}
@@ -129,6 +127,34 @@ function ChangelogSection() {
                             transition={{ duration: 0.2 }}
                             className="space-y-4 overflow-hidden"
                         >
+                            {/* Version 1.0.3 */}
+                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.3</span>
+                                    <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
+                                </div>
+                                <div className="mb-2">
+                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
+                                        <span>✨</span> What&apos;s New
+                                    </h4>
+                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
+                                        <li>• Settings page redesign - Tab-based navigation</li>
+                                        <li>• Discord Webhook with tagging support</li>
+                                        <li>• Redis result caching</li>
+                                        <li>• SEO metadata for all pages</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
+                                        <span>🔧</span> What&apos;s Fixed
+                                    </h4>
+                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
+                                        <li>• Fixed Facebook 403 errors</li>
+                                        <li>• Fixed cache key case sensitivity</li>
+                                    </ul>
+                                </div>
+                            </div>
+
                             {/* Version 1.0.2 */}
                             <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
                                 <div className="flex items-center gap-2 mb-2">
@@ -197,7 +223,7 @@ function ChangelogSection() {
                                         <span>✨</span> Features
                                     </h4>
                                     <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Multi-platform downloader (Facebook, Instagram, Twitter, TikTok, YouTube, Weibo)</li>
+                                        <li>• Multi-platform downloader (Facebook, Instagram, Twitter, TikTok, Weibo)</li>
                                         <li>• Auto-detect platform from URL</li>
                                         <li>• Multi-quality options (HD, SD)</li>
                                         <li>• Download history & batch queue</li>
@@ -218,6 +244,8 @@ function ChangelogSection() {
 }
 
 export default function AboutPage() {
+    const t = useTranslations('about');
+    
     const platforms = [
         { name: 'Facebook', icon: FacebookIcon, color: '#1877F2', status: 'active' },
         { name: 'Instagram', icon: InstagramIcon, color: '#E4405F', status: 'active' },
@@ -234,9 +262,9 @@ export default function AboutPage() {
                     {/* Hero */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
                         <h1 className="text-3xl font-bold mb-2">
-                            About <span className="gradient-text">XTFetch</span>
+                            {t('title')} <span className="gradient-text">XTFetch</span>
                         </h1>
-                        <p className="text-sm text-[var(--text-muted)]">Social media downloader tanpa batas, tanpa ribet.</p>
+                        <p className="text-sm text-[var(--text-muted)]">{t('subtitle')}</p>
                     </motion.div>
 
                     {/* Main Grid - Story + Pain Points */}
@@ -250,21 +278,13 @@ export default function AboutPage() {
                         >
                             <div className="flex items-center gap-2 mb-3">
                                 <Heart className="w-5 h-5 text-red-500" />
-                                <h2 className="font-bold text-[var(--text-primary)]">The Story</h2>
+                                <h2 className="font-bold text-[var(--text-primary)]">{t('story.title')}</h2>
                             </div>
                             <div className="space-y-3 text-sm text-[var(--text-secondary)]">
-                                <p>
-                                    Dulu, aku sering banget pake <strong>bot Telegram</strong> buat download video dari sosmed.
-                                    Praktis sih, tinggal kirim link, tunggu bentar, selesai.
-                                </p>
-                                <p>Tapi lama-lama mulai kesel... 😤</p>
-                                <p>
-                                    Akhirnya kepikiran: <em>&quot;Kenapa gak bikin sendiri aja?&quot;</em>
-                                </p>
-                                <p className="text-[var(--accent-primary)] font-medium">
-                                    Dan lahirlah <strong>XTFetch</strong> — downloader yang sama fungsinya,
-                                    tapi <strong>tanpa limit</strong>, <strong>tanpa antri</strong>, dan <strong>100% gratis</strong>. 🚀
-                                </p>
+                                <p>{t('story.p1')}</p>
+                                <p>{t('story.p2')}</p>
+                                <p><em>{t('story.p3')}</em></p>
+                                <p className="text-[var(--accent-primary)] font-medium">{t('story.p4')}</p>
                             </div>
                         </motion.div>
 
@@ -275,13 +295,13 @@ export default function AboutPage() {
                             transition={{ delay: 0.15 }}
                             className="glass-card p-5"
                         >
-                            <h3 className="text-sm font-semibold text-[var(--text-muted)] mb-3">Why I built this</h3>
+                            <h3 className="text-sm font-semibold text-[var(--text-muted)] mb-3">{t('painPoints.title')}</h3>
                             <div className="space-y-2">
                                 {[
-                                    { icon: Ban, text: '"Daily limit reached"' },
-                                    { icon: Clock, text: '"Please wait in queue"' },
-                                    { icon: MessageCircle, text: '"Bot is busy"' },
-                                    { icon: Users, text: '"Subscribe premium"' },
+                                    { icon: Ban, text: t('painPoints.limit') },
+                                    { icon: Clock, text: t('painPoints.queue') },
+                                    { icon: MessageCircle, text: t('painPoints.busy') },
+                                    { icon: Users, text: t('painPoints.premium') },
                                 ].map((item, i) => (
                                     <div key={i} className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
                                         <item.icon className="w-4 h-4 text-red-400" />
@@ -303,14 +323,14 @@ export default function AboutPage() {
                         >
                             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                                 <Zap className="w-4 h-4 text-yellow-500" />
-                                Features
+                                {t('features.title')}
                             </h3>
                             <ul className="space-y-1.5 text-xs text-[var(--text-muted)]">
-                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> No daily limits</li>
-                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> No watermark</li>
-                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> Auto-detect platform</li>
-                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> Multiple quality</li>
-                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> No login required</li>
+                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> {t('features.noLimits')}</li>
+                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> {t('features.noWatermark')}</li>
+                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> {t('features.autoDetect')}</li>
+                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> {t('features.multiQuality')}</li>
+                                <li className="flex items-center gap-1.5"><span className="text-green-400">✓</span> {t('features.noLogin')}</li>
                             </ul>
                         </motion.div>
 
@@ -323,7 +343,7 @@ export default function AboutPage() {
                         >
                             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                                 <Globe className="w-4 h-4 text-blue-500" />
-                                Platforms
+                                {t('platforms.title')}
                             </h3>
                             <div className="space-y-1.5">
                                 {platforms.map((p, i) => (
@@ -344,13 +364,13 @@ export default function AboutPage() {
                         >
                             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                                 <Shield className="w-4 h-4 text-blue-500" />
-                                Privacy
+                                {t('privacy.title')}
                             </h3>
                             <ul className="text-xs text-[var(--text-muted)] space-y-1.5">
-                                <li>• Data stored locally only</li>
-                                <li>• No tracking, no ads</li>
-                                <li>• URLs never logged</li>
-                                <li>• Open source</li>
+                                <li>• {t('privacy.local')}</li>
+                                <li>• {t('privacy.noTracking')}</li>
+                                <li>• {t('privacy.noLogs')}</li>
+                                <li>• {t('privacy.openSource')}</li>
                             </ul>
                         </motion.div>
 
@@ -363,7 +383,7 @@ export default function AboutPage() {
                         >
                             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                                 <Code className="w-4 h-4 text-purple-500" />
-                                Tech Stack
+                                {t('tech.title')}
                             </h3>
                             <ul className="text-xs text-[var(--text-muted)] space-y-1.5">
                                 <li>• Next.js 16 + React 19</li>
@@ -490,7 +510,7 @@ export default function AboutPage() {
                                 className="w-full inline-flex items-center justify-center gap-2 btn-gradient text-white font-semibold py-2.5 px-4 rounded-xl text-sm"
                             >
                                 <Download className="w-4 h-4" />
-                                Start Downloading
+                                {t('startDownloading')}
                             </Link>
 
                             <a

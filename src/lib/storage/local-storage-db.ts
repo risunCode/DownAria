@@ -15,8 +15,8 @@ import { Platform, MediaFormat } from '@/lib/types';
 // CONSTANTS & TYPES
 // ═══════════════════════════════════════════════════════════════
 
-const HISTORY_KEY = 'xt_history_v2';
-const CACHE_KEY = 'xt_cache_v2';
+const HISTORY_KEY = 'xtf_history';
+const CACHE_KEY = 'xtf_cache';
 
 const MAX_HISTORY_ITEMS = 50;
 const MAX_CACHE_ITEMS = 20;

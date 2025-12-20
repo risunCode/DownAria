@@ -98,10 +98,11 @@ export async function handleDownload(request: NextRequest, params: DownloadParam
             case 'facebook':
             case 'instagram': {
                 const scraper = platform === 'instagram' ? scrapeInstagram : scrapeFacebook;
-                result = await scraper(resolvedUrl, { skipCache });
-                if (!result.success && cookie) {
-                    result = await scraper(resolvedUrl, { cookie, skipCache });
-                    if (result.success) usedCookie = true;
+                // Pass cookie to scraper - it has internal retry logic (guest first, then cookie)
+                result = await scraper(resolvedUrl, cookie ? { cookie, skipCache } : { skipCache });
+                // Check if scraper actually used cookie (from result.data.usedCookie)
+                if (result.success && (result as { data?: { usedCookie?: boolean } }).data?.usedCookie) {
+                    usedCookie = true;
                 }
                 break;
             }

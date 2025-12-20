@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Platform, PLATFORMS, validateUrl, detectPlatform, sanitizeUrl } from '@/lib/types';
 import { LightbulbIcon, PlatformIcon } from '@/components/ui/Icons';
+import { useTranslations } from 'next-intl';
 
 interface DownloadFormProps {
     platform: Platform;
@@ -16,24 +17,17 @@ interface DownloadFormProps {
     initialUrl?: string;
 }
 
-// Progress steps for loading animation
-const PROGRESS_STEPS = [
-    { progress: 15, text: 'Connecting...' },
-    { progress: 35, text: 'Fetching page...' },
-    { progress: 55, text: 'Extracting media...' },
-    { progress: 75, text: 'Validating URLs...' },
-    { progress: 90, text: 'Almost done...' },
+// Progress steps for loading animation - keys for translation
+const PROGRESS_STEP_KEYS = [
+    { progress: 15, key: 'connecting' },
+    { progress: 35, key: 'fetching' },
+    { progress: 55, key: 'extracting' },
+    { progress: 75, key: 'validating' },
+    { progress: 90, key: 'almostDone' },
 ];
 
-// Rotating tips/hints
-const TIPS = [
-    'Paste any video URL to start',
-    'Supports TikTok, Instagram, Facebook & more',
-    'Auto-detects platform from URL',
-    'Download in multiple qualities',
-    'No watermark on most platforms',
-    'Works with Reels, Stories & Posts',
-];
+// Rotating tips/hints - keys for translation
+const TIP_KEYS = ['tip1', 'tip2', 'tip3', 'tip4', 'tip5', 'tip6'];
 
 export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, initialUrl }: DownloadFormProps) {
     const [url, setUrl] = useState(initialUrl || '');
@@ -42,9 +36,15 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
     const [tipIndex, setTipIndex] = useState(0);
     const [progress, setProgress] = useState(0);
     const [progressText, setProgressText] = useState('');
+    const [elapsedMs, setElapsedMs] = useState(0);
     const lastSubmittedUrl = useRef<string>('');
     const progressInterval = useRef<NodeJS.Timeout | null>(null);
+    const elapsedInterval = useRef<NodeJS.Timeout | null>(null);
+    const startTimeRef = useRef<number>(0);
     const inputRef = useRef<HTMLInputElement>(null);
+    
+    const t = useTranslations('download');
+    const tErrors = useTranslations('errors');
 
     const currentPlatform = PLATFORMS.find(p => p.id === platform);
 
@@ -59,28 +59,41 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
     useEffect(() => {
         if (isLoading) {
             setProgress(0);
-            setProgressText('Starting...');
+            setElapsedMs(0);
+            startTimeRef.current = Date.now();
+            setProgressText(t('progress.starting'));
             let stepIndex = 0;
             
+            // Progress steps
             progressInterval.current = setInterval(() => {
-                if (stepIndex < PROGRESS_STEPS.length) {
-                    setProgress(PROGRESS_STEPS[stepIndex].progress);
-                    setProgressText(PROGRESS_STEPS[stepIndex].text);
+                if (stepIndex < PROGRESS_STEP_KEYS.length) {
+                    setProgress(PROGRESS_STEP_KEYS[stepIndex].progress);
+                    setProgressText(t(`progress.${PROGRESS_STEP_KEYS[stepIndex].key}`));
                     stepIndex++;
                 }
             }, 800);
+            
+            // Real-time elapsed counter (every 50ms for smooth updates)
+            elapsedInterval.current = setInterval(() => {
+                setElapsedMs(Date.now() - startTimeRef.current);
+            }, 50);
         } else {
             if (progressInterval.current) {
                 clearInterval(progressInterval.current);
                 progressInterval.current = null;
             }
+            if (elapsedInterval.current) {
+                clearInterval(elapsedInterval.current);
+                elapsedInterval.current = null;
+            }
             // Quick finish animation
             if (progress > 0) {
                 setProgress(100);
-                setProgressText('Done!');
+                setProgressText(t('progress.done'));
                 setTimeout(() => {
                     setProgress(0);
                     setProgressText('');
+                    setElapsedMs(0);
                 }, 500);
             }
         }
@@ -89,13 +102,16 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             if (progressInterval.current) {
                 clearInterval(progressInterval.current);
             }
+            if (elapsedInterval.current) {
+                clearInterval(elapsedInterval.current);
+            }
         };
-    }, [isLoading]);
+    }, [isLoading, t]);
 
     // Rotate tips every 3 seconds
     useEffect(() => {
         const interval = setInterval(() => {
-            setTipIndex(prev => (prev + 1) % TIPS.length);
+            setTipIndex(prev => (prev + 1) % TIP_KEYS.length);
         }, 3000);
         return () => clearInterval(interval);
     }, []);
@@ -118,14 +134,15 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!url.trim()) { setError('Enter a URL'); return; }
+        if (!url.trim()) { setError(tErrors('enterUrl')); return; }
         
         const detected = detectPlatform(url);
         if (detected && detected !== platform) onPlatformChange(detected);
         
         const target = detected || platform;
         if (!validateUrl(url, target)) {
-            setError(`Invalid ${PLATFORMS.find(p => p.id === target)?.name} URL`);
+            const platformName = PLATFORMS.find(p => p.id === target)?.name || target;
+            setError(tErrors('invalidPlatformUrl', { platform: platformName }));
             return;
         }
         onSubmit(url);
@@ -179,7 +196,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     return;
                 }
                 if (text && !cleanUrl) {
-                    setError('No valid URL in clipboard');
+                    setError(tErrors('noValidUrl'));
                     return;
                 }
             } catch {
@@ -202,7 +219,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             }
             
             // Show helpful message
-            setError('Tap here and press Ctrl+V (or long-press → Paste)');
+            setError(tErrors('pasteHint'));
         }
     };
 
@@ -245,7 +262,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                 <div className="flex items-center justify-center text-sm h-6">
                     {url ? (
                         <div className="flex items-center gap-2">
-                            <span className="text-[var(--text-muted)]">Downloading from</span>
+                            <span className="text-[var(--text-muted)]">{t('downloadingFrom')}</span>
                             <span 
                                 className="font-semibold px-2 py-0.5 rounded-md"
                                 style={{ 
@@ -258,7 +275,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                         </div>
                     ) : (
                         <span className="text-[var(--text-muted)] text-xs flex items-center gap-1">
-                            <LightbulbIcon className="w-3 h-3 text-yellow-500" /> {TIPS[tipIndex]}
+                            <LightbulbIcon className="w-3 h-3 text-yellow-500" /> {t(`tips.${TIP_KEYS[tipIndex]}`)}
                         </span>
                     )}
                 </div>
@@ -269,7 +286,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                         <Input
                             ref={inputRef}
                             type="url"
-                            placeholder="Paste video URL..."
+                            placeholder={t('pasteUrl')}
                             value={url}
                             onChange={(e) => handleUrlChange(e.target.value)}
                             onPaste={(e) => {
@@ -292,7 +309,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                             className="flex-1 sm:flex-none"
                         >
                             {justPasted ? <Check className="w-4 h-4 text-green-500" /> : <Clipboard className="w-4 h-4" />}
-                            <span className="ml-1.5 sm:inline">{justPasted ? 'Done' : 'Paste'}</span>
+                            <span className="ml-1.5 sm:inline">{justPasted ? t('pasted') : t('paste')}</span>
                         </Button>
                         <Button
                             type="submit"
@@ -300,7 +317,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                             className="flex-1 sm:flex-none"
                         >
                             <Download className="w-4 h-4" />
-                            <span className="ml-1.5">{isLoading ? '...' : 'Go'}</span>
+                            <span className="ml-1.5">{isLoading ? '...' : t('go')}</span>
                         </Button>
                     </div>
                 </div>
@@ -315,7 +332,12 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     >
                         <div className="flex justify-between text-xs text-[var(--text-muted)]">
                             <span>{progressText}</span>
-                            <span>{progress}%</span>
+                            <span className="font-mono tabular-nums">
+                                {elapsedMs >= 1000 
+                                    ? `${(elapsedMs / 1000).toFixed(1)}s` 
+                                    : `${elapsedMs}ms`
+                                }
+                            </span>
                         </div>
                         <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                             <motion.div
