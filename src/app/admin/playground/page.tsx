@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Play, Copy, Check, Clock, AlertCircle, CheckCircle, 
-    X, RefreshCw, Image, Film, Download, Code, Zap,
-    ExternalLink, ChevronDown, Plus, Trash2, Edit3
+    X, RefreshCw, Image, Film, Code, Zap,
+    ExternalLink, ChevronDown, Plus, Trash2, Edit3, Eye
 } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGlobe, faLock, faKey, faUserEdit, faChartBar, faMusic, faCookie } from '@fortawesome/free-solid-svg-icons';
+import { faGlobe, faKey, faUserEdit, faChartBar, faMusic, faCookie } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faWeibo, faTwitter } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import Swal from 'sweetalert2';
+import { MediaGallery } from '@/components/media';
+import type { MediaData, Platform } from '@/lib/types';
 
 interface EndpointBase {
     id: string;
@@ -51,6 +53,8 @@ const TEST_ENDPOINTS: TestEndpoint[] = [
 
 interface ApiResult { status: number; data: unknown; timing: number; }
 interface AdminCookieStatus { [platform: string]: boolean; }
+interface MediaFormat { url: string; quality?: string; type?: string; thumbnail?: string; }
+interface LocalMediaData { success?: boolean; error?: string; data?: { title?: string; author?: string; thumbnail?: string; formats?: MediaFormat[]; usedCookie?: boolean; responseTime?: number; }; }
 
 export default function PlaygroundPage() {
     const [modalEndpoint, setModalEndpoint] = useState<EndpointBase | null>(null);
@@ -61,6 +65,7 @@ export default function PlaygroundPage() {
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState<'gallery' | 'json'>('gallery');
     const [showSamples, setShowSamples] = useState(false);
+    const [showGallery, setShowGallery] = useState(false);
     const [adminCookies, setAdminCookies] = useState<AdminCookieStatus>({});
     const [platformStats, setPlatformStats] = useState<Record<string, PlatformStats>>({});
     
@@ -437,7 +442,7 @@ export default function PlaygroundPage() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {isSuccess && (
-                                                    (result.data as MediaData)?.data?.usedCookie ? (
+                                                    (result.data as LocalMediaData)?.data?.usedCookie ? (
                                                         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold">
                                                             <FontAwesomeIcon icon={faCookie} className="w-3 h-3" />Cookie
                                                         </span>
@@ -448,12 +453,12 @@ export default function PlaygroundPage() {
                                                     )
                                                 )}
                                                 <div className="flex items-center gap-1 p-1 bg-[var(--bg-secondary)] rounded-lg">
-                                                    <button onClick={() => setActiveTab('gallery')} className={`px-3 py-1 rounded text-xs font-medium ${activeTab === 'gallery' ? 'bg-[var(--accent-primary)] text-white' : ''}`}>Gallery</button>
+                                                    <button onClick={() => setActiveTab('gallery')} className={`px-3 py-1 rounded text-xs font-medium ${activeTab === 'gallery' ? 'bg-[var(--accent-primary)] text-white' : ''}`}>Info</button>
                                                     <button onClick={() => setActiveTab('json')} className={`px-3 py-1 rounded text-xs font-medium ${activeTab === 'json' ? 'bg-[var(--accent-primary)] text-white' : ''}`}>JSON</button>
                                                 </div>
                                             </div>
                                         </div>
-                                        {activeTab === 'gallery' ? <MediaGallery data={result.data} /> : (
+                                        {activeTab === 'gallery' ? <MediaInfo data={result.data} onPreview={() => setShowGallery(true)} /> : (
                                             <div className="relative">
                                                 <button onClick={copyJson} className="absolute top-2 right-2 p-2 rounded-lg bg-[var(--bg-primary)] hover:bg-[var(--accent-primary)] hover:text-white">
                                                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -468,18 +473,35 @@ export default function PlaygroundPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Global MediaGallery */}
+            {result && (result.data as LocalMediaData)?.success && (result.data as LocalMediaData)?.data && (
+                <MediaGallery
+                    data={{
+                        title: (result.data as LocalMediaData).data?.title || 'Untitled',
+                        thumbnail: (result.data as LocalMediaData).data?.thumbnail || '',
+                        author: (result.data as LocalMediaData).data?.author,
+                        formats: ((result.data as LocalMediaData).data?.formats || []).map(f => ({
+                            url: f.url,
+                            quality: f.quality || 'Original',
+                            type: (f.type as 'video' | 'image' | 'audio') || 'image',
+                            thumbnail: f.thumbnail,
+                        })),
+                        url: url,
+                        responseTime: (result.data as LocalMediaData).data?.responseTime,
+                    } as MediaData}
+                    platform={(modalEndpoint?.id as Platform) || 'facebook'}
+                    isOpen={showGallery}
+                    onClose={() => setShowGallery(false)}
+                />
+            )}
         </div>
     );
 }
 
 
-interface MediaFormat { url: string; quality?: string; type?: string; thumbnail?: string; }
-interface MediaData { success?: boolean; error?: string; data?: { title?: string; author?: string; thumbnail?: string; formats?: MediaFormat[]; usedCookie?: boolean; }; }
-
-function MediaGallery({ data }: { data: unknown }) {
-    const [expanded, setExpanded] = useState(false);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const d = data as MediaData;
+function MediaInfo({ data, onPreview }: { data: unknown; onPreview: () => void }) {
+    const d = data as LocalMediaData;
     
     if (d?.error) return <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{d.error}</div>;
     if (!d?.success || !d?.data) return <div className="p-4 rounded-xl bg-[var(--bg-secondary)] text-center text-[var(--text-muted)] text-sm">No media found</div>;
@@ -489,22 +511,13 @@ function MediaGallery({ data }: { data: unknown }) {
     const uniqueFormats = formats.filter(f => { if (seen.has(f.url)) return false; seen.add(f.url); return true; });
     const videos = uniqueFormats.filter(f => f.type === 'video');
     const images = uniqueFormats.filter(f => f.type === 'image');
-    const allMedia = [...videos, ...images];
-    const hasMultiple = allMedia.length > 1;
-    const currentMedia = allMedia[currentIndex];
-    const goNext = () => setCurrentIndex((i) => (i + 1) % allMedia.length);
-    const goPrev = () => setCurrentIndex((i) => (i - 1 + allMedia.length) % allMedia.length);
     
     return (
         <div className="space-y-3">
             <div className="flex gap-3 items-center">
-                <button onClick={() => allMedia.length > 0 && setExpanded(true)} className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--bg-secondary)] flex-shrink-0 group cursor-pointer">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[var(--bg-secondary)] flex-shrink-0">
                     {thumbnail && <img src={thumbnail} alt="" className="w-full h-full object-cover" onError={(e) => e.currentTarget.style.display = 'none'} />}
-                    {hasMultiple && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="text-white text-xs font-bold">+{allMedia.length}</span></div>}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                        <ExternalLink className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                </button>
+                </div>
                 <div className="flex-1 min-w-0">
                     {title && <p className="font-medium line-clamp-1 text-sm">{title}</p>}
                     {author && <p className="text-xs text-[var(--text-muted)]">{author}</p>}
@@ -514,49 +527,15 @@ function MediaGallery({ data }: { data: unknown }) {
                     </div>
                 </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-                {uniqueFormats.map((f, i) => (
-                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 text-white text-xs font-medium">
-                        <Download className="w-3 h-3" />{f.quality || (f.type === 'video' ? 'Video' : 'Image')}
-                    </a>
-                ))}
-            </div>
-            <AnimatePresence>
-                {expanded && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center" onClick={() => setExpanded(false)}>
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="relative max-w-4xl max-h-[90vh] w-full mx-4" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => setExpanded(false)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
-                            <div className="relative aspect-video rounded-xl overflow-hidden bg-black">
-                                {currentMedia?.type === 'video' ? (
-                                    <video key={currentMedia.url} src={currentMedia.url} poster={currentMedia.thumbnail || thumbnail} controls autoPlay className="w-full h-full object-contain" />
-                                ) : (
-                                    <img key={currentMedia?.url} src={currentMedia?.url} alt="" className="w-full h-full object-contain" />
-                                )}
-                                {hasMultiple && (
-                                    <>
-                                        <button onClick={goPrev} className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center"><ChevronDown className="w-6 h-6 rotate-90" /></button>
-                                        <button onClick={goNext} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center"><ChevronDown className="w-6 h-6 -rotate-90" /></button>
-                                    </>
-                                )}
-                                {hasMultiple && <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm">{currentIndex + 1} / {allMedia.length}</div>}
-                            </div>
-                            {hasMultiple && (
-                                <div className="flex gap-2 mt-3 justify-center overflow-x-auto">
-                                    {allMedia.map((m, i) => (
-                                        <button key={i} onClick={() => setCurrentIndex(i)} className={`relative flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden ${i === currentIndex ? 'ring-2 ring-white' : 'opacity-50 hover:opacity-100'}`}>
-                                            <img src={m.thumbnail || m.url} alt="" className="w-full h-full object-cover" />
-                                            {m.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Play className="w-3 h-3 text-white" /></div>}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            <a href={currentMedia?.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 mt-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white font-medium">
-                                <Download className="w-4 h-4" />Download {currentMedia?.quality || 'Media'}
-                            </a>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {uniqueFormats.length > 0 && (
+                <button
+                    onClick={onPreview}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity"
+                >
+                    <Eye className="w-4 h-4" />
+                    Preview & Download ({uniqueFormats.length} {uniqueFormats.length === 1 ? 'format' : 'formats'})
+                </button>
+            )}
         </div>
     );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, createContext, useContext, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { 
     LayoutDashboard, Key, Settings, LogOut, 
     ChevronLeft, Menu, Shield, Server, Users,
@@ -206,9 +206,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         >
                             <Menu className="w-5 h-5" />
                         </button>
-                        <Link href="/admin/dashboard" className="flex items-center gap-2">
+                        <Link href="/admin" className="flex items-center gap-2">
                             <Shield className="w-5 h-5 text-[var(--accent-primary)]" />
-                            <span className="font-bold text-sm hidden sm:block">XTFetch Admin</span>
+                            <span className="font-bold text-sm">XTFetch Admin</span>
                         </Link>
                     </div>
 
@@ -266,10 +266,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {/* ═══════════════════════════════════════════════════════════════ */}
                 {/* SIDEBAR - Desktop */}
                 {/* ═══════════════════════════════════════════════════════════════ */}
-                <motion.aside
-                    initial={false}
-                    animate={{ width: sidebarOpen ? 220 : 64 }}
-                    className="fixed left-0 top-14 bottom-0 bg-[var(--bg-card)] border-r border-[var(--border-color)] z-40 hidden md:flex flex-col"
+                <aside
+                    className={`fixed left-0 top-14 bottom-0 bg-[var(--bg-card)] border-r border-[var(--border-color)] z-40 hidden md:flex flex-col transition-all duration-200 ${sidebarOpen ? 'w-[220px]' : 'w-16'}`}
                 >
                     <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
                         {/* User Section */}
@@ -328,7 +326,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 
                     </nav>
-                </motion.aside>
+                </aside>
 
                 {/* ═══════════════════════════════════════════════════════════════ */}
                 {/* SIDEBAR - Mobile */}
@@ -342,19 +340,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
                             />
                             {/* Menu */}
                             <motion.aside
                                 initial={{ x: -280 }}
                                 animate={{ x: 0 }}
                                 exit={{ x: -280 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="fixed left-0 top-0 bottom-0 w-[280px] bg-[var(--bg-card)] z-50 md:hidden flex flex-col"
                             >
                                 <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-color)]">
                                     <div className="flex items-center gap-2">
                                         <Shield className="w-5 h-5 text-[var(--accent-primary)]" />
-                                        <span className="font-bold">Admin</span>
+                                        <span className="font-bold">XTFetch Admin</span>
                                     </div>
                                     <button
                                         onClick={() => setMobileMenuOpen(false)}
@@ -364,7 +363,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </button>
                                 </div>
                                 <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-                                    {navItems.map((item) => {
+                                    {/* Menu Section */}
+                                    <p className="px-3 py-2 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                                        Menu
+                                    </p>
+                                    {NAV_ITEMS.user.map((item) => {
                                         const isActive = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
                                         return (
                                             <Link
@@ -381,6 +384,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             </Link>
                                         );
                                     })}
+
+                                    {/* Admin Section */}
+                                    {isAdmin && (
+                                        <>
+                                            <p className="px-3 py-2 mt-4 text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                                                Admin
+                                            </p>
+                                            {NAV_ITEMS.admin.map((item) => {
+                                                const isActive = pathname.startsWith(item.href);
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                                                            isActive
+                                                                ? 'bg-[var(--accent-primary)] text-white'
+                                                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+                                                        }`}
+                                                    >
+                                                        <item.icon className="w-5 h-5" />
+                                                        <span className="font-medium">{item.label}</span>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </>
+                                    )}
                                 </nav>
                             </motion.aside>
                         </>

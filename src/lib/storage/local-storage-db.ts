@@ -20,7 +20,7 @@ const CACHE_KEY = 'xtf_cache';
 
 const MAX_HISTORY_ITEMS = 50;
 const MAX_CACHE_ITEMS = 20;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (reduced from 7 days)
+const CACHE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export interface HistoryEntry {
     id: string;

@@ -3,15 +3,16 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Info, Bot } from 'lucide-react';
+import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Info, Bot, Eye } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import { useDownloadManager } from '@/components/DownloadManager';
+import { MediaGallery } from '@/components/media';
 import Announcements from '@/components/Announcements';
 import Swal from 'sweetalert2';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faWeibo, faTwitter, faTiktok, faYoutube, IconDefinition } from '@fortawesome/free-brands-svg-icons';
-import { PLATFORMS as TYPE_PLATFORMS, Platform } from '@/lib/types';
+import { PLATFORMS as TYPE_PLATFORMS, Platform, MediaData } from '@/lib/types';
 import { useTranslations } from 'next-intl';
 
 import { usePlayground } from '@/hooks';
@@ -138,6 +139,7 @@ function ApiPlaygroundTab() {
     const [result, setResult] = useState<PlaygroundResult | null>(null);
     const [copied, setCopied] = useState(false);
     const [urlError, setUrlError] = useState('');
+    const [showGallery, setShowGallery] = useState(false);
     const { startDownload } = useDownloadManager();
     const t = useTranslations('advanced.playground');
     const tCommon = useTranslations('common');
@@ -394,11 +396,24 @@ function ApiPlaygroundTab() {
                                 </div>
                             </div>
 
-                            {/* Formats */}
+                            {/* Preview Button */}
                             {result.data.formats && result.data.formats.length > 0 && (
-                                <div className="space-y-2">
-                                    <p className="text-xs font-medium text-[var(--text-muted)]">{t('availableFormats')} ({result.data.formats.length})</p>
-                                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                                <button
+                                    onClick={() => setShowGallery(true)}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    Preview & Download ({result.data.formats.length} {result.data.formats.length === 1 ? 'format' : 'formats'})
+                                </button>
+                            )}
+
+                            {/* Formats List (collapsed) */}
+                            {result.data.formats && result.data.formats.length > 0 && (
+                                <details className="group">
+                                    <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
+                                        {t('availableFormats')} ({result.data.formats.length})
+                                    </summary>
+                                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
                                         {result.data.formats.slice(0, 5).map((fmt, i) => (
                                             <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)]">
                                                 {fmt.type === 'video' ? <Film className="w-4 h-4 text-purple-400" /> : <Image className="w-4 h-4 text-blue-400" />}
@@ -417,7 +432,7 @@ function ApiPlaygroundTab() {
                                             </p>
                                         )}
                                     </div>
-                                </div>
+                                </details>
                             )}
                         </div>
                     )}
@@ -432,6 +447,27 @@ function ApiPlaygroundTab() {
                         </pre>
                     </details>
                 </div>
+            )}
+
+            {/* Media Gallery */}
+            {result?.success && result.data && (
+                <MediaGallery
+                    data={{
+                        title: result.data.title || 'Untitled',
+                        thumbnail: result.data.thumbnail || '',
+                        author: result.data.author,
+                        formats: (result.data.formats || []).map(f => ({
+                            url: f.url,
+                            quality: f.quality || 'Original',
+                            type: (f.type as 'video' | 'image' | 'audio') || 'image',
+                        })),
+                        url: url,
+                        responseTime: result.data.responseTime,
+                    } as MediaData}
+                    platform={(result.platform as Platform) || 'facebook'}
+                    isOpen={showGallery}
+                    onClose={() => setShowGallery(false)}
+                />
             )}
         </div>
     );

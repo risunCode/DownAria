@@ -27,13 +27,14 @@ export const isRedisAvailable = () => !!redis;
 type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
 
 // Default TTL in seconds (fallback if service_config not available)
+// Updated: 3 days for all platforms (stable media URLs)
 const DEFAULT_CACHE_TTL: Record<PlatformId, number> = {
-    facebook: 60 * 60,        // 1 hour
-    instagram: 2 * 60 * 60,   // 2 hours
-    twitter: 6 * 60 * 60,     // 6 hours
-    tiktok: 12 * 60 * 60,     // 12 hours
-    weibo: 6 * 60 * 60,       // 6 hours
-    youtube: 24 * 60 * 60,    // 24 hours (YouTube URLs are stable)
+    facebook: 3 * 24 * 60 * 60,   // 3 days
+    instagram: 3 * 24 * 60 * 60,  // 3 days
+    twitter: 3 * 24 * 60 * 60,    // 3 days
+    tiktok: 3 * 24 * 60 * 60,     // 3 days
+    weibo: 3 * 24 * 60 * 60,      // 3 days
+    youtube: 3 * 24 * 60 * 60,    // 3 days
 };
 
 // Cache for platform TTL from service_config
@@ -91,25 +92,33 @@ function getCanonicalContentId(platform: PlatformId, url: string): string | null
             const watchParam = url.match(/[?&]v=(\d+)/i);
             if (watchParam) return watchParam[1];
             
-            // Priority 3: story_fbid param
+            // Priority 3: Groups permalink (numeric post ID)
+            const groupPermalink = url.match(/\/groups\/\d+\/permalink\/(\d+)/i);
+            if (groupPermalink) return groupPermalink[1];
+            
+            // Priority 4: story_fbid param (numeric)
             const storyFbid = url.match(/story_fbid=(\d+)/i);
             if (storyFbid) return storyFbid[1];
             
-            // Priority 4: pfbid (Facebook's public ID format)
+            // Priority 5: pfbid (Facebook's public ID format)
             const pfbid = url.match(/pfbid([A-Za-z0-9]+)/i);
             if (pfbid) return `pfbid${pfbid[1]}`;
             
-            // Priority 5: Share URL ID (case-sensitive!)
+            // Priority 6: Share URL ID (case-sensitive!)
             const shareId = url.match(/\/share\/[prvs]\/([A-Za-z0-9]+)/i);
             if (shareId) return `share:${shareId[1]}`;
             
-            // Priority 6: Numeric post ID
+            // Priority 7: Numeric post ID in path
             const postId = url.match(/\/posts\/(\d+)/i);
             if (postId) return postId[1];
             
-            // Priority 7: Story ID
+            // Priority 8: Story ID
             const storyId = url.match(/\/stories\/[^/]+\/(\d+)/i);
             if (storyId) return `story:${storyId[1]}`;
+            
+            // Priority 9: Photo ID
+            const photoId = url.match(/\/photos?\/[^/]+\/(\d+)/i);
+            if (photoId) return `photo:${photoId[1]}`;
             
             return null;
         }

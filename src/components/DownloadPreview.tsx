@@ -15,7 +15,8 @@ import {
     Repeat2,
     Share2,
     Bookmark,
-    Send
+    Send,
+    Maximize2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { MediaData, MediaFormat, Platform } from '@/lib/types';
@@ -25,6 +26,7 @@ import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/dis
 import { formatBytes } from '@/lib/utils/format-utils';
 import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
 import { useTranslations } from 'next-intl';
+import { MediaGallery } from '@/components/media';
 import Swal from 'sweetalert2';
 
 interface DownloadPreviewProps {
@@ -41,6 +43,8 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     const [fileSizes, setFileSizes] = useState<Record<string, string>>({});
     const [fileSizeNumerics, setFileSizeNumerics] = useState<Record<string, number>>({});
     const [globalStatus, setGlobalStatus] = useState<DownloadStatus>('idle');
+    const [showGallery, setShowGallery] = useState(false);
+    const [galleryInitialIndex, setGalleryInitialIndex] = useState(0);
     
     const t = useTranslations('download.preview');
     const tCommon = useTranslations('common');
@@ -581,12 +585,22 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
                     {/* Selected item preview */}
                     <div className="flex flex-col sm:flex-row gap-3 p-3 rounded-lg bg-[var(--bg-secondary)]">
-                        <div className="relative w-full sm:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-primary)]">
+                        <div 
+                            className="relative w-full sm:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-primary)] cursor-pointer group"
+                            onClick={() => {
+                                setGalleryInitialIndex(itemIds.indexOf(selectedItemId));
+                                setShowGallery(true);
+                            }}
+                        >
                             {itemThumbnails[selectedItemId] ? (
-                                <Image src={getProxiedThumbnail(itemThumbnails[selectedItemId], platform)} alt="Preview" fill className="object-cover" unoptimized />
+                                <Image src={getProxiedThumbnail(itemThumbnails[selectedItemId], platform)} alt="Preview" fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-[var(--text-muted)]" /></div>
                             )}
+                            {/* Preview overlay */}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col">
                             <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">
@@ -651,12 +665,22 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
             ) : (
                 /* Single item */
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                    <div className="relative w-full sm:w-48 md:w-64 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)]">
+                    <div 
+                        className="relative w-full sm:w-48 md:w-64 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer group"
+                        onClick={() => setShowGallery(true)}
+                    >
                         {data.thumbnail ? (
-                            <Image src={getProxiedThumbnail(data.thumbnail, platform)} alt={data.title} fill className="object-cover" unoptimized />
+                            <Image src={getProxiedThumbnail(data.thumbnail, platform)} alt={data.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center"><Play className="w-12 h-12 text-[var(--text-muted)]" /></div>
                         )}
+                        {/* Preview overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium">
+                                <Maximize2 className="w-4 h-4" />
+                                Preview
+                            </div>
+                        </div>
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                         {renderFormatButtons(groupedItems[itemIds[0]], itemIds[0])}
@@ -699,6 +723,16 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     </div>
                 </div>
             )}
+
+            {/* Media Gallery Modal */}
+            <MediaGallery
+                data={data}
+                platform={platform}
+                isOpen={showGallery}
+                onClose={() => setShowGallery(false)}
+                initialIndex={galleryInitialIndex}
+                onDownloadComplete={onDownloadComplete}
+            />
         </motion.div>
     );
 }

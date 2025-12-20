@@ -72,21 +72,27 @@ const CONTENT_ID_EXTRACTORS: Record<PlatformId, (url: string) => string | null> 
     // Priority 2: Watch query param
     const watchParam = url.match(/[?&]v=(\d+)/i);
     if (watchParam) return watchParam[1];
-    // Priority 3: story_fbid param
+    // Priority 3: Groups permalink (numeric post ID)
+    const groupPermalink = url.match(/\/groups\/\d+\/permalink\/(\d+)/i);
+    if (groupPermalink) return groupPermalink[1];
+    // Priority 4: story_fbid param (numeric)
     const storyFbid = url.match(/story_fbid=(\d+)/i);
     if (storyFbid) return storyFbid[1];
-    // Priority 4: pfbid
+    // Priority 5: pfbid
     const pfbid = url.match(/pfbid([A-Za-z0-9]+)/i);
     if (pfbid) return `pfbid${pfbid[1]}`;
-    // Priority 5: Share URL ID (case-sensitive!)
+    // Priority 6: Share URL ID (case-sensitive!)
     const shareId = url.match(/\/share\/[prvs]\/([A-Za-z0-9]+)/i);
     if (shareId) return `share:${shareId[1]}`;
-    // Priority 6: Numeric post ID
+    // Priority 7: Numeric post ID in path
     const postId = url.match(/\/posts\/(\d+)/i);
     if (postId) return postId[1];
-    // Priority 7: Story ID
+    // Priority 8: Story ID
     const storyId = url.match(/\/stories\/[^/]+\/(\d+)/i);
     if (storyId) return `story:${storyId[1]}`;
+    // Priority 9: Photo ID
+    const photoId = url.match(/\/photos?\/[^/]+\/(\d+)/i);
+    if (photoId) return `photo:${photoId[1]}`;
     return null;
   },
   
@@ -168,10 +174,36 @@ export function normalizeUrl(url: string): string {
 export function cleanTrackingParams(url: string): string {
   try {
     const u = new URL(url);
-    ['fbclid','igshid','utm_source','utm_medium','utm_campaign','utm_term','utm_content','s','t','ref','ref_src','ref_url','__cft__','__tn__','wtsid','_rdr','rdid','share_url','app'].forEach(p => u.searchParams.delete(p));
+    // Remove tracking params that don't affect content identity
+    ['fbclid','igshid','igsh','utm_source','utm_medium','utm_campaign','utm_term','utm_content','s','t','ref','ref_src','ref_url','__cft__','__tn__','wtsid','_rdr','rdid','share_url','app','mibextid','paipv','eav','sfnsn','extid','img_index'].forEach(p => u.searchParams.delete(p));
     [...u.searchParams.keys()].filter(k => k.startsWith('__cft__')).forEach(k => u.searchParams.delete(k));
     return u.toString();
-  } catch { return url.replace(/[&?](fbclid|igshid|utm_\w+|__cft__\[[^\]]*\]|__tn__|wtsid|_rdr|rdid|share_url|app)=[^&]*/gi, '').replace(/&&+/g, '&').replace(/\?&/g, '?').replace(/[&?]$/g, ''); }
+  } catch { return url.replace(/[&?](fbclid|igshid|igsh|utm_\w+|__cft__\[[^\]]*\]|__tn__|wtsid|_rdr|rdid|share_url|app|mibextid|paipv|eav|sfnsn|extid|img_index)=[^&]*/gi, '').replace(/&&+/g, '&').replace(/\?&/g, '?').replace(/[&?]$/g, ''); }
+}
+
+/**
+ * Generate a short hash from string using djb2 algorithm
+ * Fast and good distribution for cache keys
+ */
+export function hashString(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+  // Convert to unsigned 32-bit and then to base36 for shorter string
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * Generate cache key from normalized/resolved URL
+ * This is the SINGLE SOURCE OF TRUTH for cache keys
+ * Uses URL hash instead of content ID extraction for reliability
+ */
+export function generateCacheKeyFromUrl(platform: PlatformId, url: string): string {
+  // Clean tracking params first to ensure same content = same key
+  const cleanUrl = cleanTrackingParams(url);
+  const hash = hashString(cleanUrl);
+  return `${platform}:${hash}`;
 }
 
 export function extractContentId(platform: PlatformId, url: string): string | null {
@@ -218,7 +250,8 @@ export async function prepareUrl(rawUrl: string, options?: UrlPipelineOptions): 
 
   const contentId = extractContentId(platform, resolvedUrl);
   const contentType = detectContentType(platform, resolvedUrl);
-  const cacheKey = contentId ? generateCacheKey(platform, contentId) : null;
+  // Use hash-based cache key from resolved URL (always available, no extraction needed)
+  const cacheKey = generateCacheKeyFromUrl(platform, resolvedUrl);
 
   return { inputUrl, normalizedUrl, resolvedUrl, platform, contentType, contentId, wasResolved, redirectChain, assessment: { isValid: true, mayRequireCookie: mayRequireCookie(platform, resolvedUrl) }, cacheKey };
 }
@@ -230,7 +263,8 @@ export function prepareUrlSync(rawUrl: string): UrlPipelineResult {
   const platform = detectPlatform(normalizedUrl);
   if (!platform) return { ...createErrorResult(inputUrl, 'UNSUPPORTED_PLATFORM', 'Platform not supported', { normalizedUrl }), wasResolved: false, redirectChain: [normalizedUrl] };
   const contentId = extractContentId(platform, normalizedUrl);
-  const cacheKey = contentId ? generateCacheKey(platform, contentId) : null;
+  // Use hash-based cache key
+  const cacheKey = generateCacheKeyFromUrl(platform, normalizedUrl);
   return { inputUrl, normalizedUrl, resolvedUrl: normalizedUrl, platform, contentType: detectContentType(platform, normalizedUrl), contentId, wasResolved: false, redirectChain: [normalizedUrl], assessment: { isValid: true, mayRequireCookie: mayRequireCookie(platform, normalizedUrl) }, cacheKey };
 }
 

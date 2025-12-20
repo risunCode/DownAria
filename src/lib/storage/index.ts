@@ -44,10 +44,9 @@ export {
   importFullBackupFromZip,
   type FullBackupData,
 
-  // Media Cache
+  // Media Cache (deprecated - Redis handles caching now)
   getCachedMedia,
   setCachedMedia,
-  deleteCachedMedia,
   clearExpiredCache,
   clearAllCache,
 
@@ -56,7 +55,6 @@ export {
 
   // Types
   type HistoryEntry,
-  type MediaCacheEntry,
   type ExportData,
 } from './indexed-db';
 

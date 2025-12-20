@@ -11,6 +11,7 @@ import {
     XTwitterIcon,
     TiktokIcon,
     WeiboIcon,
+    YoutubeIcon,
 } from '@/components/ui/Icons';
 import { ThemeType, saveTheme, initTheme, getSettings } from '@/lib/storage';
 import { useTranslations } from 'next-intl';
@@ -81,6 +82,7 @@ export function SidebarLayout({ children }: SidebarProps) {
         { id: 'instagram', icon: InstagramIcon, label: 'Instagram', color: 'text-pink-500' },
         { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
         { id: 'tiktok', icon: TiktokIcon, label: 'TikTok', color: 'text-cyan-400' },
+        { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
         { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
     ];
 

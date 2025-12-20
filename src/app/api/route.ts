@@ -15,7 +15,7 @@ import type { ScraperData } from '@/core/scrapers/types';
 import {
     isPlatformEnabled, isMaintenanceMode, getMaintenanceMessage, getPlatformDisabledMessage,
     recordRequest, getGlobalRateLimit, extractApiKey, validateApiKey, recordKeyUsage,
-    getCache, setCache, loadConfigFromDB, getPlatformConfig, trackDownload, trackError, getCountryFromHeaders, type PlatformId
+    loadConfigFromDB, getPlatformConfig, trackDownload, trackError, getCountryFromHeaders, type PlatformId
 } from '@/core/database';
 import { isValidSocialUrl, isValidCookie, detectAttackPatterns, validateRequestBody, getClientIP, rateLimit } from '@/core/security';
 import { prepareUrl } from '@/lib/url';
@@ -171,20 +171,30 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
         }
     }
 
-    // Cache check - use resolvedUrl for canonical cache key
-    // This ensures different URL formats pointing to same content share same cache
+    // Cache check - use hash-based cacheKey from prepareUrl
+    // Format: result:platform:hash (e.g., result:facebook:abc123)
+    const fullCacheKey = `result:${cacheKey}`;
+    // console.log(`[DEBUG] cacheKey=${cacheKey}, fullCacheKey=${fullCacheKey}, skipCache=${skipCache}`);
+    
     if (!skipCache) {
-        const cached = await getCache<MediaData>(platform as PlatformId, resolvedUrl);
+        const cacheStart = Date.now();
+        const { getCacheByKey } = await import('@/lib/services/helper/cache');
+        const cached = await getCacheByKey<MediaData>(fullCacheKey);
+        const cacheTime = Date.now() - cacheStart;
+        
         if (cached && cached.formats && cached.formats.length > 0) {
-            logger.debug(platform, `Cache hit (key from resolved URL)`);
-            recordRequest(platform as PlatformId, true, Date.now() - startTime);
+            const totalTime = Date.now() - startTime;
+            logger.redis(platform, true, fullCacheKey);
+            recordRequest(platform as PlatformId, true, totalTime);
             if (validatedKey) recordKeyUsage(validatedKey.id, true);
-            return successResponse(platform, { ...cached, cached: true, responseTime: Date.now() - startTime });
+            return successResponse(platform, { ...cached, cached: true, responseTime: totalTime });
         }
         
         // If cached but no formats, skip cache (corrupted entry)
         if (cached) {
-            logger.warn(platform, 'Cache entry has no formats, re-scraping');
+            logger.warn(platform, `Cache entry has no formats [${fullCacheKey}], re-scraping`);
+        } else {
+            logger.redis(platform, false, fullCacheKey);
         }
     } else {
         logger.debug(platform, 'Skip cache enabled, fetching fresh data');
@@ -284,8 +294,11 @@ async function handleRequest(request: NextRequest, url: string, userCookie?: str
         };
         // Only cache if we have valid formats
         if (mediaData.formats.length > 0) {
-            setCache(platform as PlatformId, resolvedUrl, mediaData);
+            const { setCacheByKey } = await import('@/lib/services/helper/cache');
+            // console.log(`[DEBUG] Caching ${mediaData.formats.length} formats to ${fullCacheKey}`);
+            setCacheByKey(fullCacheKey, platform as PlatformId, mediaData);
         }
+        // else { console.log(`[DEBUG] NOT caching: formats=${mediaData.formats.length}`); }
         recordRequest(platform as PlatformId, true, responseTime);
         if (validatedKey) recordKeyUsage(validatedKey.id, true);
         

@@ -1,57 +1,34 @@
 /**
- * IndexedDB Storage Implementation
- * =================================
- * Unlimited local history storage with export/import support.
+ * IndexedDB Storage - Download History Only
+ * ==========================================
+ * Stores user's download history permanently (no auto-delete).
+ * Caching is handled by Redis server-side.
  * 
  * Features:
- * - Unlimited history items (IndexedDB has no practical limit)
- * - Export to JSON or ZIP (with thumbnails)
+ * - Unlimited history items
+ * - Export to JSON or ZIP
  * - Import from backup
  * - Search and filter
  * - Platform-based filtering
  */
 
-import { Platform, MediaFormat } from '@/lib/types';
+import { Platform } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
 
 export interface HistoryEntry {
-    id: string;
-    platform: Platform;
-    contentId: string;
-    resolvedUrl: string;
-    title: string;
-    thumbnail: string;
-    author: string;
-    downloadedAt: number;
-    quality?: string;
+    id: string;                 // Unique ID (generated)
+    platform: Platform;         // facebook, instagram, etc.
+    contentId: string;          // Platform-specific content ID
+    resolvedUrl: string;        // Final URL after resolution
+    title: string;              // Content title/caption (truncated)
+    thumbnail: string;          // Thumbnail URL
+    author: string;             // Author username
+    downloadedAt: number;       // Timestamp
+    quality?: string;           // HD, SD, etc.
     type?: 'video' | 'image' | 'audio';
-}
-
-export interface MediaCacheEntry {
-    cacheKey: string;
-    platform: Platform;
-    contentId: string;
-    resolvedUrl: string;
-    title: string;
-    description?: string;
-    thumbnail: string;
-    author: string;
-    authorName?: string;
-    duration?: string;
-    engagement?: {
-        views?: number;
-        likes?: number;
-        comments?: number;
-        shares?: number;
-        reposts?: number;
-    };
-    formats: MediaFormat[];
-    cachedAt: number;
-    expiresAt: number;
-    usedCookie?: boolean;
 }
 
 export interface ExportData {
@@ -69,9 +46,8 @@ export interface ExportData {
 // ═══════════════════════════════════════════════════════════════
 
 const DB_NAME = 'xtfetch_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped version to remove cache store
 const HISTORY_STORE = 'history';
-const CACHE_STORE = 'media_cache';
 
 let db: IDBDatabase | null = null;
 
@@ -102,11 +78,9 @@ function openDB(): Promise<IDBDatabase> {
                 historyStore.createIndex('contentId', 'contentId', { unique: false });
             }
 
-            // Cache store
-            if (!database.objectStoreNames.contains(CACHE_STORE)) {
-                const cacheStore = database.createObjectStore(CACHE_STORE, { keyPath: 'cacheKey' });
-                cacheStore.createIndex('platform', 'platform', { unique: false });
-                cacheStore.createIndex('expiresAt', 'expiresAt', { unique: false });
+            // Remove old cache store if exists (no longer needed, Redis handles caching)
+            if (database.objectStoreNames.contains('media_cache')) {
+                database.deleteObjectStore('media_cache');
             }
         };
     });
@@ -116,7 +90,6 @@ export async function initStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
     try {
         await openDB();
-        await clearExpiredCache();
     } catch (err) {
         console.error('[IndexedDB] Init failed:', err);
     }
@@ -135,11 +108,15 @@ export function closeDB(): void {
 
 export async function addHistory(entry: Omit<HistoryEntry, 'id' | 'downloadedAt'>): Promise<string> {
     const database = await openDB();
-    const id = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+    
+    // Truncate title to save space (max 200 chars)
+    const title = entry.title?.substring(0, 200) || 'Untitled';
     
     const fullEntry: HistoryEntry = {
         ...entry,
         id,
+        title,
         downloadedAt: Date.now(),
     };
 
@@ -163,7 +140,6 @@ export async function getHistory(limit = 100, offset = 0): Promise<HistoryEntry[
         const results: HistoryEntry[] = [];
         let skipped = 0;
 
-        // Iterate in reverse (newest first)
         const request = index.openCursor(null, 'prev');
         
         request.onsuccess = (event) => {
@@ -243,14 +219,12 @@ export async function searchHistory(query: string, limit = 50): Promise<HistoryE
                 const entry = cursor.value as HistoryEntry;
                 if (
                     entry.title?.toLowerCase().includes(q) ||
-                    entry.author?.toLowerCase().includes(q) ||
-                    entry.resolvedUrl?.toLowerCase().includes(q)
+                    entry.author?.toLowerCase().includes(q)
                 ) {
                     results.push(entry);
                 }
                 cursor.continue();
             } else {
-                // Sort by downloadedAt desc
                 results.sort((a, b) => b.downloadedAt - a.downloadedAt);
                 resolve(results);
             }
@@ -310,10 +284,7 @@ export async function exportHistory(): Promise<ExportData> {
                 version: 1,
                 exportedAt: Date.now(),
                 history: history.sort((a, b) => b.downloadedAt - a.downloadedAt),
-                stats: {
-                    total: history.length,
-                    platforms,
-                },
+                stats: { total: history.length, platforms },
             });
         };
         
@@ -347,36 +318,28 @@ export async function importHistory(data: ExportData | string, merge = true): Pr
     let exportData: ExportData;
     
     if (typeof data === 'string') {
-        try {
-            exportData = JSON.parse(data);
-        } catch {
-            throw new Error('Invalid JSON format');
-        }
+        exportData = JSON.parse(data);
     } else {
         exportData = data;
     }
     
     if (!exportData.history || !Array.isArray(exportData.history)) {
-        throw new Error('Invalid export data: missing history array');
+        throw new Error('Invalid export data');
     }
     
     const database = await openDB();
     let imported = 0;
     let skipped = 0;
     
-    // Get existing IDs if merging
     const existingIds = new Set<string>();
     if (merge) {
         const existing = await getHistory(10000);
         existing.forEach(h => existingIds.add(h.contentId));
     } else {
-        // Clear existing history
         await clearHistory();
     }
     
-    // Import entries
     for (const entry of exportData.history) {
-        // Skip duplicates based on contentId
         if (existingIds.has(entry.contentId)) {
             skipped++;
             continue;
@@ -386,18 +349,14 @@ export async function importHistory(data: ExportData | string, merge = true): Pr
             await new Promise<void>((resolve, reject) => {
                 const tx = database.transaction(HISTORY_STORE, 'readwrite');
                 const store = tx.objectStore(HISTORY_STORE);
-                
-                // Generate new ID to avoid conflicts
                 const newEntry = {
                     ...entry,
-                    id: `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`,
+                    id: `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`,
                 };
-                
                 const request = store.add(newEntry);
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
-            
             imported++;
             existingIds.add(entry.contentId);
         } catch {
@@ -411,120 +370,16 @@ export async function importHistory(data: ExportData | string, merge = true): Pr
 export async function importHistoryFromFile(file: File, merge = true): Promise<{ imported: number; skipped: number }> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        
         reader.onload = async (e) => {
             try {
-                const content = e.target?.result as string;
-                const result = await importHistory(content, merge);
+                const result = await importHistory(e.target?.result as string, merge);
                 resolve(result);
             } catch (err) {
                 reject(err);
             }
         };
-        
         reader.onerror = () => reject(new Error('Failed to read file'));
         reader.readAsText(file);
-    });
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MEDIA CACHE OPERATIONS
-// ═══════════════════════════════════════════════════════════════
-
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-export async function getCachedMedia(cacheKey: string): Promise<MediaCacheEntry | null> {
-    const database = await openDB();
-    
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readonly');
-        const store = tx.objectStore(CACHE_STORE);
-        const request = store.get(cacheKey);
-        
-        request.onsuccess = () => {
-            const entry = request.result as MediaCacheEntry | undefined;
-            if (!entry || entry.expiresAt < Date.now()) {
-                resolve(null);
-            } else {
-                resolve(entry);
-            }
-        };
-        
-        request.onerror = () => reject(request.error);
-    });
-}
-
-export async function setCachedMedia(entry: Omit<MediaCacheEntry, 'cachedAt' | 'expiresAt'>): Promise<void> {
-    const database = await openDB();
-    const now = Date.now();
-    
-    const fullEntry: MediaCacheEntry = {
-        ...entry,
-        cachedAt: now,
-        expiresAt: now + CACHE_TTL_MS,
-    };
-    
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        const request = store.put(fullEntry);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
-}
-
-export async function deleteCachedMedia(cacheKey: string): Promise<void> {
-    const database = await openDB();
-    
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        const request = store.delete(cacheKey);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
-}
-
-export async function clearExpiredCache(): Promise<number> {
-    const database = await openDB();
-    const now = Date.now();
-    let count = 0;
-    
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        const index = store.index('expiresAt');
-        
-        const request = index.openCursor(IDBKeyRange.upperBound(now));
-        
-        request.onsuccess = (event) => {
-            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            
-            if (cursor) {
-                cursor.delete();
-                count++;
-                cursor.continue();
-            } else {
-                resolve(count);
-            }
-        };
-        
-        request.onerror = () => reject(request.error);
-    });
-}
-
-export async function clearAllCache(): Promise<void> {
-    const database = await openDB();
-    
-    return new Promise((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        const request = store.clear();
-        
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
     });
 }
 
@@ -534,30 +389,17 @@ export async function clearAllCache(): Promise<void> {
 
 export async function getStorageStats(): Promise<{
     historyCount: number;
-    cacheCount: number;
     platforms: Record<string, number>;
     estimatedSize: string;
 }> {
-    const database = await openDB();
-    
     const historyCount = await getHistoryCount();
     
-    const cacheCount = await new Promise<number>((resolve, reject) => {
-        const tx = database.transaction(CACHE_STORE, 'readonly');
-        const store = tx.objectStore(CACHE_STORE);
-        const request = store.count();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-    
-    // Get platform breakdown
     const platforms: Record<string, number> = {};
     const history = await getHistory(10000);
     history.forEach(h => {
         platforms[h.platform] = (platforms[h.platform] || 0) + 1;
     });
     
-    // Estimate size
     let estimatedSize = 'Unknown';
     if ('storage' in navigator && 'estimate' in navigator.storage) {
         try {
@@ -569,12 +411,7 @@ export async function getStorageStats(): Promise<{
         } catch { /* ignore */ }
     }
     
-    return {
-        historyCount,
-        cacheCount,
-        platforms,
-        estimatedSize,
-    };
+    return { historyCount, platforms, estimatedSize };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -590,16 +427,12 @@ export interface FullBackupData {
 }
 
 export async function createFullBackup(): Promise<FullBackupData> {
-    // Get history from IndexedDB
     const historyData = await exportHistory();
     
-    // Get settings from LocalStorage
     const settings: Record<string, string> = {};
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key) {
-            settings[key] = localStorage.getItem(key) || '';
-        }
+        if (key) settings[key] = localStorage.getItem(key) || '';
     }
     
     return {
@@ -614,25 +447,17 @@ export async function createFullBackup(): Promise<FullBackupData> {
 export async function downloadFullBackupAsZip(filename?: string): Promise<void> {
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
-    
     const backup = await createFullBackup();
     
-    // Add manifest
     zip.file('manifest.json', JSON.stringify({
         version: backup.version,
         exportedAt: backup.exportedAt,
         appVersion: backup.appVersion,
         historyCount: backup.history.stats.total,
-        settingsCount: Object.keys(backup.settings).length,
     }, null, 2));
-    
-    // Add history
     zip.file('history.json', JSON.stringify(backup.history, null, 2));
-    
-    // Add settings
     zip.file('settings.json', JSON.stringify(backup.settings, null, 2));
     
-    // Generate and download
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -652,25 +477,19 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     
-    let historyImported = 0;
-    let historySkipped = 0;
-    let settingsImported = 0;
+    let historyImported = 0, historySkipped = 0, settingsImported = 0;
     
-    // Import history
     const historyFile = zip.file('history.json');
     if (historyFile) {
-        const historyContent = await historyFile.async('string');
-        const historyData = JSON.parse(historyContent) as ExportData;
-        const result = await importHistory(historyData, options?.mergeHistory ?? true);
+        const content = await historyFile.async('string');
+        const result = await importHistory(JSON.parse(content), options?.mergeHistory ?? true);
         historyImported = result.imported;
         historySkipped = result.skipped;
     }
     
-    // Import settings
     const settingsFile = zip.file('settings.json');
     if (settingsFile) {
-        const settingsContent = await settingsFile.async('string');
-        const settings = JSON.parse(settingsContent) as Record<string, string>;
+        const settings = JSON.parse(await settingsFile.async('string')) as Record<string, string>;
         Object.entries(settings).forEach(([key, value]) => {
             if (typeof value === 'string') {
                 localStorage.setItem(key, value);
@@ -681,3 +500,19 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
     
     return { historyImported, historySkipped, settingsImported };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// LEGACY COMPATIBILITY - Keep exports for existing code
+// ═══════════════════════════════════════════════════════════════
+
+/** @deprecated Cache is now handled by Redis. This is a no-op. */
+export async function getCachedMedia(): Promise<null> { return null; }
+
+/** @deprecated Cache is now handled by Redis. This is a no-op. */
+export async function setCachedMedia(): Promise<void> { }
+
+/** @deprecated Cache is now handled by Redis. This is a no-op. */
+export async function clearExpiredCache(): Promise<number> { return 0; }
+
+/** @deprecated Cache is now handled by Redis. This is a no-op. */
+export async function clearAllCache(): Promise<void> { }

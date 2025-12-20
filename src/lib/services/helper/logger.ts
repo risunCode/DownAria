@@ -77,6 +77,14 @@ export const logger = {
         }
     },
 
+    redis: (platform: PlatformId | string, hit: boolean, key?: string) => {
+        if (shouldLog('info')) {
+            const status = hit ? '✓ Redis hit' : '○ Redis miss';
+            const keyInfo = key ? ` [${key.substring(0, 50)}${key.length > 50 ? '...' : ''}]` : '';
+            console.log(`${COLORS.info}${tag(platform, 'Redis')}${COLORS.reset} ${status}${keyInfo}`);
+        }
+    },
+
     meta: (platform: PlatformId | string, data: { title?: string; author?: string; type?: string; formats?: number }) => {
         if (!shouldLog('info')) return;
         const parts: string[] = [];

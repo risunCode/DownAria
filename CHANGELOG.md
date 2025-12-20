@@ -2,6 +2,42 @@
 
 All notable changes to XTFetch will be documented in this file.
 
+## [1.2.0] - December 21, 2025
+
+### ✨ What's New
+- **MediaGallery Component** - New global media preview component with:
+  - Thumbnail strip for carousel navigation
+  - Video autoplay, loop, no mute
+  - Download progress with speed indicator
+  - Discord webhook integration
+  - Responsive modal (desktop) / fullscreen (mobile)
+- **YouTube Support** - Added to sidebar supported platforms
+- **Redis Cache Strategy** - URL hash-based cache keys for consistent caching
+
+### 🔧 What's Improved
+- **Admin Playground** - Now uses global MediaGallery component
+- **Guest Playground** - Integrated MediaGallery with "Preview & Download" button
+- **Admin Sidebar** - Removed animation, fixed header link, added sections to mobile menu
+- **IndexedDB Optimization** - Removed media_cache store (Redis handles caching), title truncated to 200 chars
+- **Cache Key Generation** - Tracking params cleanup (igsh, rdid, share_url, mibextid, etc.)
+
+### 🐛 What's Fixed
+- Admin header link pointing to invalid `/admin/dashboard` → now `/admin`
+- Modal exit animation not smooth → fixed AnimatePresence wrapper
+- Cache miss on same content with different URL params
+
+### 📁 Files Changed
+- `src/components/media/MediaGallery.tsx` - New global component
+- `src/app/admin/playground/page.tsx` - Integrated MediaGallery
+- `src/app/advanced/page.tsx` - Integrated MediaGallery
+- `src/app/admin/layout.tsx` - Fixed sidebar & header
+- `src/components/Sidebar.tsx` - Added YouTube platform
+- `src/lib/storage/indexed-db.ts` - Optimized, removed media_cache
+- `src/lib/url/pipeline.ts` - URL hash cache key generation
+- `src/lib/redis.ts` - Added logger.redis() for cache logs
+
+---
+
 ## [1.0.8] - December 21, 2025
 
 ### ✨ What's New
