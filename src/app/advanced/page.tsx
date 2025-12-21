@@ -13,6 +13,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faWeibo, faTwitter, faTiktok, faYoutube, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import { PLATFORMS as TYPE_PLATFORMS, Platform, MediaData } from '@/lib/types';
 import { useTranslations } from 'next-intl';
+import { getProxyUrl } from '@/lib/api/proxy';
 
 import { usePlayground } from '@/hooks';
 
@@ -23,7 +24,7 @@ function getProxiedThumbnail(url: string | undefined): string | undefined {
     if (!url) return undefined;
     // Check if URL needs proxying (Instagram/Facebook CDN)
     if (url.includes('fbcdn.net') || url.includes('cdninstagram.com') || url.includes('scontent')) {
-        return `/api/proxy?url=${encodeURIComponent(url)}&inline=1`;
+        return getProxyUrl(url, { inline: true });
     }
     return url;
 }
@@ -145,7 +146,7 @@ function ApiPlaygroundTab() {
     // Direct download function (no popup)
     const directDownload = async (downloadUrl: string, filename: string) => {
         try {
-            const proxyUrl = `/api/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}&platform=generic`;
+            const proxyUrl = getProxyUrl(downloadUrl, { filename, platform: 'generic' });
             const response = await fetch(proxyUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok) throw new Error('Download failed');
             const blob = await response.blob();
@@ -515,7 +516,7 @@ function FacebookHtmlTab() {
     // Direct download function (no popup)
     const directDownload = async (url: string, filename: string) => {
         try {
-            const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}&platform=facebook`;
+            const proxyUrl = getProxyUrl(url, { filename, platform: 'facebook' });
             const response = await fetch(proxyUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok) throw new Error('Download failed');
             const blob = await response.blob();
@@ -811,7 +812,7 @@ function DirectProxyTab() {
                 const fileIdMatch = inputUrl.match(/\/d\/([^/]+)/);
                 if (fileIdMatch) {
                     const fileId = fileIdMatch[1];
-                    const res = await fetch(`/api/proxy?url=${encodeURIComponent(`https://drive.google.com/file/d/${fileId}/view`)}&platform=generic&head=0`);
+                    const res = await fetch(getProxyUrl(`https://drive.google.com/file/d/${fileId}/view`, { platform: 'generic' }));
                     const html = await res.text();
                     const nameMatch = html.match(/<span class="uc-name-size"><a[^>]*>([^<]+)<\/a>\s*\(([^)]+)\)/);
                     if (nameMatch) { extractedFilename = nameMatch[1]; extractedSize = nameMatch[2]; }
@@ -862,7 +863,7 @@ function DirectProxyTab() {
         setFileSize('');
 
         try {
-            const proxyUrl = `/api/proxy?url=${encodeURIComponent(newItem.url)}&filename=${encodeURIComponent(newItem.filename)}&platform=generic`;
+            const proxyUrl = getProxyUrl(newItem.url, { filename: newItem.filename, platform: 'generic' });
             
             const response = await fetch(proxyUrl, {
                 method: 'GET',

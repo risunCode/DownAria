@@ -3,15 +3,43 @@
 import useSWR, { SWRConfiguration } from 'swr';
 import { useCallback } from 'react';
 
-// Admin fetcher with credentials
+// API URL from environment
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+// Get auth token from Supabase session
+function getAuthToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (supabaseKey) {
+        try {
+            const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+            return session?.access_token || null;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+// Admin fetcher with auth header
 const adminFetcher = async <T>(url: string): Promise<T> => {
-    const res = await fetch(url, { credentials: 'include' });
+    const token = getAuthToken();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const res = await fetch(url, { headers });
     const json = await res.json();
     if (!json.success) {
         throw new Error(json.error || 'Request failed');
     }
     return json.data;
 };
+
+// Build full URL (prepend API_URL if relative)
+function buildUrl(url: string): string {
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
+}
 
 // SWR config presets for admin
 export const ADMIN_SWR_CONFIG = {
@@ -68,8 +96,10 @@ export function useAdminFetch<T>(
         ...swrOptions,
     };
     
+    const fullUrl = url ? buildUrl(url) : null;
+    
     const { data, error, isLoading, mutate: swrMutate } = useSWR<T>(
-        skip || !url ? null : url,
+        skip || !fullUrl ? null : fullUrl,
         adminFetcher,
         swrConfig
     );
@@ -81,11 +111,14 @@ export function useAdminFetch<T>(
     ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
         if (!url) return { success: false, error: 'No URL' };
         
+        const token = getAuthToken();
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
         try {
-            const res = await fetch(url, {
+            const res = await fetch(buildUrl(url), {
                 method,
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
+                headers,
                 body: body ? JSON.stringify(body) : undefined,
             });
             const json = await res.json();

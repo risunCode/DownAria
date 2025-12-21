@@ -6,18 +6,21 @@
 import useSWR from 'swr';
 import { fetcher, SWR_CONFIG } from '@/lib/swr';
 
-interface UpdatePromptSettings {
-    behavior: 'auto' | 'prompt' | 'silent';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+interface GlobalSettings {
+    update_prompt_mode?: string;
+    [key: string]: string | undefined;
 }
 
 interface UpdatePromptResponse {
     success: boolean;
-    data: UpdatePromptSettings;
+    data: GlobalSettings;
 }
 
 export function useUpdatePrompt() {
     const { data, error, isLoading } = useSWR<UpdatePromptResponse>(
-        '/api/settings/update-prompt',
+        `${API_URL}/api/admin/settings`,
         fetcher,
         {
             ...SWR_CONFIG.static,
@@ -27,8 +30,11 @@ export function useUpdatePrompt() {
         }
     );
 
+    // Extract update_prompt_mode from global settings
+    const behavior = data?.data?.update_prompt_mode || 'prompt';
+
     return {
-        behavior: data?.data?.behavior || 'prompt',
+        behavior: behavior as 'auto' | 'prompt' | 'silent',
         isLoading,
         isError: !!error,
     };

@@ -25,6 +25,7 @@ import { VideoIcon, ImageIcon, MusicIcon, LayersIcon, CheckCircleIcon } from '@/
 import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/discord-webhook';
 import { formatBytes } from '@/lib/utils/format-utils';
 import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { getProxyUrl } from '@/lib/api/proxy';
 import { useTranslations } from 'next-intl';
 import { MediaGallery } from '@/components/media';
 import Swal from 'sweetalert2';
@@ -116,7 +117,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 if (fileSizes[key]) continue;
 
                 try {
-                    const res = await fetch(`/api/proxy?url=${encodeURIComponent(format.url)}&platform=${platform}&head=1`);
+                    const res = await fetch(getProxyUrl(format.url, { platform, head: true }));
                     const size = res.headers.get('x-file-size');
                     if (size && parseInt(size) > 0) {
                         const bytes = parseInt(size);
@@ -343,7 +344,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 document.body.removeChild(link);
             };
 
-            const proxyUrl = `/api/proxy?url=${encodeURIComponent(format.url)}&filename=${encodeURIComponent(filename)}&platform=${platform}`;
+            const proxyUrl = getProxyUrl(format.url, { filename, platform });
             const response = await fetch(proxyUrl);
             if (!response.ok) throw new Error(`Download failed: ${response.status}`);
 

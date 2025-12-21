@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image, { ImageProps } from 'next/image';
+import { getProxyUrl } from '@/lib/api/proxy';
 
 // Simple className merger
 function cn(...classes: (string | undefined | null | false)[]) {
@@ -98,7 +99,7 @@ export function ProxiedThumbnail({
                        src.includes('scontent');
     
     const imageSrc = needsProxy 
-        ? `/api/proxy?url=${encodeURIComponent(src)}&inline=1`
+        ? getProxyUrl(src, { inline: true })
         : src;
 
     return (

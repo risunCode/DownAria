@@ -13,6 +13,8 @@ import { AnimatePresence } from 'framer-motion';
 import Swal from 'sweetalert2';
 import { useTranslations } from 'next-intl';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 function ShareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -90,7 +92,7 @@ function ShareContent() {
       }
 
       // Unified API call
-      const response = await fetch('/api', {
+      const response = await fetch(`${API_URL}/api`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: sanitizedUrl, cookie: platformCookie }),

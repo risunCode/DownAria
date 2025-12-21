@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { MediaData, MediaFormat, Platform } from '@/lib/types';
 import { formatBytes } from '@/lib/utils/format-utils';
 import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { getProxyUrl } from '@/lib/api/proxy';
 import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/discord-webhook';
 import { addHistory, type HistoryEntry } from '@/lib/storage';
 import Swal from 'sweetalert2';
@@ -163,7 +164,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     }
 
     const video = videoRef.current;
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(selectedFormat.url)}&platform=${platform}&inline=1&hls=1`;
+    const proxyUrl = getProxyUrl(selectedFormat.url, { platform, inline: true, hls: true });
 
     // Check if native HLS is supported (Safari, iOS)
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -182,11 +183,11 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         // Custom loader to proxy all segment requests
         xhrSetup: (xhr: XMLHttpRequest, url: string) => {
           // If URL is already our proxy, use as-is
-          if (url.startsWith('/api/proxy')) {
+          if (url.includes('/api/proxy')) {
             return;
           }
           // Otherwise, proxy the URL
-          const proxiedUrl = `/api/proxy?url=${encodeURIComponent(url)}&platform=${platform}&inline=1`;
+          const proxiedUrl = getProxyUrl(url, { platform, inline: true });
           xhr.open('GET', proxiedUrl, true);
         },
       });
@@ -218,7 +219,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       // Fetch all in parallel
       const results = await Promise.allSettled(
         formatsToFetch.map(async (format) => {
-          const res = await fetch(`/api/proxy?url=${encodeURIComponent(format.url)}&platform=${platform}&head=1`);
+          const res = await fetch(getProxyUrl(format.url, { platform, head: true }));
           const size = res.headers.get('x-file-size');
           return { url: format.url, size: size && parseInt(size) > 0 ? formatBytes(parseInt(size)) : null };
         })
@@ -267,7 +268,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     onProgress: (loaded: number, total: number, segment: number, totalSegments: number) => void
   ): Promise<Blob> => {
     // Fetch m3u8 playlist via proxy
-    const proxyM3u8 = `/api/proxy?url=${encodeURIComponent(m3u8Url)}&platform=${platform}&inline=1&hls=1`;
+    const proxyM3u8 = getProxyUrl(m3u8Url, { platform, inline: true, hls: true });
     const m3u8Res = await fetch(proxyM3u8);
     if (!m3u8Res.ok) throw new Error('Failed to fetch HLS playlist');
     
@@ -301,7 +302,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     
     for (let i = 0; i < segmentUrls.length; i++) {
       const segUrl = segmentUrls[i];
-      const proxySegUrl = `/api/proxy?url=${encodeURIComponent(segUrl)}&platform=${platform}&inline=1`;
+      const proxySegUrl = getProxyUrl(segUrl, { platform, inline: true });
       
       const segRes = await fetch(proxySegUrl, {
         credentials: 'same-origin',
@@ -366,7 +367,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         );
       } else {
         // Regular download
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(selectedFormat.url)}&filename=${encodeURIComponent(filename)}&platform=${platform}`;
+        const proxyUrl = getProxyUrl(selectedFormat.url, { filename, platform });
         
         const response = await fetch(proxyUrl, {
           method: 'GET',
@@ -516,7 +517,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
             />
           ) : (
             <video
-              src={`/api/proxy?url=${encodeURIComponent(selectedFormat.url)}&platform=${platform}&inline=1`}
+              src={getProxyUrl(selectedFormat.url, { platform, inline: true })}
               poster={currentThumbnail ? getProxiedThumbnail(currentThumbnail, platform) : undefined}
               className="w-full h-full object-contain"
               controls
@@ -557,7 +558,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
               </div>
               {/* Audio Element */}
               <audio
-                src={`/api/proxy?url=${encodeURIComponent(selectedFormat.url)}&platform=${platform}&inline=1`}
+                src={getProxyUrl(selectedFormat.url, { platform, inline: true })}
                 className="w-full"
                 controls
                 autoPlay

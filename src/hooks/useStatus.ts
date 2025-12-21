@@ -6,6 +6,8 @@
 import useSWR from 'swr';
 import { fetcher, SWR_CONFIG } from '@/lib/swr';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 interface PlatformStatus {
     id: string;
     name: string;
@@ -26,7 +28,7 @@ interface StatusData {
 
 export function useStatus() {
     const { data, error, isLoading, mutate } = useSWR<StatusData>(
-        '/api/status',
+        `${API_URL}/api/status`,
         fetcher,
         {
             ...SWR_CONFIG.static,

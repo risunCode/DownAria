@@ -143,13 +143,16 @@ export default function Home() {
   const t = useTranslations('home');
   const tErrors = useTranslations('errors');
 
+  // API URL from environment
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
   // Unified fetch for all platforms
   const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; platform?: string }> => {
     // Check if skip cache is enabled in settings
     const { getSkipCache } = await import('@/lib/storage');
     const skipCache = getSkipCache();
     
-    const response = await fetch('/api', {
+    const response = await fetch(`${API_URL}/api`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, cookie, skipCache }),

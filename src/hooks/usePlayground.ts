@@ -6,6 +6,8 @@
 import useSWR from 'swr';
 import { fetcher, SWR_CONFIG } from '@/lib/swr';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 interface PlaygroundStatusResponse {
     success: boolean;
     data: {
@@ -17,7 +19,7 @@ interface PlaygroundStatusResponse {
 
 export function usePlayground() {
     const { data, error, isLoading, mutate } = useSWR<PlaygroundStatusResponse>(
-        '/api/playground',
+        `${API_URL}/api/playground`,
         fetcher,
         {
             ...SWR_CONFIG.moderate,
