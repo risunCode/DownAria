@@ -12,6 +12,7 @@ export { sanitizeCookie, isValidCookie } from '@/lib/utils/security';
 export {
     getRotatingCookie,
     markCookieSuccess,
+    markCookieError,
     markCookieCooldown,
     markCookieExpired,
     getCookiePoolStats,

@@ -194,7 +194,7 @@ if (success) {
                                     <tr>
                                         <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">X-API-Key</td>
                                         <td className="py-2 px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Your API key (format: beta_xxxxx)</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Your API key (format: xtf_sk_xxxxx)</td>
                                     </tr>
                                     <tr>
                                         <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">Content-Type</td>

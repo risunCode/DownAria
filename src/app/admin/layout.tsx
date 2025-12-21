@@ -51,7 +51,6 @@ const NAV_ITEMS = {
     user: [
         { href: '/admin', label: 'Overview', icon: LayoutDashboard },
         { href: '/admin/access', label: 'Access', icon: Key },
-        { href: '/admin/playground', label: 'Playground', icon: Code },
     ],
     admin: [
         { href: '/admin/services', label: 'Services', icon: Server },
@@ -340,7 +339,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+                                className="fixed inset-0 bg-black/60 z-40 md:hidden"
                             />
                             {/* Menu */}
                             <motion.aside

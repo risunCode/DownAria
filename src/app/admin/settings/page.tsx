@@ -444,7 +444,7 @@ function SettingsContent() {
 
 // Admin Alerts Section Component
 function AdminAlertsSection() {
-    const { config, loading, testing, runningHealthCheck, updateConfig, testWebhook, runHealthCheck } = useAlerts();
+    const { config, loading, testing, updateConfig, testWebhook } = useAlerts();
     const [localWebhook, setLocalWebhook] = useState('');
 
     useEffect(() => {
@@ -466,25 +466,6 @@ function AdminAlertsSection() {
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
         });
-    };
-
-    const handleHealthCheck = async () => {
-        const result = await runHealthCheck();
-        if (result) {
-            Swal.fire({
-                title: 'Health Check Complete',
-                html: `
-                    <div class="text-left text-sm space-y-2">
-                        <p><strong>Checked:</strong> ${result.summary.totalChecked} cookies</p>
-                        <p class="text-green-400"><strong>Healthy:</strong> ${result.summary.totalHealthy}</p>
-                        <p class="text-red-400"><strong>Failed:</strong> ${result.summary.totalFailed}</p>
-                    </div>
-                `,
-                icon: result.summary.totalFailed > 0 ? 'warning' : 'success',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-            });
-        }
     };
 
     if (loading) {
@@ -624,29 +605,6 @@ function AdminAlertsSection() {
                             className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
                         />
                     </div>
-                </div>
-
-                {/* Cookie Health Check */}
-                <div className="pt-3 border-t border-[var(--border-color)]">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-cyan-400" />
-                            <span className="text-sm font-medium">Cookie Health Check</span>
-                        </div>
-                        <button
-                            onClick={handleHealthCheck}
-                            disabled={runningHealthCheck}
-                            className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white text-xs hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                        >
-                            {runningHealthCheck ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
-                            {runningHealthCheck ? 'Checking...' : 'Run Now'}
-                        </button>
-                    </div>
-                    {config?.lastHealthCheckAt && (
-                        <p className="text-[10px] text-[var(--text-muted)]">
-                            Last check: {new Date(config.lastHealthCheckAt).toLocaleString()}
-                        </p>
-                    )}
                 </div>
             </div>
         </motion.div>

@@ -122,7 +122,7 @@ const RATE_LIMIT_CONFIG = {
     auth: { maxRequests: 10, windowMs: 60000 },    // 10 req/min for auth
 };
 const LOGIN_LIMIT = { maxAttempts: 5, blockDuration: 300000 }; // 5 attempts, 5 min block
-const ALLOWED_ORIGINS = ['https://xtfetch.vercel.app', 'http://localhost:3000'];
+const ALLOWED_ORIGINS = ['https://xtfetch.vercel.app', 'http://localhost:3001'];
 
 // Suspicious patterns (basic DDoS/bot detection)
 const SUSPICIOUS_PATTERNS = [

@@ -58,7 +58,7 @@ export default function AdminOverviewPage() {
                             }`}
                             title={autoRefresh ? 'Auto-refresh ON (30s)' : 'Auto-refresh OFF'}
                         >
-                            <Activity className={`w-4 h-4 ${autoRefresh ? 'animate-pulse' : ''}`} />
+                            <Activity className="w-4 h-4" />
                         </button>
                         <select
                             value={days}
@@ -133,20 +133,6 @@ export default function AdminOverviewPage() {
 
                         {/* Charts Row */}
                         <div className="grid lg:grid-cols-2 gap-6">
-                            {/* Request vs Download Bar Chart */}
-                            <AdminCard>
-                                <h2 className="font-semibold mb-4 flex items-center gap-2">
-                                    <BarChart3 className="w-5 h-5 text-cyan-400" />
-                                    Downloads Overview
-                                </h2>
-                                <RequestDownloadChart 
-                                    apiRequests={apiKeyStats.totalRequests || 0}
-                                    downloads={totalDownloads}
-                                    failed={failedCount}
-                                    successRate={stats.successRate.rate}
-                                />
-                            </AdminCard>
-
                             {/* Platform Breakdown */}
                             <AdminCard>
                                 <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -169,6 +155,20 @@ export default function AdminOverviewPage() {
                                             </div>
                                         ))}
                                 </div>
+                            </AdminCard>
+
+                            {/* Request vs Download Bar Chart */}
+                            <AdminCard>
+                                <h2 className="font-semibold mb-4 flex items-center gap-2">
+                                    <BarChart3 className="w-5 h-5 text-cyan-400" />
+                                    Downloads Overview
+                                </h2>
+                                <RequestDownloadChart 
+                                    apiRequests={apiKeyStats.totalRequests || 0}
+                                    downloads={totalDownloads}
+                                    failed={failedCount}
+                                    successRate={stats.successRate.rate}
+                                />
                             </AdminCard>
                         </div>
 

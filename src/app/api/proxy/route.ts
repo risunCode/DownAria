@@ -139,6 +139,10 @@ export async function GET(request: NextRequest) {
 
         if (contentLength) responseHeaders.set('Content-Length', contentLength);
 
+        // Anti-IDM headers - IDM checks these and may skip interception
+        responseHeaders.set('X-Content-Type-Options', 'nosniff');
+        responseHeaders.set('X-Download-Options', 'noopen');
+
         logger.debug('proxy', `${inline ? 'Proxied' : 'Downloaded'}: ${filename} (${contentLength || 'unknown'} bytes)`);
 
         // Return appropriate status code

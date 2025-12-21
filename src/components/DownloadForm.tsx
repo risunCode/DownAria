@@ -73,10 +73,10 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                 }
             }, 800);
             
-            // Real-time elapsed counter (every 50ms for smooth updates)
+            // Real-time elapsed counter (every 1000ms - reduced from 50ms for performance)
             elapsedInterval.current = setInterval(() => {
                 setElapsedMs(Date.now() - startTimeRef.current);
-            }, 50);
+            }, 1000);
         } else {
             if (progressInterval.current) {
                 clearInterval(progressInterval.current);
@@ -108,13 +108,14 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
         };
     }, [isLoading, t]);
 
-    // Rotate tips every 3 seconds
+    // Rotate tips every 5 seconds (only when no URL entered)
     useEffect(() => {
+        if (url) return; // Stop rotation when URL is entered
         const interval = setInterval(() => {
             setTipIndex(prev => (prev + 1) % TIP_KEYS.length);
-        }, 3000);
+        }, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [url]);
 
     // Auto-submit when valid URL detected
     useEffect(() => {
@@ -252,10 +253,12 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             onSubmit={handleSubmit}
             className="w-full"
         >
-            {/* Animated border wrapper - always spinning */}
+            {/* Animated border wrapper - only spin when loading */}
             <div className="relative rounded-2xl p-[2px]">
-                {/* Spinning gradient border - always visible */}
-                <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_var(--border-angle),var(--accent-primary)_0%,transparent_10%,transparent_90%,var(--accent-primary)_100%)] animate-spin-slow opacity-60" />
+                {/* Spinning gradient border - only visible when loading */}
+                {isLoading && (
+                    <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_var(--border-angle),var(--accent-primary)_0%,transparent_10%,transparent_90%,var(--accent-primary)_100%)] animate-spin-slow opacity-60" />
+                )}
                 {/* Card content - no hover effects */}
                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 sm:p-6 space-y-4 relative rounded-2xl">
                 {/* Rotating tip or platform indicator */}

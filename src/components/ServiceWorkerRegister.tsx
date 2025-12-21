@@ -159,10 +159,8 @@ export function ServiceWorkerRegister() {
         });
 
       // Handle controller change (new SW activated)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Reload to get new version
-        window.location.reload();
-      });
+      // NOTE: Don't auto-reload here - let user click "Update Now" button first
+      // The reload happens in handleUpdate() after user confirms
     }
 
     return () => {
@@ -172,10 +170,18 @@ export function ServiceWorkerRegister() {
     };
   }, []);
 
-  // Update prompt
+  // Update prompt - user must click to reload
   const handleUpdate = () => {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      // Send skipWaiting to activate new SW
       navigator.serviceWorker.controller.postMessage('skipWaiting');
+      // Reload after a short delay to let SW activate
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } else {
+      // Fallback: just reload
+      window.location.reload();
     }
   };
 

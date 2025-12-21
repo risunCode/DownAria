@@ -20,18 +20,18 @@ function CodeBlock({ code, language = 'bash' }: { code: string; language?: strin
 
     return (
         <div className="relative rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] overflow-hidden my-4">
-            <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
-                <span className="text-xs text-[var(--text-muted)]">{language}</span>
+            <div className="flex items-center justify-between px-2 sm:px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+                <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">{language}</span>
                 <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 text-[10px] sm:text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded transition-colors"
                 >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-400" /> : <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                     {copied ? 'Copied!' : 'Copy'}
                 </button>
             </div>
-            <pre className="p-4 text-xs overflow-x-auto">
-                <code className="text-[var(--text-secondary)]">{code}</code>
+            <pre className="p-2 sm:p-4 text-[10px] sm:text-xs overflow-x-auto">
+                <code className="text-[var(--text-secondary)] whitespace-pre-wrap break-all sm:whitespace-pre sm:break-normal">{code}</code>
             </pre>
         </div>
     );

@@ -161,29 +161,80 @@ export async function getRotatingCookie(platform: string): Promise<string | null
 
 /**
  * Mark last used cookie as successful
+ * Resets error count on success
  */
 export async function markCookieSuccess(): Promise<void> {
     if (!lastUsedCookieId) return;
     const db = getSupabase();
     if (!db) return;
     
-    // Simple increment
     const { data } = await db
         .from('admin_cookie_pool')
-        .select('success_count')
+        .select('success_count, use_count')
         .eq('id', lastUsedCookieId)
         .single();
     
     if (data) {
         await db
             .from('admin_cookie_pool')
-            .update({ success_count: data.success_count + 1, last_error: null })
+            .update({ 
+                success_count: data.success_count + 1,
+                use_count: data.use_count + 1,
+                last_error: null,
+                status: 'healthy' // Reset to healthy on success
+            })
             .eq('id', lastUsedCookieId);
     }
 }
 
 /**
- * Mark cookie as rate limited (put in cooldown)
+ * Mark cookie error - every 10 errors puts cookie in cooldown
+ */
+export async function markCookieError(error?: string): Promise<void> {
+    if (!lastUsedCookieId) return;
+    const db = getSupabase();
+    if (!db) return;
+    
+    const { data } = await db
+        .from('admin_cookie_pool')
+        .select('error_count')
+        .eq('id', lastUsedCookieId)
+        .single();
+    
+    const newErrorCount = (data?.error_count || 0) + 1;
+    
+    // Every 10 errors, put in cooldown
+    if (newErrorCount % 10 === 0) {
+        let cooldownMinutes = 30;
+        try {
+            const { getCookieCooldownMinutes } = await import('@/lib/services/helper/system-config');
+            cooldownMinutes = getCookieCooldownMinutes();
+        } catch { /* use default */ }
+        
+        const cooldownUntil = new Date(Date.now() + cooldownMinutes * 60000).toISOString();
+        
+        await db
+            .from('admin_cookie_pool')
+            .update({
+                error_count: newErrorCount,
+                last_error: error || 'Multiple errors',
+                status: 'cooldown',
+                cooldown_until: cooldownUntil
+            })
+            .eq('id', lastUsedCookieId);
+    } else {
+        await db
+            .from('admin_cookie_pool')
+            .update({
+                error_count: newErrorCount,
+                last_error: error || 'Request failed'
+            })
+            .eq('id', lastUsedCookieId);
+    }
+}
+
+/**
+ * Mark cookie as rate limited (put in cooldown immediately)
  */
 export async function markCookieCooldown(minutes?: number, error?: string): Promise<void> {
     if (!lastUsedCookieId) return;
@@ -371,7 +422,8 @@ export async function deleteCookieFromPool(id: string): Promise<boolean> {
 }
 
 /**
- * Test cookie health
+ * Test cookie - simplified, just checks if cookie exists and is valid format
+ * Real health is tracked via actual usage (markCookieSuccess/markCookieError)
  */
 export async function testCookieHealth(id: string): Promise<{ healthy: boolean; error?: string }> {
     const db = getSupabase();
@@ -379,47 +431,24 @@ export async function testCookieHealth(id: string): Promise<{ healthy: boolean; 
 
     const { data } = await db
         .from('admin_cookie_pool')
-        .select('platform, cookie')
+        .select('platform, cookie, status, error_count')
         .eq('id', id)
         .single();
     
     if (!data) return { healthy: false, error: 'Cookie not found' };
     
-    // Decrypt cookie for testing
+    // Just check if cookie has content
     const decryptedCookie = decryptCookie(data.cookie);
-    
-    // Platform-specific health check
-    try {
-        const testUrl = getTestUrl(data.platform);
-        if (!testUrl) return { healthy: true }; // No test available
-        
-        const res = await fetch(testUrl, {
-            headers: { Cookie: decryptedCookie },
-            redirect: 'follow'
-        });
-        
-        const html = await res.text();
-        
-        // Check for login redirect or error
-        if (html.includes('login_form') || html.includes('Log in to Facebook')) {
-            await db
-                .from('admin_cookie_pool')
-                .update({ status: 'expired', last_error: 'Session expired' })
-                .eq('id', id);
-            return { healthy: false, error: 'Session expired' };
-        }
-        
-        // Update as healthy
-        await db
-            .from('admin_cookie_pool')
-            .update({ status: 'healthy', last_error: null })
-            .eq('id', id);
-        
-        return { healthy: true };
-    } catch (e) {
-        const error = e instanceof Error ? e.message : 'Test failed';
-        return { healthy: false, error };
+    if (!decryptedCookie || decryptedCookie.length < 10) {
+        return { healthy: false, error: 'Invalid cookie format' };
     }
+    
+    // Return current status based on actual usage tracking
+    const isHealthy = data.status === 'healthy' || data.status === 'cooldown';
+    return { 
+        healthy: isHealthy, 
+        error: isHealthy ? undefined : data.status === 'expired' ? 'Marked as expired' : `Status: ${data.status}`
+    };
 }
 
 // Helper: Extract user ID from cookie
@@ -450,17 +479,6 @@ function extractUserId(cookie: string, platform: string): string | null {
         return match?.[1] || null;
     }
     return null;
-}
-
-// Helper: Get test URL for platform
-function getTestUrl(platform: string): string | null {
-    const urls: Record<string, string> = {
-        facebook: 'https://www.facebook.com/me',
-        instagram: 'https://www.instagram.com/accounts/edit/',
-        twitter: 'https://twitter.com/settings/account',
-        weibo: 'https://weibo.com/ajax/profile/info'
-    };
-    return urls[platform] || null;
 }
 
 

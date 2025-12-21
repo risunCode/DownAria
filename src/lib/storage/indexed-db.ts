@@ -418,29 +418,67 @@ export async function getStorageStats(): Promise<{
 // FULL BACKUP (ZIP)
 // ═══════════════════════════════════════════════════════════════
 
+import { getEncrypted, setEncrypted } from './crypto';
+
 export interface FullBackupData {
     version: number;
     exportedAt: number;
     appVersion: string;
     history: ExportData;
     settings: Record<string, string>;
+    // Decrypted sensitive data for cross-browser portability
+    decryptedData?: Record<string, string>;
 }
+
+// Keys that use encrypted storage and need special handling
+const ENCRYPTED_KEYS = [
+    'xtf_cookie_facebook',
+    'xtf_cookie_instagram', 
+    'xtf_cookie_weibo',
+    'xtf_cookie_twitter',
+];
 
 export async function createFullBackup(): Promise<FullBackupData> {
     const historyData = await exportHistory();
     
     const settings: Record<string, string> = {};
+    const decryptedData: Record<string, string> = {};
+    
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key) settings[key] = localStorage.getItem(key) || '';
+        if (!key) continue;
+        
+        const value = localStorage.getItem(key) || '';
+        
+        // For encrypted keys, try to decrypt and store separately
+        if (ENCRYPTED_KEYS.includes(key)) {
+            try {
+                const decrypted = getEncrypted(key);
+                if (decrypted) {
+                    decryptedData[key] = decrypted;
+                }
+            } catch {
+                // Skip if can't decrypt
+            }
+            // Don't include encrypted data in settings (not portable)
+            continue;
+        }
+        
+        // Skip encrypted data (starts with 'enc:') - not portable
+        if (value.startsWith('enc:')) {
+            continue;
+        }
+        
+        settings[key] = value;
     }
     
     return {
-        version: 1,
+        version: 2, // Bumped version for new format
         exportedAt: Date.now(),
-        appVersion: '1.0.0',
+        appVersion: '1.2.0',
         history: historyData,
         settings,
+        decryptedData: Object.keys(decryptedData).length > 0 ? decryptedData : undefined,
     };
 }
 
@@ -454,9 +492,15 @@ export async function downloadFullBackupAsZip(filename?: string): Promise<void> 
         exportedAt: backup.exportedAt,
         appVersion: backup.appVersion,
         historyCount: backup.history.stats.total,
+        hasDecryptedData: !!backup.decryptedData,
     }, null, 2));
     zip.file('history.json', JSON.stringify(backup.history, null, 2));
     zip.file('settings.json', JSON.stringify(backup.settings, null, 2));
+    
+    // Include decrypted sensitive data if available
+    if (backup.decryptedData) {
+        zip.file('sensitive.json', JSON.stringify(backup.decryptedData, null, 2));
+    }
     
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     const url = URL.createObjectURL(blob);
@@ -473,12 +517,14 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
     historyImported: number;
     historySkipped: number;
     settingsImported: number;
+    sensitiveImported: number;
 }> {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     
-    let historyImported = 0, historySkipped = 0, settingsImported = 0;
+    let historyImported = 0, historySkipped = 0, settingsImported = 0, sensitiveImported = 0;
     
+    // Import history
     const historyFile = zip.file('history.json');
     if (historyFile) {
         const content = await historyFile.async('string');
@@ -487,6 +533,7 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
         historySkipped = result.skipped;
     }
     
+    // Import regular settings (plain localStorage)
     const settingsFile = zip.file('settings.json');
     if (settingsFile) {
         const settings = JSON.parse(await settingsFile.async('string')) as Record<string, string>;
@@ -498,7 +545,20 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
         });
     }
     
-    return { historyImported, historySkipped, settingsImported };
+    // Import sensitive data (re-encrypt with new fingerprint)
+    const sensitiveFile = zip.file('sensitive.json');
+    if (sensitiveFile) {
+        const sensitive = JSON.parse(await sensitiveFile.async('string')) as Record<string, string>;
+        Object.entries(sensitive).forEach(([key, value]) => {
+            if (typeof value === 'string' && ENCRYPTED_KEYS.includes(key)) {
+                // Re-encrypt with current browser's fingerprint
+                setEncrypted(key, value);
+                sensitiveImported++;
+            }
+        });
+    }
+    
+    return { historyImported, historySkipped, settingsImported, sensitiveImported };
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -237,17 +237,28 @@ body {
 /* Glassmorphism utilities */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
+}
+
+/* Enable backdrop-filter only on desktop (expensive on mobile) */
+@media (min-width: 1024px) {
+  .glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }
 
 /* Frosted glass - more subtle, for headers/navbars */
 .frost-glass {
   background: var(--bg-primary)/80;
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
   border-bottom: 1px solid var(--border-color)/50;
+}
+
+@media (min-width: 1024px) {
+  .frost-glass {
+    backdrop-filter: blur(10px) saturate(180%);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
+  }
 }
 
 .glass-card {
@@ -260,7 +271,14 @@ body {
 .glass-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent-primary);
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.08);
+}
+
+/* Reduce box-shadow on mobile for performance */
+@media (max-width: 768px) {
+  .glass-card:hover {
+    box-shadow: none;
+  }
 }
 
 /* Accent text - solid color */
@@ -278,12 +296,23 @@ body {
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .btn-gradient:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+}
+
+/* Reduce button shadow on mobile */
+@media (max-width: 768px) {
+  .btn-gradient {
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  }
+  .btn-gradient:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  }
 }
 
 .btn-gradient:active {
@@ -337,6 +366,7 @@ body {
 /* Input styles */
 .input-url {
   width: 100%;
+  max-width: 100%;
   padding: 1rem 1.25rem;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
@@ -344,6 +374,8 @@ body {
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .input-url:focus {
@@ -462,26 +494,23 @@ body {
   }
 }
 
+/* Only enable spin animation when explicitly applied (not always running) */
 .animate-spin-slow {
   animation: spin-border 3s linear infinite;
 }
 
-.animate-spin-slow::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(from var(--border-angle),
-      var(--accent-primary) 0%,
-      transparent 15%,
-      transparent 85%,
-      var(--accent-primary) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
+/* Disable animation on mobile for performance */
+@media (max-width: 768px) {
+  .animate-spin-slow {
+    animation: none;
+  }
+}
+
+/* Disable animation when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow {
+    animation: none;
+  }
 }
 
 
@@ -514,6 +543,15 @@ body {
 
 .shiny-border:hover::before {
   opacity: 1;
+}
+
+/* Disable shiny-border animation on mobile for performance */
+@media (max-width: 768px) {
+  .shiny-border::before {
+    animation: none;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    opacity: 0.3;
+  }
 }
 
 
@@ -551,16 +589,22 @@ body {
   border: 0;
 }
 
-/* Reduced motion preference */
+/* Reduced motion preference - only disable heavy/decorative animations */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  /* Disable decorative/continuous animations */
+  .animate-spin,
+  .animate-pulse,
+  .animate-spin-slow,
+  .skeleton {
+    animation: none !important;
   }
+  
+  .shiny-border::before {
+    animation: none !important;
+  }
+  
+  /* Keep essential UI transitions but make them faster */
+  /* Note: Framer Motion handles its own reduced-motion, so we don't override * */
 }
 
 /* High contrast mode support */

@@ -63,7 +63,8 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
     if (!supabase) return { error: 'Supabase not configured' };
     
-    const { error } = await supabase.auth.signOut();
+    // Sign out with scope: 'local' to clear only this browser's session
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) return { error: error.message };
     return { error: null };
 }
@@ -93,6 +94,13 @@ export async function updatePassword(newPassword: string) {
 export async function getSession() {
     if (!supabase) return null;
     
+    // First verify the session is still valid by checking with server
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+        return null;
+    }
+    
+    // Now get the session (which should be valid)
     const { data: { session } } = await supabase.auth.getSession();
     return session;
 }

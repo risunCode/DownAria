@@ -5,7 +5,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { PendingDownloadProvider } from "@/lib/contexts/PendingDownloadContext";
-import { DownloadManagerProvider } from "@/components/DownloadManager";
 import { IntlProvider } from "@/components/IntlProvider";
 import { StructuredData, FAQStructuredData } from "@/components/StructuredData";
 import { SkipToContent } from "@/components/ui/Accessibility";
@@ -85,10 +84,8 @@ export default function RootLayout({
         <SkipToContent />
         <IntlProvider>
           <PendingDownloadProvider>
-            <DownloadManagerProvider>
-              <ServiceWorkerRegister />
-              {children}
-            </DownloadManagerProvider>
+            <ServiceWorkerRegister />
+            {children}
           </PendingDownloadProvider>
         </IntlProvider>
         <Analytics />

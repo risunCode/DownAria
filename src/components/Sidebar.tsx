@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     FacebookIcon,
     InstagramIcon,
@@ -24,6 +24,16 @@ const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
     { id: 'solarized', label: 'Solarized', icon: Sparkles },
 ];
 
+// Memoized outside component - static config
+const PLATFORMS_CONFIG = [
+    { id: 'facebook', icon: FacebookIcon, label: 'Facebook', color: 'text-blue-500' },
+    { id: 'instagram', icon: InstagramIcon, label: 'Instagram', color: 'text-pink-500' },
+    { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
+    { id: 'tiktok', icon: TiktokIcon, label: 'TikTok', color: 'text-cyan-400' },
+    { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
+    { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
+] as const;
+
 interface SidebarProps {
     children: React.ReactNode;
 }
@@ -35,6 +45,7 @@ export function SidebarLayout({ children }: SidebarProps) {
     const [hideDocs, setHideDocs] = useState<boolean | null>(null); // null = loading
     const themeRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
+    const router = useRouter();
     
     // Use SWR for platform status (auto-cached, deduplicated)
     const { platforms: platformStatus } = useStatus();
@@ -47,6 +58,11 @@ export function SidebarLayout({ children }: SidebarProps) {
         const settings = getSettings();
         setHideDocs(settings.hideDocs || false);
     }, []);
+
+    // Close sidebar on route change (for back/forward navigation)
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [pathname]);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -64,9 +80,27 @@ export function SidebarLayout({ children }: SidebarProps) {
         setThemeOpen(false);
     };
 
+    // Handle navigation with smooth sidebar close animation
+    const handleNavigation = useCallback((href: string) => {
+        // If already on this page, just close sidebar
+        if (pathname === href) {
+            setSidebarOpen(false);
+            return;
+        }
+        
+        // Close sidebar first, then navigate after animation
+        setSidebarOpen(false);
+        
+        // Wait for exit animation to complete before navigating
+        setTimeout(() => {
+            router.push(href);
+        }, 200); // Match the spring animation duration
+    }, [pathname, router]);
+
     const CurrentThemeIcon = THEMES.find(t => t.id === currentTheme)?.icon || Palette;
 
-    const navLinks = [
+    // Memoize navLinks - only changes when hideDocs changes
+    const navLinks = useMemo(() => [
         { href: '/', labelKey: 'home', icon: Home },
         { href: '/history', labelKey: 'history', icon: History },
         { href: '/advanced', labelKey: 'advanced', icon: Wrench },
@@ -74,33 +108,25 @@ export function SidebarLayout({ children }: SidebarProps) {
         ...(hideDocs === false ? [{ href: '/docs', labelKey: 'docs', icon: BookOpen }] : []),
         { href: '/settings', labelKey: 'settings', icon: Settings },
         { href: '/about', labelKey: 'about', icon: Info },
-    ];
+    ], [hideDocs]);
 
-    // Default platforms with dynamic status from API
-    const platformsConfig = [
-        { id: 'facebook', icon: FacebookIcon, label: 'Facebook', color: 'text-blue-500' },
-        { id: 'instagram', icon: InstagramIcon, label: 'Instagram', color: 'text-pink-500' },
-        { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
-        { id: 'tiktok', icon: TiktokIcon, label: 'TikTok', color: 'text-cyan-400' },
-        { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
-        { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
-    ];
+    // Memoize platforms with status - only changes when platformStatus changes
+    const platforms = useMemo(() => 
+        PLATFORMS_CONFIG.map(p => {
+            const apiStatus = platformStatus.find(s => s.id === p.id);
+            return {
+                ...p,
+                status: (apiStatus?.status || 'active') as 'active' | 'maintenance' | 'offline'
+            };
+        }), [platformStatus]);
 
-    // Merge with API status
-    const platforms = platformsConfig.map(p => {
-        const apiStatus = platformStatus.find(s => s.id === p.id);
-        return {
-            ...p,
-            status: (apiStatus?.status || 'active') as 'active' | 'maintenance' | 'offline'
-        };
-    });
-
-    const isActive = (href: string) => pathname === href;
+    // Memoize isActive function
+    const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
     return (
         <div className="min-h-screen flex bg-[var(--bg-primary)]">
-            {/* Mobile Header - Frosted Glass */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-color)]/50">
+            {/* Mobile Header - Solid background (no blur for mobile performance) */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)] border-b border-[var(--border-color)]">
                 <div className="flex items-center justify-between px-3 py-3">
                     {/* Left: Burger + Logo */}
                     <div className="flex items-center gap-2">
@@ -162,15 +188,6 @@ export function SidebarLayout({ children }: SidebarProps) {
                             </AnimatePresence>
                         </div>
                         <Link
-                            href="/"
-                            className={`p-2 rounded-lg transition-colors ${pathname === '/'
-                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
-                                }`}
-                        >
-                            <Home className="w-5 h-5" />
-                        </Link>
-                        <Link
                             href="/settings"
                             className={`p-2 rounded-lg transition-colors ${pathname === '/settings'
                                     ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
@@ -187,13 +204,15 @@ export function SidebarLayout({ children }: SidebarProps) {
             <AnimatePresence>
                 {sidebarOpen && (
                     <>
+                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                            className="lg:hidden fixed inset-0 z-40 bg-black/60"
                         />
+                        {/* Menu */}
                         <motion.aside
                             initial={{ x: -280 }}
                             animate={{ x: 0 }}
@@ -205,7 +224,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                                 navLinks={navLinks}
                                 platforms={platforms}
                                 isActive={isActive}
-                                onLinkClick={() => setSidebarOpen(false)}
+                                onNavigate={handleNavigation}
                             />
                         </motion.aside>
                     </>
@@ -237,23 +256,34 @@ interface SidebarContentProps {
     navLinks: { href: string; labelKey: string; icon: React.FC<{ className?: string }> }[];
     platforms: { id: string; icon: React.FC<{ className?: string }>; label: string; color: string; status: 'active' | 'maintenance' | 'offline' }[];
     isActive: (href: string) => boolean;
-    onLinkClick?: () => void;
+    onNavigate?: (href: string) => void;
 }
 
-function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarContentProps) {
+function SidebarContent({ navLinks, platforms, isActive, onNavigate }: SidebarContentProps) {
     const t = useTranslations('nav');
     const tPlatforms = useTranslations('platforms');
     const tFooter = useTranslations('footer');
+
+    // Handle link click - use custom navigation if provided (mobile), otherwise default Link behavior (desktop)
+    const handleLinkClick = (e: React.MouseEvent, href: string) => {
+        if (onNavigate) {
+            e.preventDefault();
+            onNavigate(href);
+        }
+    };
     
     return (
         <div className="flex flex-col h-full">
             {/* Logo */}
             <div className="p-5 border-b border-[var(--border-color)]">
-                <Link href="/" onClick={onLinkClick} className="flex items-center gap-3 group">
-                    <motion.img
+                <Link 
+                    href="/" 
+                    onClick={(e) => handleLinkClick(e, '/')} 
+                    className="flex items-center gap-3 group"
+                >
+                    <img
                         src="/icon.png"
                         alt="XTFetch"
-                        whileHover={{ rotate: 10, scale: 1.05 }}
                         className="w-11 h-11 rounded-xl shadow-lg shadow-[var(--accent-primary)]/20"
                     />
                     <div>
@@ -272,8 +302,8 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                     <Link
                         key={link.href}
                         href={link.href}
-                        onClick={onLinkClick}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive(link.href)
+                        onClick={(e) => handleLinkClick(e, link.href)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${isActive(link.href)
                             ? 'bg-gradient-to-r from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
                             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]'
                             }`}
@@ -318,7 +348,7 @@ function SidebarContent({ navLinks, platforms, isActive, onLinkClick }: SidebarC
                         {tFooter('copyright').split('risunCode')[0]}
                         <Link
                             href="/auth"
-                            onClick={onLinkClick}
+                            onClick={(e) => handleLinkClick(e, '/auth')}
                             className="hover:text-[var(--accent-primary)] transition-colors cursor-pointer"
                             title="🔐"
                         >

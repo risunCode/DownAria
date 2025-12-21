@@ -7,59 +7,50 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
-        version: '1.0.8',
-        date: 'December 21, 2025',
-        changes: [
-            { type: 'new', items: ['LocalStorage encryption (XOR + HMAC integrity)', 'Auto-migration for existing unencrypted data'] },
-            { type: 'improved', items: ['Platform cookies now encrypted at rest', 'Discord webhook settings encrypted', 'Admin key storage encrypted', 'Browser fingerprint-based key derivation'] },
-        ],
-    },
-    {
-        version: '1.0.7',
-        date: 'December 21, 2025',
-        changes: [
-            { type: 'new', items: ['Clear IndexedDB button in Storage settings', 'Install PWA section with manual instructions', 'Auto-update SW cache version on build'] },
-            { type: 'improved', items: ['Settings Basic tab reorganized (App & Features section)', 'Hide Documentation toggle auto-refreshes page', 'Language selector made compact', 'Service Worker update check every 5 minutes', 'Cache headers optimized for sw.js', 'SSRF protection (IPv6, DNS rebinding, cloud metadata)', 'Cookie CRLF injection prevention', 'Encryption key validation in production', 'IP format validation in middleware', 'Error message sanitization'] },
-            { type: 'fixed', items: ['Cache invalidation on deploy'] },
-        ],
-    },
-    {
-        version: '1.0.6',
-        date: 'December 21, 2025',
-        changes: [
-            { type: 'new', items: ['API Origin Protection (domain whitelist)', 'Demo API Key for testing (demo_caf079daf479ceb1)', 'DocsNavbar for easy navigation', 'Legacy API rate limiting (5 req/5 min)'] },
-            { type: 'improved', items: ['Documentation redesign with app styling', 'Cookie guide with JSON export method', 'LocalStorage keys renamed to xtf_* format', 'Dev server now runs on port 3001'] },
-        ],
-    },
-    {
         version: '1.0.5',
-        date: 'December 20, 2025',
+        date: 'December 21, 2025',
         changes: [
-            { type: 'new', items: ['Documentation Page (/docs)', 'i18n Support (English + Bahasa Indonesia)', 'Skip Cache toggle'] },
-            { type: 'improved', items: ['Fixed filename format', 'Memory optimization', 'Better error messages'] },
+            { type: 'new', items: ['Smarter Cookie Management - Auto health tracking per usage', 'Improved Backup - Better export/import for cross-browser compatibility'] },
+            { type: 'improved', items: ['Mobile performance - smoother animations & reduced lag', 'AI Chat now fully responsive on mobile', 'Documentation pages responsive fixes', 'Admin dashboard layout improvements', 'Cleaner admin panel navigation'] },
         ],
     },
     {
         version: '1.0.4',
-        date: 'December 15, 2025',
+        date: 'December 20, 2025',
         changes: [
-            { type: 'new', items: ['Cookie Pool System with health tracking', 'Admin Alerts & Announcements', 'Push Notifications (VAPID)'] },
-            { type: 'improved', items: ['Redis cache migration (Upstash)', 'Improved rate limiting per-IP and per-API-key'] },
+            { type: 'new', items: ['Multi-language support (English + Bahasa Indonesia)', 'Language selector in Settings → Basic', 'Full Backup - Export/Import history + settings as ZIP', 'Faster Downloads - Improved caching system'] },
+            { type: 'improved', items: ['Better error messages with localization', 'Friendlier UI text and labels', 'Performance optimizations'] },
         ],
     },
     {
         version: '1.0.3',
-        date: 'December 10, 2025',
+        date: 'December 20, 2025',
         changes: [
-            { type: 'new', items: ['IndexedDB History (unlimited local storage)', 'Playground API for testing', 'Full Backup export/import (ZIP)'] },
-            { type: 'fixed', items: ['Instagram embed fallback', 'Twitter GraphQL auth'] },
+            { type: 'new', items: ['Settings page redesign - Tab-based navigation', 'Discord Webhook with tagging support', 'Result caching for faster responses', 'SEO metadata for all pages'] },
+            { type: 'fixed', items: ['Fixed Facebook 403 errors', 'Fixed cache key case sensitivity'] },
+        ],
+    },
+    {
+        version: '1.0.2',
+        date: 'December 18, 2025',
+        changes: [
+            { type: 'new', items: ['Improved image extraction accuracy', 'Smart target block detection', 'New photo extraction method for single/dual image posts', 'Expandable changelog section in About page'] },
+            { type: 'fixed', items: ['Fixed profile picture being extracted as post image', 'Fixed image URLs missing query params (403 errors)', 'Fixed wrong images from related posts'] },
+        ],
+    },
+    {
+        version: '1.0.1',
+        date: 'December 17, 2025',
+        changes: [
+            { type: 'new', items: ['Changelog section in About page', 'Consolidated test suite for all platforms', 'All-in-one debug tool'] },
+            { type: 'improved', items: ['Merged redundant test files into single test suite', 'Cleaned up debug tools'] },
         ],
     },
     {
         version: '1.0.0',
         date: 'November 25, 2025',
         changes: [
-            { type: 'new', items: ['Initial release', 'Facebook, Instagram, Twitter/X support', 'TikTok (TikWM API), Weibo support', 'Auto-detect platform from URL', 'Multiple quality options (HD, SD)', 'Dark/Light/Solarized themes', 'PWA with offline support'] },
+            { type: 'new', items: ['Initial release', 'Facebook, Instagram, Twitter/X support', 'TikTok, Weibo support', 'Auto-detect platform from URL', 'Multiple quality options (HD, SD)', 'Dark/Light/Solarized themes', 'PWA with offline support'] },
         ],
     },
 ];

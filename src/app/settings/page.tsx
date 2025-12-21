@@ -322,13 +322,26 @@ export default function SettingsPage() {
         if (result.isConfirmed) {
             setIsImporting(true);
             try {
-                const { historyImported, historySkipped, settingsImported } = await importFullBackupFromZip(file, { mergeHistory: true });
+                const { historyImported, historySkipped, settingsImported, sensitiveImported } = await importFullBackupFromZip(file, { mergeHistory: true });
                 const newCount = await getHistoryCount();
                 setHistoryCount(newCount);
+                
+                // Build result message
+                const parts = [
+                    `<p><strong>${historyImported}</strong> history items</p>`,
+                    `<p><strong>${settingsImported}</strong> settings</p>`,
+                ];
+                if (sensitiveImported > 0) {
+                    parts.push(`<p><strong>${sensitiveImported}</strong> cookies restored</p>`);
+                }
+                if (historySkipped > 0) {
+                    parts.push(`<p class="text-sm text-gray-400">${historySkipped} duplicates skipped</p>`);
+                }
+                
                 Swal.fire({ 
                     icon: 'success', 
                     title: 'Restored!', 
-                    html: `<p><strong>${historyImported}</strong> history items</p><p><strong>${settingsImported}</strong> settings</p>${historySkipped > 0 ? `<p class="text-sm text-gray-400">${historySkipped} duplicates skipped</p>` : ''}`,
+                    html: parts.join(''),
                     timer: 3000, 
                     showConfirmButton: false, 
                     background: 'var(--bg-card)', 

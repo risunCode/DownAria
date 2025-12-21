@@ -273,8 +273,11 @@ function ServicesContent() {
                                         <StatusBadge status={platform.enabled ? 'active' : 'inactive'} />
                                     </div>
 
-                                    {/* Controls */}
-                                    <div className="flex items-center gap-4 flex-1">
+                                    {/* Spacer */}
+                                    <div className="flex-1" />
+
+                                    {/* Controls - moved to right */}
+                                    <div className="flex items-center gap-4">
                                         <div className="flex items-center gap-2">
                                             <Gauge className="w-4 h-4 text-[var(--text-muted)]" />
                                             <input
@@ -300,25 +303,6 @@ function ServicesContent() {
                                                 max={3600}
                                             />
                                             <span className="text-xs text-[var(--text-muted)]">sec cache</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Stats */}
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex items-center gap-1">
-                                            <BarChart3 className="w-4 h-4 text-blue-400" />
-                                            <span>{platform.stats.totalRequests}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <CheckCircle className="w-4 h-4 text-green-400" />
-                                            <span>{platform.stats.successCount}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <XCircle className="w-4 h-4 text-red-400" />
-                                            <span>{platform.stats.errorCount}</span>
-                                        </div>
-                                        <div className="text-[var(--text-muted)]">
-                                            ~{platform.stats.avgResponseTime.toFixed(0)}ms
                                         </div>
                                     </div>
                                 </div>

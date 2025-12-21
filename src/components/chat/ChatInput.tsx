@@ -28,7 +28,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Type a message...' 
     };
 
     return (
-        <div className="flex gap-2 p-3 border-t border-[var(--border-primary)] bg-[var(--bg-primary)]">
+        <div className="flex gap-2 p-2 sm:p-3 border-t border-[var(--border-primary)] bg-[var(--bg-primary)]">
             <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -36,7 +36,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Type a message...' 
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={1}
-                className="flex-1 resize-none rounded-xl px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] border border-[var(--border-primary)] focus:outline-none focus:border-purple-500 text-sm disabled:opacity-50"
+                className="flex-1 min-w-0 resize-none rounded-xl px-3 sm:px-4 py-2 bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] border border-[var(--border-primary)] focus:outline-none focus:border-purple-500 text-sm disabled:opacity-50"
                 style={{ minHeight: '40px', maxHeight: '120px' }}
             />
             <button

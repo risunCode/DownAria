@@ -96,11 +96,11 @@ export function CookieGuidePage() {
                         </div>
 
                         {/* JSON Format Example */}
-                        <div className="mt-4 p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+                        <div className="mt-4 p-3 sm:p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] overflow-hidden">
                             <h3 className="font-medium text-[var(--text-primary)] text-sm mb-2">JSON Format Example:</h3>
-                            <pre className="text-xs text-[var(--text-muted)] overflow-x-auto">
+                            <pre className="text-[10px] sm:text-xs text-[var(--text-muted)] overflow-x-auto whitespace-pre-wrap break-all">
 {`[
-  { "name": "sessionid", "value": "123456...", "domain": ".instagram.com" },
+  { "name": "sessionid", "value": "123...", "domain": ".instagram.com" },
   { "name": "ds_user_id", "value": "789...", "domain": ".instagram.com" }
 ]`}
                             </pre>
@@ -124,46 +124,46 @@ export function CookieGuidePage() {
                         
                         <div className="space-y-4">
                             {/* Facebook */}
-                            <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="p-3 sm:p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <FacebookIcon className="w-4 h-4 text-blue-500" />
                                     <h3 className="font-medium text-[var(--text-primary)] text-sm">Facebook</h3>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400">Optional</span>
                                 </div>
                                 <p className="text-xs text-[var(--text-muted)] mb-2">
-                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-xs">c_user</code> and <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-xs">xs</code>
+                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-[10px] sm:text-xs">c_user</code> and <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-[10px] sm:text-xs">xs</code>
                                 </p>
-                                <div className="px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-xs text-[var(--text-muted)]">
+                                <div className="px-2 sm:px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-[10px] sm:text-xs text-[var(--text-muted)] overflow-x-auto">
                                     c_user=123456789; xs=abc123...
                                 </div>
                             </div>
 
                             {/* Instagram */}
-                            <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="p-3 sm:p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <InstagramIcon className="w-4 h-4 text-pink-500" />
                                     <h3 className="font-medium text-[var(--text-primary)] text-sm">Instagram</h3>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400">Optional</span>
                                 </div>
                                 <p className="text-xs text-[var(--text-muted)] mb-2">
-                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-xs">sessionid</code>
+                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-[10px] sm:text-xs">sessionid</code>
                                 </p>
-                                <div className="px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-xs text-[var(--text-muted)]">
+                                <div className="px-2 sm:px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-[10px] sm:text-xs text-[var(--text-muted)] overflow-x-auto">
                                     sessionid=123456789%3Aabc123...
                                 </div>
                             </div>
 
                             {/* Weibo */}
-                            <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                                <div className="flex items-center gap-2 mb-2">
+                            <div className="p-3 sm:p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <WeiboIcon className="w-4 h-4 text-orange-500" />
                                     <h3 className="font-medium text-[var(--text-primary)] text-sm">Weibo</h3>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">Required</span>
                                 </div>
                                 <p className="text-xs text-[var(--text-muted)] mb-2">
-                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-xs">SUB</code>
+                                    Required: <code className="px-1 py-0.5 rounded bg-[var(--bg-primary)] text-[10px] sm:text-xs">SUB</code>
                                 </p>
-                                <div className="px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-xs text-[var(--text-muted)]">
+                                <div className="px-2 sm:px-3 py-2 rounded-lg bg-[var(--bg-primary)] font-mono text-[10px] sm:text-xs text-[var(--text-muted)] overflow-x-auto">
                                     SUB=_2A25abc123...
                                 </div>
                             </div>

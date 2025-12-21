@@ -51,11 +51,11 @@ function ChangelogSection() {
             </h3>
 
             <div className="space-y-4">
-                {/* Latest Version - v1.0.4 */}
+                {/* Latest Version - v1.0.5 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.4</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.5</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 21, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
 
@@ -65,10 +65,8 @@ function ChangelogSection() {
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• <strong>Multi-language</strong> - English + Bahasa Indonesia support</li>
-                            <li>• Language selector in Settings → Basic</li>
-                            <li>• <strong>Full Backup</strong> - Export/Import history + settings as ZIP</li>
-                            <li>• <strong>Faster Downloads</strong> - Improved caching system</li>
+                            <li>• <strong>Smarter Cookie Management</strong> - Auto health tracking per usage</li>
+                            <li>• <strong>Improved Backup</strong> - Better export/import for cross-browser compatibility</li>
                         </ul>
                     </div>
 
@@ -78,6 +76,37 @@ function ChangelogSection() {
                             <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
+                            <li>• Mobile performance - smoother animations & reduced lag</li>
+                            <li>• AI Chat now fully responsive on mobile</li>
+                            <li>• Documentation pages responsive fixes</li>
+                            <li>• Admin dashboard layout improvements</li>
+                            <li>• Cleaner admin panel navigation</li>
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Version 1.0.4 */}
+                <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.4</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
+                    </div>
+                    <div className="mb-2">
+                        <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
+                            <span>✨</span> What&apos;s New
+                        </h4>
+                        <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
+                            <li>• Multi-language - English + Bahasa Indonesia support</li>
+                            <li>• Language selector in Settings → Basic</li>
+                            <li>• Full Backup - Export/Import history + settings as ZIP</li>
+                            <li>• Faster Downloads - Improved caching system</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
+                            <span>🔧</span> What&apos;s Improved
+                        </h4>
+                        <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
                             <li>• Better error messages with localization</li>
                             <li>• Friendlier UI text and labels</li>
                             <li>• Performance optimizations</li>

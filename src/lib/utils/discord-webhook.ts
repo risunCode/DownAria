@@ -1,7 +1,7 @@
 /**
  * Discord Webhook Utility
  * User-side webhook for download notifications
- * Settings stored in localStorage
+ * Settings stored in localStorage (plain, for cross-browser backup compatibility)
  * 
  * Discord Webhook Limits:
  * - 30 messages/minute per channel
@@ -46,24 +46,28 @@ export const DEFAULT_USER_DISCORD: UserDiscordSettings = {
     mention: '', // Default: no mention
 };
 
-// Random key to break backward compatibility as requested
+// Storage key for Discord settings
 export const DISCORD_STORAGE_KEY = 'xtf_discord';
 
-// Import encrypted storage
-import { getEncrypted, setEncrypted, migrateToEncrypted } from '@/lib/storage/crypto';
-
+// Use plain localStorage for cross-browser backup compatibility
+// Webhook URLs are not super sensitive and users need portability
 export function getUserDiscordSettings(): UserDiscordSettings | null {
     if (typeof window === 'undefined') return null;
     try {
-        // Auto-migrate unencrypted data
-        migrateToEncrypted(DISCORD_STORAGE_KEY);
-        
-        const saved = getEncrypted(DISCORD_STORAGE_KEY);
+        const saved = localStorage.getItem(DISCORD_STORAGE_KEY);
         if (saved) {
+            // Handle legacy encrypted data - if it starts with 'enc:', clear it
+            if (saved.startsWith('enc:')) {
+                console.warn('[Discord] Found encrypted data, clearing for fresh start');
+                localStorage.removeItem(DISCORD_STORAGE_KEY);
+                return null;
+            }
             return { ...DEFAULT_USER_DISCORD, ...JSON.parse(saved) };
         }
     } catch (e) {
         console.error('[Discord] Failed to parse settings:', e);
+        // Clear corrupted data
+        localStorage.removeItem(DISCORD_STORAGE_KEY);
     }
     return null;
 }
@@ -71,8 +75,10 @@ export function getUserDiscordSettings(): UserDiscordSettings | null {
 export function saveUserDiscordSettings(settings: UserDiscordSettings): void {
     if (typeof window === 'undefined') return;
     try {
-        setEncrypted(DISCORD_STORAGE_KEY, JSON.stringify(settings));
-    } catch { }
+        localStorage.setItem(DISCORD_STORAGE_KEY, JSON.stringify(settings));
+    } catch (e) {
+        console.error('[Discord] Failed to save settings:', e);
+    }
 }
 
 function formatNumber(num: number): string {

@@ -3,10 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Info, Bot, Eye } from 'lucide-react';
+import { Code, Loader2, FileVideo, Cloud, AlertTriangle, Clipboard, ExternalLink, Download, Link2, Play, Clock, CheckCircle, AlertCircle, Copy, Check, Image, Film, Info, Bot, Eye, X } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
-import { useDownloadManager } from '@/components/DownloadManager';
 import { MediaGallery } from '@/components/media';
 import Announcements from '@/components/Announcements';
 import Swal from 'sweetalert2';
@@ -36,8 +35,8 @@ export default function AdvancedPage() {
     return (
         <SidebarLayout>
             <Announcements page="advanced" />
-            <div className="py-6 px-4 lg:px-8">
-                <div className="max-w-4xl mx-auto space-y-6">
+            <div className="py-6 px-4 lg:px-8 overflow-x-hidden">
+                <div className="max-w-4xl mx-auto space-y-6 overflow-hidden">
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
                         <h1 className="text-2xl font-bold gradient-text mb-2">{t('title')}</h1>
                         <p className="text-sm text-[var(--text-muted)]">{t('subtitle')}</p>
@@ -140,9 +139,27 @@ function ApiPlaygroundTab() {
     const [copied, setCopied] = useState(false);
     const [urlError, setUrlError] = useState('');
     const [showGallery, setShowGallery] = useState(false);
-    const { startDownload } = useDownloadManager();
     const t = useTranslations('advanced.playground');
     const tCommon = useTranslations('common');
+
+    // Direct download function (no popup)
+    const directDownload = async (downloadUrl: string, filename: string) => {
+        try {
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}&platform=generic`;
+            const response = await fetch(proxyUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            Swal.fire({ icon: 'success', title: 'Downloaded!', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        } catch {
+            Swal.fire({ icon: 'error', title: 'Download failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        }
+    };
     
     // Use SWR for rate limit status (cached, deduplicated)
     const { remaining, limit, refresh: refreshRateLimit } = usePlayground();
@@ -237,13 +254,13 @@ function ApiPlaygroundTab() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full max-w-full overflow-hidden">
             {/* Info Card */}
-            <div className="glass-card p-4">
+            <div className="glass-card p-4 w-full max-w-full overflow-hidden">
                 <div className="flex items-start gap-3">
                     <Play className="w-5 h-5 text-[var(--accent-primary)] shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                        <h2 className="font-semibold">{t('title')}</h2>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                        <h2 className="font-semibold truncate">{t('title')}</h2>
                         <p className="text-xs text-[var(--text-muted)] mt-1">
                             {t('description', { limit: rateLimit.limit })}
                         </p>
@@ -263,26 +280,26 @@ function ApiPlaygroundTab() {
                     </summary>
                     <div className="mt-2 space-y-3 text-xs overflow-hidden">
                         {/* Browser Test - GET */}
-                        <div className="p-2 rounded bg-green-500/10 border border-green-500/20">
+                        <div className="p-2 rounded bg-green-500/10 border border-green-500/20 overflow-hidden">
                             <p className="text-green-400 font-medium mb-1 flex items-center gap-1">
                                 <ExternalLink className="w-3 h-3" /> {t('api.testBrowser')}
                             </p>
-                            <code className="text-[10px] break-all block">/api/playground?url=https://instagram.com/reel/...</code>
+                            <code className="text-[10px] break-all block">/api/playground?url=...</code>
                             <p className="text-[var(--text-muted)] text-[10px] mt-1">{t('api.testBrowserHint')}</p>
                         </div>
 
                         {/* POST Endpoint */}
-                        <div className="p-2 rounded bg-[var(--bg-secondary)] font-mono">
+                        <div className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-hidden">
                             <span className="text-purple-400 font-bold">POST</span> <span className="text-[var(--text-primary)]">/api/playground</span>
                             <p className="text-[var(--text-muted)] text-[10px] mt-1 font-sans">{t('api.postHint')}</p>
                         </div>
 
                         {/* Request Body */}
-                        <div>
+                        <div className="overflow-hidden">
                             <p className="text-[var(--text-muted)] mb-1 font-medium flex items-center gap-1">
                                 <Code className="w-3 h-3" /> {t('api.postBody')}
                             </p>
-                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono overflow-x-auto text-[10px]">
+                            <pre className="p-2 rounded bg-[var(--bg-secondary)] font-mono text-[10px] overflow-x-auto">
                                 {`{ "url": "https://..." }`}
                             </pre>
                         </div>
@@ -306,8 +323,8 @@ function ApiPlaygroundTab() {
             </div>
 
             {/* Input */}
-            <div className="glass-card p-4 space-y-3">
-                <div className="flex gap-2">
+            <div className="glass-card p-4 space-y-3 w-full max-w-full overflow-hidden box-border">
+                <div className="flex gap-2 w-full max-w-full overflow-hidden">
                     <input
                         type="url"
                         value={url}
@@ -318,15 +335,16 @@ function ApiPlaygroundTab() {
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && !urlError && executeRequest()}
                         placeholder={t('placeholder')}
-                        className={`input-url text-sm flex-1 ${urlError ? 'border-red-500/50' : ''}`}
+                        className={`flex-1 min-w-0 text-sm px-3 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] focus:border-[var(--accent-primary)] focus:outline-none ${urlError ? 'border-red-500/50' : ''}`}
+                        style={{ maxWidth: 'calc(100% - 80px)' }}
                     />
-                    <Button onClick={handlePaste} variant="secondary" leftIcon={<Clipboard className="w-4 h-4" />}>
+                    <Button onClick={handlePaste} variant="secondary" leftIcon={<Clipboard className="w-4 h-4" />} className="flex-shrink-0">
                         {t('paste')}
                     </Button>
                 </div>
                 {urlError && (
                     <p className="text-xs text-red-400 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> {urlError}
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{urlError}</span>
                     </p>
                 )}
                 <Button
@@ -341,10 +359,10 @@ function ApiPlaygroundTab() {
 
             {/* Result */}
             {result && (
-                <div className="glass-card p-4 space-y-3">
+                <div className="glass-card p-4 space-y-3 w-full max-w-full overflow-hidden box-border">
                     {/* Status Header */}
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
                             {result.success ? (
                                 <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
                                     <CheckCircle className="w-3 h-3" /> {tCommon('success')}
@@ -363,30 +381,30 @@ function ApiPlaygroundTab() {
                                 </span>
                             )}
                         </div>
-                        <button onClick={copyJson} className="p-2 rounded-lg hover:bg-[var(--bg-secondary)]">
+                        <button onClick={copyJson} className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] flex-shrink-0">
                             {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                         </button>
                     </div>
 
                     {/* Error Message */}
                     {!result.success && result.error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400 break-all">
+                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400 break-words overflow-hidden">
                             {result.error}
                         </div>
                     )}
 
                     {/* Success Content */}
                     {result.success && result.data && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 w-full max-w-full overflow-hidden">
                             {/* Media Info */}
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 overflow-hidden">
                                 {result.data.thumbnail && (
-                                    <img src={getProxiedThumbnail(result.data.thumbnail)} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+                                    <img src={getProxiedThumbnail(result.data.thumbnail)} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
                                 )}
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">{result.data.title || 'Untitled'}</p>
+                                <div className="flex-1 min-w-0 overflow-hidden">
+                                    <p className="font-medium text-sm line-clamp-1">{result.data.title || 'Untitled'}</p>
                                     {result.data.author && (
-                                        <p className="text-xs text-[var(--text-muted)]">@{result.data.author}</p>
+                                        <p className="text-xs text-[var(--text-muted)] truncate">@{result.data.author}</p>
                                     )}
                                     {result.data.usedCookie && (
                                         <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px]">
@@ -400,10 +418,10 @@ function ApiPlaygroundTab() {
                             {result.data.formats && result.data.formats.length > 0 && (
                                 <button
                                     onClick={() => setShowGallery(true)}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity text-sm"
                                 >
-                                    <Eye className="w-4 h-4" />
-                                    Preview & Download ({result.data.formats.length} {result.data.formats.length === 1 ? 'format' : 'formats'})
+                                    <Eye className="w-4 h-4 flex-shrink-0" />
+                                    <span>Preview ({result.data.formats.length})</span>
                                 </button>
                             )}
 
@@ -413,14 +431,14 @@ function ApiPlaygroundTab() {
                                     <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
                                         {t('availableFormats')} ({result.data.formats.length})
                                     </summary>
-                                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto overflow-x-hidden">
                                         {result.data.formats.slice(0, 5).map((fmt, i) => (
                                             <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-secondary)]">
-                                                {fmt.type === 'video' ? <Film className="w-4 h-4 text-purple-400" /> : <Image className="w-4 h-4 text-blue-400" />}
-                                                <span className="text-xs flex-1 truncate">{fmt.quality || fmt.type || 'Media'}</span>
+                                                {fmt.type === 'video' ? <Film className="w-4 h-4 text-purple-400 flex-shrink-0" /> : <Image className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                                                <span className="text-xs flex-1 truncate min-w-0">{fmt.quality || fmt.type || 'Media'}</span>
                                                 <button
-                                                    onClick={() => startDownload(fmt.url, `${result.platform}_${Date.now()}.${fmt.type === 'video' ? 'mp4' : 'jpg'}`, result.platform || 'generic')}
-                                                    className="p-1.5 rounded hover:bg-green-500/20 text-green-400"
+                                                    onClick={() => directDownload(fmt.url, `${result.platform}_${Date.now()}.${fmt.type === 'video' ? 'mp4' : 'jpg'}`)}
+                                                    className="p-1.5 rounded hover:bg-green-500/20 text-green-400 flex-shrink-0"
                                                 >
                                                     <Download className="w-3.5 h-3.5" />
                                                 </button>
@@ -442,9 +460,11 @@ function ApiPlaygroundTab() {
                         <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
                             {t('viewJson')}
                         </summary>
-                        <pre className="mt-2 p-3 rounded-lg bg-[var(--bg-secondary)] text-[10px] font-mono overflow-x-auto overflow-y-auto max-h-48 max-w-full whitespace-pre-wrap break-all">
-                            {JSON.stringify(result, null, 2)}
-                        </pre>
+                        <div className="mt-2 p-3 rounded-lg bg-[var(--bg-secondary)] overflow-hidden">
+                            <pre className="text-[10px] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                                {JSON.stringify(result, null, 2)}
+                            </pre>
+                        </div>
                     </details>
                 </div>
             )}
@@ -489,9 +509,27 @@ function FacebookHtmlTab() {
     const [html, setHtml] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [results, setResults] = useState<ExtractedMedia[]>([]);
-    const { startDownload } = useDownloadManager();
     const [htmlSize, setHtmlSize] = useState(0);
     const t = useTranslations('advanced.fbHtml');
+
+    // Direct download function (no popup)
+    const directDownload = async (url: string, filename: string) => {
+        try {
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}&platform=facebook`;
+            const response = await fetch(proxyUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            Swal.fire({ icon: 'success', title: 'Downloaded!', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        } catch {
+            Swal.fire({ icon: 'error', title: 'Download failed', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+        }
+    };
 
     useEffect(() => {
         const urlParam = searchParams.get('url');
@@ -712,7 +750,7 @@ function FacebookHtmlTab() {
                             <span className={`px-2 py-0.5 text-xs rounded ${item.quality.includes('HD') ? 'bg-purple-500/20 text-purple-400' : 'bg-amber-500/20 text-amber-400'}`}>{item.quality}</span>
                             <div className="flex-1" />
                             <button onClick={() => window.open(item.url, '_blank')} className="p-2 hover:bg-[var(--bg-card)] rounded"><ExternalLink className="w-4 h-4" /></button>
-                            <button onClick={() => startDownload(item.url, `FB_${Date.now()}.mp4`, 'facebook')} className="p-2 hover:bg-green-500/10 text-green-400 rounded"><Download className="w-4 h-4" /></button>
+                            <button onClick={() => directDownload(item.url, `FB_${Date.now()}.mp4`)} className="p-2 hover:bg-green-500/10 text-green-400 rounded"><Download className="w-4 h-4" /></button>
                         </div>
                     ))}
                 </div>
@@ -722,15 +760,30 @@ function FacebookHtmlTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DIRECT PROXY TAB
+// DIRECT PROXY TAB - Inline Download with History
 // ═══════════════════════════════════════════════════════════════
+
+interface ProxyDownloadItem {
+    id: string;
+    url: string;
+    filename: string;
+    fileSize: string;
+    status: 'pending' | 'downloading' | 'done' | 'error';
+    progress: number;
+    speed: number;
+    loaded: number;
+    total: number;
+    error?: string;
+    startedAt: number;
+}
+
 function DirectProxyTab() {
     const [url, setUrl] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState('');
     const [filename, setFilename] = useState('');
     const [fileSize, setFileSize] = useState('');
-    const { startDownload } = useDownloadManager();
+    const [downloads, setDownloads] = useState<ProxyDownloadItem[]>([]);
     const t = useTranslations('advanced.proxy');
 
     const handlePaste = async () => {
@@ -782,46 +835,244 @@ function DirectProxyTab() {
         }
     };
 
+    // Inline download with progress
+    const handleDownload = async () => {
+        if (!downloadUrl || !filename) return;
+        
+        const downloadId = `proxy_${Date.now()}`;
+        const newItem: ProxyDownloadItem = {
+            id: downloadId,
+            url: downloadUrl,
+            filename,
+            fileSize,
+            status: 'downloading',
+            progress: 0,
+            speed: 0,
+            loaded: 0,
+            total: 0,
+            startedAt: Date.now(),
+        };
+        
+        setDownloads(prev => [newItem, ...prev]);
+        
+        // Clear input for next download
+        setUrl('');
+        setDownloadUrl('');
+        setFilename('');
+        setFileSize('');
+
+        try {
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(newItem.url)}&filename=${encodeURIComponent(newItem.filename)}&platform=generic`;
+            
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            
+            if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+
+            const contentLength = response.headers.get('content-length');
+            const total = contentLength ? parseInt(contentLength) : 0;
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('No response body');
+
+            const chunks: Uint8Array[] = [];
+            let loaded = 0;
+            const startTime = Date.now();
+            let lastUpdateTime = startTime;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loaded += value.length;
+
+                const now = Date.now();
+                const elapsed = (now - startTime) / 1000;
+                const speed = loaded / elapsed;
+                const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
+
+                // Update every 100ms
+                if (now - lastUpdateTime >= 100) {
+                    lastUpdateTime = now;
+                    setDownloads(prev => prev.map(d => 
+                        d.id === downloadId ? { ...d, progress, speed, loaded, total, status: 'downloading' } : d
+                    ));
+                }
+            }
+
+            // Create blob and trigger download
+            const contentType = response.headers.get('content-type') || 'application/octet-stream';
+            const blob = new Blob(chunks as BlobPart[], { type: contentType });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.style.display = 'none';
+            link.href = blobUrl;
+            link.download = newItem.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+            // Update status to done
+            setDownloads(prev => prev.map(d => 
+                d.id === downloadId ? { ...d, status: 'done', progress: 100, loaded: blob.size, total: blob.size } : d
+            ));
+
+            // Log to history (IndexedDB)
+            const { addHistory } = await import('@/lib/storage');
+            await addHistory({
+                platform: 'generic' as Platform,
+                contentId: downloadId,
+                resolvedUrl: newItem.url,
+                title: newItem.filename,
+                thumbnail: '',
+                author: 'Direct Proxy',
+                quality: newItem.fileSize || 'Unknown',
+                type: 'video',
+            });
+
+        } catch (err) {
+            console.error('Proxy download error:', err);
+            setDownloads(prev => prev.map(d => 
+                d.id === downloadId ? { ...d, status: 'error', error: err instanceof Error ? err.message : 'Download failed' } : d
+            ));
+        }
+    };
+
+    const removeDownload = (id: string) => {
+        setDownloads(prev => prev.filter(d => d.id !== id));
+    };
+
+    const formatSpeed = (bytesPerSec: number) => {
+        if (bytesPerSec >= 1024 * 1024) return `${(bytesPerSec / 1024 / 1024).toFixed(1)} MB/s`;
+        if (bytesPerSec >= 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
+        return `${bytesPerSec.toFixed(0)} B/s`;
+    };
+
+    const formatSize = (bytes: number) => {
+        if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+        if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+        return `${bytes} B`;
+    };
+
     return (
-        <div className="glass-card p-5 space-y-4">
-            <div className="flex items-center gap-3">
-                <Cloud className="w-5 h-5 text-purple-500" />
-                <div>
-                    <h2 className="font-semibold">{t('title')}</h2>
-                    <p className="text-xs text-[var(--text-muted)]">{t('description')}</p>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-xs">
-                {['Google Drive', 'Dropbox', 'Mediafire', 'Direct URLs'].map(s => (
-                    <span key={s} className="px-2 py-1 rounded bg-[var(--bg-secondary)] text-[var(--text-muted)]">{s}</span>
-                ))}
-            </div>
-
-            <div className="flex gap-2">
-                <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => { setUrl(e.target.value); if (e.target.value.startsWith('http')) processUrl(e.target.value); }}
-                    placeholder="https://drive.google.com/file/d/..."
-                    className="input-url text-sm flex-1"
-                />
-                <Button onClick={handlePaste} variant={url.trim() ? 'secondary' : 'primary'} disabled={isLoading}
-                    leftIcon={isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clipboard className="w-4 h-4" />}>
-                    {url.trim() ? t('clear') : t('paste')}
-                </Button>
-            </div>
-
-            {downloadUrl && (
-                <div className="space-y-3 pt-4 border-t border-[var(--border-color)]">
-                    <div className="p-2 rounded bg-[var(--bg-secondary)] text-xs font-mono break-all">{downloadUrl}</div>
-                    <div className="flex items-center gap-2">
-                        <input type="text" value={filename} onChange={(e) => setFilename(e.target.value)} className="input-url text-sm flex-1" />
-                        {fileSize && <span className="px-2 py-1 text-xs rounded bg-purple-500/20 text-purple-400">{fileSize}</span>}
+        <div className="space-y-4">
+            {/* Input Card */}
+            <div className="glass-card p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                    <Cloud className="w-5 h-5 text-purple-500" />
+                    <div>
+                        <h2 className="font-semibold">{t('title')}</h2>
+                        <p className="text-xs text-[var(--text-muted)]">{t('description')}</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Button onClick={() => startDownload(downloadUrl, filename, 'generic')} leftIcon={<Download className="w-4 h-4" />}>{t('download')}</Button>
-                        <Button variant="secondary" onClick={() => window.open(downloadUrl, '_blank')} leftIcon={<Link2 className="w-4 h-4" />}>{t('open')}</Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs">
+                    {['Google Drive', 'Dropbox', 'Mediafire', 'Direct URLs'].map(s => (
+                        <span key={s} className="px-2 py-1 rounded bg-[var(--bg-secondary)] text-[var(--text-muted)]">{s}</span>
+                    ))}
+                </div>
+
+                <div className="flex gap-2">
+                    <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => { setUrl(e.target.value); if (e.target.value.startsWith('http')) processUrl(e.target.value); }}
+                        placeholder="https://drive.google.com/file/d/..."
+                        className="input-url text-sm flex-1"
+                    />
+                    <Button onClick={handlePaste} variant={url.trim() ? 'secondary' : 'primary'} disabled={isLoading}
+                        leftIcon={isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clipboard className="w-4 h-4" />}>
+                        {url.trim() ? t('clear') : t('paste')}
+                    </Button>
+                </div>
+
+                {downloadUrl && (
+                    <div className="space-y-3 pt-4 border-t border-[var(--border-color)]">
+                        <div className="p-2 rounded bg-[var(--bg-secondary)] text-xs font-mono break-words overflow-hidden">{downloadUrl}</div>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input type="text" value={filename} onChange={(e) => setFilename(e.target.value)} className="input-url text-sm flex-1 min-w-0" />
+                            {fileSize && <span className="px-2 py-1 text-xs rounded bg-purple-500/20 text-purple-400 text-center flex-shrink-0">{fileSize}</span>}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={handleDownload} leftIcon={<Download className="w-4 h-4" />}>{t('download')}</Button>
+                            <Button variant="secondary" onClick={() => window.open(downloadUrl, '_blank')} leftIcon={<Link2 className="w-4 h-4" />}>{t('open')}</Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Downloads List - Persists until refresh */}
+            {downloads.length > 0 && (
+                <div className="glass-card p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <Download className="w-4 h-4 text-purple-400" />
+                            Downloads ({downloads.length})
+                        </h3>
+                        <button 
+                            onClick={() => setDownloads([])}
+                            className="text-xs text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                        >
+                            Clear All
+                        </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {downloads.map((item) => (
+                            <div key={item.id} className="p-3 rounded-lg bg-[var(--bg-secondary)] space-y-2">
+                                {/* Header */}
+                                <div className="flex items-center gap-2">
+                                    {item.status === 'downloading' && <Loader2 className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />}
+                                    {item.status === 'done' && <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />}
+                                    {item.status === 'error' && <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                                    
+                                    <span className="text-sm font-medium truncate flex-1 min-w-0">{item.filename}</span>
+                                    
+                                    <button 
+                                        onClick={() => removeDownload(item.id)}
+                                        className="p-1 hover:bg-red-500/20 rounded text-[var(--text-muted)] hover:text-red-400 flex-shrink-0"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                {/* Progress Bar */}
+                                {item.status === 'downloading' && (
+                                    <>
+                                        <div className="w-full h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-100"
+                                                style={{ width: `${item.progress}%` }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
+                                            <span>{formatSize(item.loaded)} / {item.total ? formatSize(item.total) : '?'}</span>
+                                            <span className="text-purple-400">{formatSpeed(item.speed)} · {item.progress}%</span>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Done */}
+                                {item.status === 'done' && (
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-green-400">✓ Downloaded</span>
+                                        <span className="text-[var(--text-muted)]">{formatSize(item.loaded)}</span>
+                                    </div>
+                                )}
+
+                                {/* Error */}
+                                {item.status === 'error' && (
+                                    <div className="text-xs text-red-400">{item.error || 'Download failed'}</div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
