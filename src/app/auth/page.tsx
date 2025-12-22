@@ -65,7 +65,7 @@ function AuthContent() {
     }, []);
 
     useEffect(() => {
-        getSession().then(session => {
+        getSession().then(({ session }) => {
             if (session) router.push('/admin');
         });
         
@@ -155,7 +155,7 @@ function AuthContent() {
                 
                 const result = await signIn(email, password);
                 if (result.error) {
-                    setError(result.error);
+                    setError(result.error.message || 'Login failed');
                 } else {
                     router.push('/admin');
                 }
@@ -191,7 +191,7 @@ function AuthContent() {
                 
                 const result = await signUp(identifier, password, username || undefined);
                 if (result.error) {
-                    setError(result.error);
+                    setError(result.error.message || 'Registration failed');
                 } else if (result.data?.user && supabase) {
                     if (referralCode) {
                         try {
@@ -212,7 +212,7 @@ function AuthContent() {
             } else if (mode === 'forgot') {
                 const result = await resetPassword(identifier);
                 if (result.error) {
-                    setError(result.error);
+                    setError(result.error.message || 'Password reset failed');
                 } else {
                     setSuccess('Password reset link sent to your email!');
                 }

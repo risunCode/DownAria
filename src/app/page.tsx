@@ -14,6 +14,7 @@ import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/stora
 import { useTranslations } from 'next-intl';
 import Swal from 'sweetalert2';
 import Announcements from '@/components/Announcements';
+import { AdBannerCard } from '@/components/AdBannerCard';
 import { analyzeNetworkError, isOnline } from '@/lib/utils/network';
 
 // ============================================================================
@@ -152,7 +153,7 @@ export default function Home() {
     const { getSkipCache } = await import('@/lib/storage');
     const skipCache = getSkipCache();
     
-    const response = await fetch(`${API_URL}/api`, {
+    const response = await fetch(`${API_URL}/api/v1/publicservices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, cookie, skipCache }),
@@ -336,6 +337,9 @@ export default function Home() {
               />
             )}
           </AnimatePresence>
+
+          {/* Ad Banner */}
+          <AdBannerCard />
 
           {/* History - compact */}
           <HistoryList refreshTrigger={historyRefresh} compact />

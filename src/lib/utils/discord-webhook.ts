@@ -142,7 +142,7 @@ function getBaseUrl(): string {
 }
 
 function getProxyUrl(mediaUrl: string, platform: string): string {
-    return `${getBaseUrl()}/api/proxy?url=${encodeURIComponent(mediaUrl)}&platform=${platform.toLowerCase()}&inline=1`;
+    return `${getBaseUrl()}/api/v1/proxy?url=${encodeURIComponent(mediaUrl)}&platform=${platform.toLowerCase()}&inline=1`;
 }
 
 // Get file size via HEAD request (returns 0 if unknown)

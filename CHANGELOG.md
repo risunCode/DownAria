@@ -2,6 +2,37 @@
 
 All notable changes to XTFetch will be documented in this file.
 
+## [1.3.0] - December 23, 2025
+
+### ✨ What's New
+- **Hashtag Search** - Click any #hashtag in captions to search across platforms
+  - Dropdown with platform options (X, Instagram, Facebook, TikTok, YouTube)
+  - Auto-detect position (up/down) for mobile sheet compatibility
+  - Auto-close on scroll
+- **Ad Banner System** - Advertising card on homepage
+  - Auto-rotate every 8 seconds with pagination dots
+  - Platform badges (Shopee, Tokped, etc.) with custom colors
+  - Click & impression tracking
+  - Admin API for managing ads (`/api/admin/ads`)
+- **File Size Detection** - Size displayed on quality buttons (HD/SD/Original)
+  - Fetched via HEAD request to proxy
+  - Works for all platforms except YouTube (streaming)
+- **Video Auto-Stop** - Videos auto-pause after 8 loops (battery saver 😴)
+- **Smart Discord Send** - Per-item tracking for carousel posts
+  - Download All: sends Discord only for first item
+  - Individual downloads: can send if not already sent for that item
+
+### 🔧 What's Improved
+- **MediaGallery** - Image carousel now renders full resolution (not thumbnail)
+
+### 🐛 What's Fixed
+- Playground rate limit not syncing with Admin Console settings
+- File size not showing on quality buttons (missing CORS header)
+- Image carousel in MediaGallery always showing index 1
+- Single item thumbnail not displaying in DownloadPreview
+
+---
+
 ## [1.2.0] - December 21, 2025
 
 ### ✨ What's New

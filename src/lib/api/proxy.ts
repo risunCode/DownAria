@@ -21,7 +21,7 @@ export function getProxyUrl(url: string, options?: {
     if (options?.head) params.set('head', '1');
     if (options?.hls) params.set('hls', '1');
     
-    return `${API_URL}/api/proxy?${params.toString()}`;
+    return `${API_URL}/api/v1/proxy?${params.toString()}`;
 }
 
 export function getProxiedThumbnail(url: string, platform?: string): string {

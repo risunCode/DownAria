@@ -156,24 +156,12 @@ function ServicesContent() {
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard 
                         icon={<Power className="w-5 h-5" />} 
                         label="Active Services" 
                         value={`${enabledCount}/${platforms.length}`}
                         color="text-green-400"
-                    />
-                    <StatCard 
-                        icon={<BarChart3 className="w-5 h-5" />} 
-                        label="Total Requests" 
-                        value={totalRequests.toLocaleString()}
-                        color="text-blue-400"
-                    />
-                    <StatCard 
-                        icon={<CheckCircle className="w-5 h-5" />} 
-                        label="Success Rate" 
-                        value={`${avgSuccessRate.toFixed(1)}%`}
-                        color="text-emerald-400"
                     />
                     <StatCard 
                         icon={<Cookie className="w-5 h-5" />} 
@@ -583,10 +571,26 @@ function MaintenanceDetails() {
     });
     const [loading, setLoading] = useState(true);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+    
+    // Get auth token from Supabase session
+    const getAuthHeaders = (): Record<string, string> => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                const token = session?.access_token;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } catch { /* ignore */ }
+        }
+        return headers;
+    };
+
     useEffect(() => {
         const fetchDetails = async () => {
             try {
-                const res = await fetch('/api/admin/settings');
+                const res = await fetch(`${API_URL}/api/admin/settings`, { headers: getAuthHeaders() });
                 const data = await res.json();
                 if (data.success && data.data) {
                     setFields({
@@ -598,12 +602,12 @@ function MaintenanceDetails() {
             setLoading(false);
         };
         fetchDetails();
-    }, []);
+    }, [API_URL]);
 
     const saveField = async (key: string, value: string) => {
-        await fetch('/api/admin/settings', {
+        await fetch(`${API_URL}/api/admin/settings`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ [key]: value })
         });
     };
@@ -669,13 +673,28 @@ interface MaintenanceModeCardProps {
 
 function MaintenanceModeCard({ config, refetch }: MaintenanceModeCardProps) {
     const [updating, setUpdating] = useState<string | null>(null);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+    // Get auth token from Supabase session
+    const getAuthHeaders = (): Record<string, string> => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                const token = session?.access_token;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } catch { /* ignore */ }
+        }
+        return headers;
+    };
 
     const handleTypeChange = async (value: string) => {
         setUpdating(value);
         try {
-            await fetch('/api/admin/services', {
+            await fetch(`${API_URL}/api/admin/services`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ maintenanceType: value })
             });
             refetch();
@@ -738,9 +757,9 @@ function MaintenanceModeCard({ config, refetch }: MaintenanceModeCardProps) {
                             type="text"
                             defaultValue={config.maintenanceMessage}
                             onBlur={async (e) => {
-                                await fetch('/api/admin/services', {
+                                await fetch(`${API_URL}/api/admin/services`, {
                                     method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
+                                    headers: getAuthHeaders(),
                                     body: JSON.stringify({ maintenanceMessage: e.target.value })
                                 });
                                 refetch();

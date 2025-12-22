@@ -1,21 +1,28 @@
 /**
  * useCookieStatus Hook - Check cookie status for settings page
+ * Uses public v1 endpoint (no auth required)
  */
 'use client';
 
 import useSWR from 'swr';
-import { fetcher, SWR_CONFIG } from '@/lib/swr';
+import { SWR_CONFIG } from '@/lib/swr';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface CookieStatusResponse {
     success: boolean;
-    data: Record<string, boolean>;
+    data: Record<string, { available: boolean; label: string } | boolean>;
 }
+
+// Public fetcher (no auth needed)
+const fetcher = async (url: string): Promise<CookieStatusResponse> => {
+    const res = await fetch(url);
+    return res.json();
+};
 
 export function useCookieStatus() {
     const { data, error, isLoading, mutate } = useSWR<CookieStatusResponse>(
-        `${API_URL}/api/admin/cookies/status`,
+        `${API_URL}/api/v1/cookies`,
         fetcher,
         {
             ...SWR_CONFIG.static,

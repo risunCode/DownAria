@@ -45,11 +45,27 @@ function CookiesContent() {
     const [error, setError] = useState<string | null>(null);
     const [selectedPlatform, setSelectedPlatform] = useState<CookiePlatform | null>(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+    // Get auth token from Supabase session
+    const getAuthHeaders = useCallback((): Record<string, string> => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                const token = session?.access_token;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } catch { /* ignore */ }
+        }
+        return headers;
+    }, []);
+
     const loadStats = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('/api/admin/cookies/pool?stats=true');
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool?stats=true`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setStats(data.data || []);
@@ -61,7 +77,7 @@ function CookiesContent() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [API_URL, getAuthHeaders]);
 
     useEffect(() => {
         loadStats();

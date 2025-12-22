@@ -55,6 +55,22 @@ function UsersContent() {
     const [editForm, setEditForm] = useState({ role: '' });
     const [addForm, setAddForm] = useState({ email: '', password: '', role: 'user' });
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+    // Get auth token from Supabase session
+    const getAuthHeaders = useCallback((): Record<string, string> => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                const token = session?.access_token;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } catch { /* ignore */ }
+        }
+        return headers;
+    }, []);
+
     const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
@@ -65,7 +81,7 @@ function UsersContent() {
                 ...(roleFilter && { role: roleFilter }),
                 ...(statusFilter && { status: statusFilter })
             });
-            const res = await fetch(`/api/admin/users?${params}`);
+            const res = await fetch(`${API_URL}/api/admin/users?${params}`, { headers: getAuthHeaders() });
             const json = await res.json();
             if (json.success) {
                 setUsers(json.data.users);
@@ -76,7 +92,7 @@ function UsersContent() {
             // Failed to fetch users
         }
         setLoading(false);
-    }, [page, search, roleFilter, statusFilter]);
+    }, [page, search, roleFilter, statusFilter, API_URL, getAuthHeaders]);
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -94,9 +110,9 @@ function UsersContent() {
         });
         if (!result.isConfirmed) return;
 
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch(`${API_URL}/api/admin/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'toggleStatus', userId: user.id, isActive: !user.is_active })
         });
         if ((await res.json()).success) {
@@ -118,9 +134,9 @@ function UsersContent() {
         });
         if (!result.isConfirmed) return;
 
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch(`${API_URL}/api/admin/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'updateRole', userId: selectedUser.id, role: editForm.role })
         });
         if ((await res.json()).success) {
@@ -132,9 +148,9 @@ function UsersContent() {
 
     const handleAddUser = async () => {
         if (!addForm.email || !addForm.password) return;
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch(`${API_URL}/api/admin/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'createUser', ...addForm })
         });
         const json = await res.json();
@@ -151,9 +167,9 @@ function UsersContent() {
     const handleViewActivity = async (user: User) => {
         setSelectedUser(user);
         setShowActivity(true);
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch(`${API_URL}/api/admin/users`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'getActivity', userId: user.id })
         });
         const json = await res.json();
@@ -173,9 +189,9 @@ function UsersContent() {
         });
         if (!result.isConfirmed) return;
 
-        const res = await fetch('/api/admin/users', {
+        const res = await fetch(`${API_URL}/api/admin/users`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ userId: user.id })
         });
         if ((await res.json()).success) {

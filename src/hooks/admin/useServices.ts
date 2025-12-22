@@ -28,6 +28,8 @@ export interface ServiceConfig {
     globalRateLimit: number;
     playgroundRateLimit: number;
     playgroundEnabled: boolean;
+    geminiRateLimit: number;
+    geminiRateWindow: number;
     maintenanceMode: boolean;
     maintenanceType: 'off' | 'api' | 'full';
     maintenanceMessage: string;
@@ -92,7 +94,7 @@ export function useServices() {
         return result.success;
     }, [mutate, refetch]);
 
-    const updateGlobal = useCallback(async (updates: Partial<Pick<ServiceConfig, 'apiKeyRequired' | 'globalRateLimit' | 'playgroundEnabled' | 'playgroundRateLimit'>>) => {
+    const updateGlobal = useCallback(async (updates: Partial<Pick<ServiceConfig, 'apiKeyRequired' | 'globalRateLimit' | 'playgroundEnabled' | 'playgroundRateLimit' | 'geminiRateLimit' | 'geminiRateWindow'>>) => {
         const result = await mutate('POST', { action: 'updateGlobal', ...updates });
         if (result.success) {
             toast('success', 'Settings updated');

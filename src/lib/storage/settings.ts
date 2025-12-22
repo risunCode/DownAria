@@ -102,10 +102,21 @@ export function resetSettings(): void {
 // PLATFORM COOKIES (User-provided) - ENCRYPTED
 // ═══════════════════════════════════════════════════════════════
 
-import { parseCookie, type CookiePlatform } from '@/lib/cookies';
 import { getEncrypted, setEncrypted, removeEncrypted, migrateToEncrypted } from './crypto';
 
-export type { CookiePlatform };
+export type CookiePlatform = 'facebook' | 'instagram' | 'twitter' | 'weibo';
+
+// Simple cookie parser for frontend (no validation, just format)
+function parseCookie(input: unknown): string | null {
+  if (!input) return null;
+  if (typeof input === 'string') return input.trim();
+  if (Array.isArray(input)) {
+    return input.map((c: { name?: string; value?: string }) => 
+      c.name && c.value ? `${c.name}=${c.value}` : ''
+    ).filter(Boolean).join('; ');
+  }
+  return null;
+}
 
 const COOKIE_KEY_PREFIX = 'xtf_cookie_';
 
@@ -139,7 +150,7 @@ export function getPlatformCookie(platform: CookiePlatform): string | null {
 
 export function savePlatformCookie(platform: CookiePlatform, cookie: string): void {
   if (typeof window === 'undefined') return;
-  const parsed = parseCookie(cookie, platform);
+  const parsed = parseCookie(cookie);
   setEncrypted(COOKIE_KEY_PREFIX + platform, parsed || cookie);
 }
 

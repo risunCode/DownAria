@@ -28,7 +28,7 @@ interface StatusData {
 
 export function useStatus() {
     const { data, error, isLoading, mutate } = useSWR<StatusData>(
-        `${API_URL}/api/status`,
+        `${API_URL}/api/v1/status`,
         fetcher,
         {
             ...SWR_CONFIG.static,

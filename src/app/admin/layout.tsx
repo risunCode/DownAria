@@ -10,7 +10,6 @@ import {
     ChevronDown, X, MessageSquare, Code
 } from 'lucide-react';
 import { signOut, getSession, getUserProfile, supabase } from '@/lib/supabase';
-import { installAdminFetchGlobal } from '@/lib/utils/admin-fetch';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES & CONTEXT
@@ -78,23 +77,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [user, setUser] = useState<UserProfile | null>(null);
 
-    // Admin fetch - uses global interceptor (installAdminFetchGlobal) for Bearer token
+    // Admin fetch with auth token injection
     const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
-        // Token injection handled by installAdminFetchGlobal()
-        return fetch(url, options);
+        const token = getAuthToken();
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+        const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+        
+        const headers: Record<string, string> = { 
+            'Content-Type': 'application/json',
+            ...(options.headers as Record<string, string> || {})
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        return fetch(fullUrl, { ...options, headers });
     }, []);
 
-    // Install global fetch interceptor for admin APIs (use layoutEffect for earlier execution)
-    useLayoutEffect(() => {
-        installAdminFetchGlobal();
-    }, []);
+    // Helper to get auth token from Supabase session
+    const getAuthToken = (): string | null => {
+        if (typeof window === 'undefined') return null;
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                return session?.access_token || null;
+            } catch {
+                return null;
+            }
+        }
+        return null;
+    };
 
     // Check Supabase auth session
     useEffect(() => {
         const checkAuth = async () => {
             try {
                 // Check Supabase session
-                const session = await getSession();
+                const { session } = await getSession();
                 
                 if (!session?.user) {
                     // No session - redirect to login
@@ -103,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }
                 
                 // Get user profile from database
-                const profile = await getUserProfile(session.user.id);
+                const { profile } = await getUserProfile();
                 
                 if (profile) {
                     setUser({

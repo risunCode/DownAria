@@ -1,6 +1,6 @@
 // Admin Hooks - Barrel Export
 
-export { useAdminFetch, ADMIN_SWR_CONFIG } from './useAdminFetch';
+export { useAdminFetch, ADMIN_SWR_CONFIG, getAuthToken, buildAdminUrl, getAdminHeaders } from './useAdminFetch';
 export { useServices } from './useServices';
 export { useCookies, useCookieStats, type CookiePoolStats, type PooledCookie } from './useCookies';
 export { useUserAgents, useUserAgentStats, type UserAgentPoolStats, type PooledUserAgent } from './useUserAgents';
@@ -10,3 +10,4 @@ export { useStats, getCountryFlag, PLATFORM_COLORS, type DashboardStats } from '
 export { useSettings, type GlobalSettings } from './useSettings';
 export { useUsers, type User, type UserFilters } from './useUsers';
 export { useAlerts, type AlertConfig, type HealthCheckResult } from './useAlerts';
+export { useGeminiKeys, type GeminiApiKey, type GeminiStats } from './useGeminiKeys';

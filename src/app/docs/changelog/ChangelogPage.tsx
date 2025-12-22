@@ -7,6 +7,23 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.3.0',
+        date: 'December 23, 2025',
+        changes: [
+            { type: 'new', items: ['Hashtag Search - Click #hashtag to search across platforms', 'Ad Banner System - Advertising cards with auto-rotate', 'File Size Detection - Size shown on quality buttons (HD/SD)', 'Video Auto-Stop - Auto-pause after 8 loops (battery saver)', 'Smart Discord Send - Per-item tracking for carousels'] },
+            { type: 'improved', items: ['MediaGallery - Image carousel now renders full resolution', 'Playground API - Rate limit syncs with Admin Console', 'Proxy API - CORS headers for file size detection'] },
+            { type: 'fixed', items: ['Playground rate limit not syncing with Admin settings', 'File size not showing on quality buttons', 'Image carousel always showing index 1'] },
+        ],
+    },
+    {
+        version: '1.2.0',
+        date: 'December 21, 2025',
+        changes: [
+            { type: 'new', items: ['MediaGallery Component - Global media preview with carousel', 'YouTube Support - Added to sidebar platforms', 'Redis Cache Strategy - URL hash-based cache keys'] },
+            { type: 'improved', items: ['Admin Playground - Uses global MediaGallery', 'IndexedDB Optimization - Removed media_cache store'] },
+        ],
+    },
+    {
         version: '1.0.5',
         date: 'December 21, 2025',
         changes: [
@@ -28,22 +45,6 @@ const changelog = [
         changes: [
             { type: 'new', items: ['Settings page redesign - Tab-based navigation', 'Discord Webhook with tagging support', 'Result caching for faster responses', 'SEO metadata for all pages'] },
             { type: 'fixed', items: ['Fixed Facebook 403 errors', 'Fixed cache key case sensitivity'] },
-        ],
-    },
-    {
-        version: '1.0.2',
-        date: 'December 18, 2025',
-        changes: [
-            { type: 'new', items: ['Improved image extraction accuracy', 'Smart target block detection', 'New photo extraction method for single/dual image posts', 'Expandable changelog section in About page'] },
-            { type: 'fixed', items: ['Fixed profile picture being extracted as post image', 'Fixed image URLs missing query params (403 errors)', 'Fixed wrong images from related posts'] },
-        ],
-    },
-    {
-        version: '1.0.1',
-        date: 'December 17, 2025',
-        changes: [
-            { type: 'new', items: ['Changelog section in About page', 'Consolidated test suite for all platforms', 'All-in-one debug tool'] },
-            { type: 'improved', items: ['Merged redundant test files into single test suite', 'Cleaned up debug tools'] },
         ],
     },
     {

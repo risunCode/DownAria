@@ -53,7 +53,7 @@ export default function ResetPasswordPage() {
         try {
             const result = await updatePassword(password);
             if (result.error) {
-                setError(result.error);
+                setError(result.error.message || 'Password update failed');
             } else {
                 setSuccess(true);
                 setTimeout(() => router.push('/auth'), 2000);

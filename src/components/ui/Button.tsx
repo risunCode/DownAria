@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'ref' | 'children'> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'xs' | 'sm' | 'md' | 'lg';
     isLoading?: boolean;
     leftIcon?: ReactNode;
     rightIcon?: ReactNode;
@@ -21,6 +21,7 @@ const variants = {
 };
 
 const sizes = {
+    xs: 'px-2 py-1 text-xs rounded-md',
     sm: 'px-3 py-1.5 text-sm rounded-lg',
     md: 'px-4 py-2.5 text-base rounded-xl',
     lg: 'px-6 py-3 text-lg rounded-xl',

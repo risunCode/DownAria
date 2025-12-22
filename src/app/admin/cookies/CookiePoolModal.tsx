@@ -54,11 +54,27 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
     const [formMaxUses, setFormMaxUses] = useState(60);
     const [saving, setSaving] = useState(false);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+    // Get auth token from Supabase session
+    const getAuthHeaders = useCallback((): Record<string, string> => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                const token = session?.access_token;
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } catch { /* ignore */ }
+        }
+        return headers;
+    }, []);
+
     const loadCookies = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch(`/api/admin/cookies/pool?platform=${platform}`);
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool?platform=${platform}`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 setCookies(data.data || []);
@@ -70,7 +86,7 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
         } finally {
             setLoading(false);
         }
-    }, [platform]);
+    }, [platform, API_URL, getAuthHeaders]);
 
     useEffect(() => {
         loadCookies();
@@ -80,9 +96,9 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
         if (!formCookie.trim()) return;
         setSaving(true);
         try {
-            const res = await fetch('/api/admin/cookies/pool', {
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     platform,
                     cookie: formCookie,
@@ -110,9 +126,9 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
     const handleUpdate = async (id: string, updates: Record<string, unknown>) => {
         setSaving(true);
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}`, {
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(updates)
             });
             const data = await res.json();
@@ -133,7 +149,7 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this cookie?')) return;
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 loadCookies();
@@ -148,7 +164,7 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
     const handleTest = async (id: string) => {
         setTestingId(id);
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}?test=true`);
+            const res = await fetch(`${API_URL}/api/admin/cookies/pool/${id}?test=true`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) {
                 if (data.data.healthy) {
@@ -419,7 +435,7 @@ export default function CookiePoolModal({ platform, platformInfo, onClose }: Pro
                                                         } else {
                                                             // Fetch decrypted cookie from API
                                                             try {
-                                                                const res = await fetch(`/api/admin/cookies/pool/${cookie.id}?decrypt=true`);
+                                                                const res = await fetch(`${API_URL}/api/admin/cookies/pool/${cookie.id}?decrypt=true`, { headers: getAuthHeaders() });
                                                                 const data = await res.json();
                                                                 if (data.success) {
                                                                     // Update cookie in local state with decrypted value

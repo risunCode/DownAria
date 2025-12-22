@@ -73,10 +73,10 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                 }
             }, 800);
             
-            // Real-time elapsed counter (every 1000ms - reduced from 50ms for performance)
+            // Real-time elapsed counter (every 100ms for smooth updates)
             elapsedInterval.current = setInterval(() => {
                 setElapsedMs(Date.now() - startTimeRef.current);
-            }, 1000);
+            }, 100);
         } else {
             if (progressInterval.current) {
                 clearInterval(progressInterval.current);
@@ -336,9 +336,9 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                         <div className="flex justify-between text-xs text-[var(--text-muted)]">
                             <span>{progressText}</span>
                             <span className="font-mono tabular-nums">
-                                {elapsedMs >= 1000 
+                                {elapsedMs < 10000 
                                     ? `${(elapsedMs / 1000).toFixed(1)}s` 
-                                    : `${elapsedMs}ms`
+                                    : `${Math.floor(elapsedMs / 1000)}s`
                                 }
                             </span>
                         </div>
@@ -352,6 +352,25 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                                 animate={{ width: `${progress}%` }}
                                 transition={{ duration: 0.3, ease: 'easeOut' }}
                             />
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* YouTube Notice */}
+                {platform === 'youtube' && !isLoading && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+                    >
+                        <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-red-300/90 leading-relaxed space-y-1">
+                            <p className="font-medium text-red-400">YouTube Notice:</p>
+                            <ul className="list-disc list-inside space-y-0.5 text-red-300/80">
+                                <li>Search may be slow (7-15s) due to third-party API</li>
+                                <li>Quality varies (HD/SD), file size unknown until download</li>
+                                <li>Video downloads take longer as we merge HLS segments</li>
+                            </ul>
                         </div>
                     </motion.div>
                 )}

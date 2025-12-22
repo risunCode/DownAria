@@ -2,8 +2,8 @@
  * Hook for managing admin alert configuration
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { adminFetch } from '@/lib/utils/admin-fetch';
+import { useState, useCallback } from 'react';
+import { useAdminFetch } from './useAdminFetch';
 
 export interface AlertConfig {
     id: string;
@@ -42,109 +42,52 @@ export interface HealthCheckResult {
 }
 
 export function useAlerts() {
-    const [config, setConfig] = useState<AlertConfig | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { data: config, loading, error, refetch, mutate } = useAdminFetch<AlertConfig>('/api/admin/alerts');
     const [testing, setTesting] = useState(false);
     const [runningHealthCheck, setRunningHealthCheck] = useState(false);
 
-    const fetchConfig = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await adminFetch('/api/admin/alerts');
-            if (!res) throw new Error('Not authenticated');
-            const data = await res.json();
-            if (data.success) {
-                setConfig(data.data);
-            } else {
-                throw new Error(data.error || 'Failed to fetch config');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch config');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchConfig();
-    }, [fetchConfig]);
-
     const updateConfig = useCallback(async (updates: Partial<AlertConfig>): Promise<boolean> => {
         try {
-            const res = await adminFetch('/api/admin/alerts', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            });
-            if (!res) throw new Error('Not authenticated');
-            const data = await res.json();
-            if (data.success) {
-                // Update local state
-                setConfig(prev => prev ? { ...prev, ...updates } : null);
+            const result = await mutate('PUT', updates);
+            if (result.success) {
+                await refetch();
                 return true;
             }
-            throw new Error(data.error || 'Failed to update');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update');
+            return false;
+        } catch {
             return false;
         }
-    }, []);
+    }, [mutate, refetch]);
 
     const testWebhook = useCallback(async (webhookUrl: string): Promise<{ success: boolean; error?: string }> => {
         setTesting(true);
         try {
-            const res = await adminFetch('/api/admin/alerts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'test', webhookUrl }),
-            });
-            if (!res) throw new Error('Not authenticated');
-            const data = await res.json();
-            return { success: data.success, error: data.error };
+            const result = await mutate('POST', { action: 'test', webhookUrl });
+            return { success: result.success, error: result.error };
         } catch (err) {
             return { success: false, error: err instanceof Error ? err.message : 'Test failed' };
         } finally {
             setTesting(false);
         }
-    }, []);
+    }, [mutate]);
 
     const runHealthCheck = useCallback(async (): Promise<HealthCheckResult | null> => {
         setRunningHealthCheck(true);
         try {
-            const res = await adminFetch('/api/admin/cookies/health-check', {
-                method: 'POST',
-            });
-            if (!res) throw new Error('Not authenticated');
-            const data = await res.json();
-            if (data.success) {
-                // Refresh config to get updated lastHealthCheckAt
-                await fetchConfig();
-                return data.data;
-            }
-            throw new Error(data.error || 'Health check failed');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Health check failed');
-            return null;
-        } finally {
-            setRunningHealthCheck(false);
-        }
-    }, [fetchConfig]);
-
-    const getHealthStatus = useCallback(async (): Promise<Record<string, { total: number; healthy: number; cooldown: number; expired: number }> | null> => {
-        try {
-            const res = await adminFetch('/api/admin/cookies/health-check');
-            if (!res) throw new Error('Not authenticated');
-            const data = await res.json();
-            if (data.success) {
-                return data.data;
+            // Use separate fetch for health check endpoint
+            const { mutate: healthMutate } = useAdminFetch('/api/admin/cookies/health-check');
+            const result = await healthMutate('POST');
+            if (result.success) {
+                await refetch(); // Refresh config
+                return result.data as HealthCheckResult;
             }
             return null;
         } catch {
             return null;
+        } finally {
+            setRunningHealthCheck(false);
         }
-    }, []);
+    }, [refetch]);
 
     return {
         config,
@@ -152,10 +95,9 @@ export function useAlerts() {
         error,
         testing,
         runningHealthCheck,
-        refetch: fetchConfig,
+        refetch,
         updateConfig,
         testWebhook,
         runHealthCheck,
-        getHealthStatus,
     };
 }

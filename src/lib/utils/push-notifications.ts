@@ -116,11 +116,13 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     return false;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 /**
  * Save subscription to server
  */
 async function saveSubscriptionToServer(subscription: PushSubscription): Promise<void> {
-    const response = await fetch('/api/push/subscribe', {
+    const response = await fetch(`${API_URL}/api/v1/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +139,7 @@ async function saveSubscriptionToServer(subscription: PushSubscription): Promise
  * Remove subscription from server
  */
 async function removeSubscriptionFromServer(subscription: PushSubscription): Promise<void> {
-    await fetch('/api/push/subscribe', {
+    await fetch(`${API_URL}/api/v1/push/subscribe`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

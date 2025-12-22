@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useAdminFetch } from './useAdminFetch';
+import { useAdminFetch, getAdminHeaders, buildAdminUrl } from './useAdminFetch';
 import Swal from 'sweetalert2';
 
 type CookieStatus = 'healthy' | 'cooldown' | 'expired' | 'disabled';
@@ -64,9 +64,9 @@ export function useCookies(platform: string | null) {
         if (!platform) return false;
         setSaving(true);
         try {
-            const res = await fetch('/api/admin/cookies/pool', {
+            const res = await fetch(buildAdminUrl('/api/admin/cookies/pool'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ platform, ...cookieData })
             });
             const json = await res.json();
@@ -86,9 +86,9 @@ export function useCookies(platform: string | null) {
     const updateCookie = useCallback(async (id: string, updates: Partial<PooledCookie>) => {
         setSaving(true);
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}`, {
+            const res = await fetch(buildAdminUrl(`/api/admin/cookies/pool/${id}`), {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify(updates)
             });
             const json = await res.json();
@@ -117,7 +117,10 @@ export function useCookies(platform: string | null) {
         if (!confirm.isConfirmed) return false;
 
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}`, { method: 'DELETE' });
+            const res = await fetch(buildAdminUrl(`/api/admin/cookies/pool/${id}`), { 
+                method: 'DELETE',
+                headers: getAdminHeaders()
+            });
             const json = await res.json();
             if (json.success) {
                 toast('success', 'Cookie deleted');
@@ -135,7 +138,9 @@ export function useCookies(platform: string | null) {
 
     const testCookie = useCallback(async (id: string) => {
         try {
-            const res = await fetch(`/api/admin/cookies/pool/${id}?test=true`);
+            const res = await fetch(buildAdminUrl(`/api/admin/cookies/pool/${id}?test=true`), {
+                headers: getAdminHeaders()
+            });
             const json = await res.json();
             if (json.success) {
                 if (json.data?.healthy) {

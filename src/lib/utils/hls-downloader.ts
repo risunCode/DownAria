@@ -10,6 +10,8 @@
  * 5. Download as MP4 (TS segments are H.264/AAC, playable as MP4)
  */
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export interface HLSDownloadProgress {
     phase: 'parsing' | 'downloading' | 'merging' | 'complete' | 'error';
     percent: number;
@@ -26,7 +28,7 @@ export type ProgressCallback = (progress: HLSDownloadProgress) => void;
  */
 async function parseM3U8(m3u8Url: string): Promise<string[]> {
     // Fetch via proxy to bypass CORS
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(m3u8Url)}&inline=1`;
+    const proxyUrl = `${API_URL}/api/v1/proxy?url=${encodeURIComponent(m3u8Url)}&inline=1`;
     const res = await fetch(proxyUrl);
     
     if (!res.ok) {
@@ -64,7 +66,7 @@ async function parseM3U8(m3u8Url: string): Promise<string[]> {
  * Download a single segment with retry
  */
 async function downloadSegment(url: string, retries = 3): Promise<ArrayBuffer> {
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+    const proxyUrl = `${API_URL}/api/v1/proxy?url=${encodeURIComponent(url)}`;
     
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {

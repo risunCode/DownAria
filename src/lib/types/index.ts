@@ -29,6 +29,7 @@ export interface MediaFormat {
     thumbnail?: string; // Specific thumbnail for this item
     width?: number;
     height?: number;
+    isHLS?: boolean; // Flag for HLS/m3u8 streams (YouTube)
 }
 
 // Download response from API

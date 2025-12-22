@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { adminFetch } from '@/lib/utils/admin-fetch';
+import { useAdminFetch } from './useAdminFetch';
 
 export interface BrowserProfile {
     id: string;
@@ -79,6 +79,36 @@ export function useBrowserProfiles() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Get auth token from Supabase session
+    const getAuthToken = useCallback((): string | null => {
+        if (typeof window === 'undefined') return null;
+        const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (supabaseKey) {
+            try {
+                const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
+                return session?.access_token || null;
+            } catch {
+                return null;
+            }
+        }
+        return null;
+    }, []);
+
+    // Admin fetch helper
+    const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+        const token = getAuthToken();
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+        const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+        
+        const headers: Record<string, string> = { 
+            'Content-Type': 'application/json',
+            ...(options.headers as Record<string, string> || {})
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        return fetch(fullUrl, { ...options, headers });
+    }, [getAuthToken]);
+
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -98,7 +128,7 @@ export function useBrowserProfiles() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [adminFetch]);
 
     useEffect(() => {
         fetchProfiles();

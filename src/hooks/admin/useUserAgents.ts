@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useAdminFetch } from './useAdminFetch';
+import { useAdminFetch, getAdminHeaders, buildAdminUrl } from './useAdminFetch';
 import Swal from 'sweetalert2';
 
 export interface UserAgentPoolStats {
@@ -72,9 +72,9 @@ export function useUserAgents(platform: string | null) {
     }) => {
         setSaving(true);
         try {
-            const res = await fetch('/api/admin/useragents/pool', {
+            const res = await fetch(buildAdminUrl('/api/admin/useragents/pool'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify(uaData)
             });
             const json = await res.json();
@@ -94,9 +94,9 @@ export function useUserAgents(platform: string | null) {
     const updateUserAgent = useCallback(async (id: string, updates: Partial<PooledUserAgent>) => {
         setSaving(true);
         try {
-            const res = await fetch(`/api/admin/useragents/pool/${id}`, {
+            const res = await fetch(buildAdminUrl(`/api/admin/useragents/pool/${id}`), {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify(updates)
             });
             const json = await res.json();
@@ -125,7 +125,10 @@ export function useUserAgents(platform: string | null) {
         if (!confirm.isConfirmed) return false;
 
         try {
-            const res = await fetch(`/api/admin/useragents/pool/${id}`, { method: 'DELETE' });
+            const res = await fetch(buildAdminUrl(`/api/admin/useragents/pool/${id}`), { 
+                method: 'DELETE',
+                headers: getAdminHeaders()
+            });
             const json = await res.json();
             if (json.success) {
                 toast('success', 'User-Agent deleted');

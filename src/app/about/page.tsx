@@ -51,11 +51,11 @@ function ChangelogSection() {
             </h3>
 
             <div className="space-y-4">
-                {/* Latest Version - v1.0.5 */}
+                {/* Latest Version - v1.3.0 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.0.5</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 21, 2025</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.3.0</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 23, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
 
@@ -65,8 +65,11 @@ function ChangelogSection() {
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• <strong>Smarter Cookie Management</strong> - Auto health tracking per usage</li>
-                            <li>• <strong>Improved Backup</strong> - Better export/import for cross-browser compatibility</li>
+                            <li>• <strong>Hashtag Search</strong> - Click #hashtag to search across platforms</li>
+                            <li>• <strong>Ad Banner System</strong> - Advertising cards with auto-rotate</li>
+                            <li>• <strong>File Size Detection</strong> - Size shown on quality buttons (HD/SD)</li>
+                            <li>• <strong>Video Auto-Stop</strong> - Auto-pause after 8 loops (battery saver)</li>
+                            <li>• <strong>Smart Discord Send</strong> - Per-item tracking for carousels</li>
                         </ul>
                     </div>
 
@@ -76,30 +79,39 @@ function ChangelogSection() {
                             <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Mobile performance - smoother animations & reduced lag</li>
-                            <li>• AI Chat now fully responsive on mobile</li>
-                            <li>• Documentation pages responsive fixes</li>
-                            <li>• Admin dashboard layout improvements</li>
-                            <li>• Cleaner admin panel navigation</li>
+                            <li>• MediaGallery - Image carousel now renders full resolution</li>
+                            <li>• Playground API - Rate limit syncs with Admin Console</li>
+                            <li>• Proxy API - CORS headers for file size detection</li>
+                        </ul>
+                    </div>
+
+                    {/* What's Fixed */}
+                    <div className="mb-3">
+                        <h4 className="text-xs font-semibold text-red-400 mb-1.5 flex items-center gap-1">
+                            <span>🐛</span> What&apos;s Fixed
+                        </h4>
+                        <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
+                            <li>• Playground rate limit not syncing with Admin settings</li>
+                            <li>• File size not showing on quality buttons</li>
+                            <li>• Image carousel always showing index 1</li>
                         </ul>
                     </div>
                 </div>
 
-                {/* Version 1.0.4 */}
+                {/* Version 1.2.0 */}
                 <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.4</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
+                        <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.2.0</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 21, 2025</span>
                     </div>
                     <div className="mb-2">
                         <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                            <li>• Multi-language - English + Bahasa Indonesia support</li>
-                            <li>• Language selector in Settings → Basic</li>
-                            <li>• Full Backup - Export/Import history + settings as ZIP</li>
-                            <li>• Faster Downloads - Improved caching system</li>
+                            <li>• MediaGallery Component - Global media preview with carousel</li>
+                            <li>• YouTube Support - Added to sidebar platforms</li>
+                            <li>• Redis Cache Strategy - URL hash-based cache keys</li>
                         </ul>
                     </div>
                     <div>
@@ -107,9 +119,8 @@ function ChangelogSection() {
                             <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                            <li>• Better error messages with localization</li>
-                            <li>• Friendlier UI text and labels</li>
-                            <li>• Performance optimizations</li>
+                            <li>• Admin Playground - Uses global MediaGallery</li>
+                            <li>• IndexedDB Optimization - Removed media_cache store</li>
                         </ul>
                     </div>
                 </div>

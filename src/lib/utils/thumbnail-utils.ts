@@ -5,6 +5,8 @@
 
 import type { Platform } from '@/lib/types';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 /**
  * Proxy thumbnail for platforms that block direct access (Instagram CDN)
  * @param url - Original thumbnail URL
@@ -21,7 +23,7 @@ export function getProxiedThumbnail(url: string | undefined, platform: Platform)
         url.includes('fbcdn') ||
         url.includes('scontent')
     )) {
-        return `/api/proxy?url=${encodeURIComponent(url)}&platform=${platform}&inline=1`;
+        return `${API_URL}/api/v1/proxy?url=${encodeURIComponent(url)}&platform=${platform}&inline=1`;
     }
 
     return url;

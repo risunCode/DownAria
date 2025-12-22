@@ -17,9 +17,10 @@ export default function MaintenancePage() {
     const [loading, setLoading] = useState(true);
     const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
     const fetchMaintenanceInfo = useCallback(async () => {
         try {
-            const res = await fetch('/api/status?t=' + Date.now());
+            const res = await fetch(`${API_URL}/api/v1/status?t=` + Date.now());
             const data = await res.json();
             
             if (data.success) {

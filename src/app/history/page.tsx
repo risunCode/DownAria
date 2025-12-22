@@ -3,6 +3,7 @@
 import { SidebarLayout } from '@/components/Sidebar';
 import { HistoryList } from '@/components/HistoryList';
 import Announcements from '@/components/Announcements';
+import { AdBannerCard } from '@/components/AdBannerCard';
 import { motion } from 'framer-motion';
 import { Shield, HardDrive } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -49,6 +50,9 @@ export default function HistoryPage() {
                                 </p>
                             </div>
                         </motion.div>
+
+                        {/* Ad Banner */}
+                        <AdBannerCard page="history" />
 
                         <HistoryList />
                     </motion.div>

@@ -19,7 +19,7 @@ interface PlaygroundStatusResponse {
 
 export function usePlayground() {
     const { data, error, isLoading, mutate } = useSWR<PlaygroundStatusResponse>(
-        `${API_URL}/api/playground`,
+        `${API_URL}/api/v1/playground`,
         fetcher,
         {
             ...SWR_CONFIG.moderate,

@@ -32,7 +32,7 @@ const announcementsFetcher = async (url: string): Promise<AnnouncementsResponse>
 };
 
 export function useAnnouncements(page: string) {
-    const url = `${API_URL}/api/announcements?page=${page}`;
+    const url = `${API_URL}/api/v1/announcements?page=${page}`;
     
     const { data, error, isLoading, mutate } = useSWR<AnnouncementsResponse>(
         url,
