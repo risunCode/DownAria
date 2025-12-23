@@ -1,6 +1,6 @@
 // XTFetch Service Worker - Offline First PWA
 // Cache version - update this on each deploy or use build timestamp
-const BUILD_TIME = '20251223133254'; // YYYYMMDD format - UPDATE ON DEPLOY
+const BUILD_TIME = '20251223163916'; // YYYYMMDD format - UPDATE ON DEPLOY
 const CACHE_VERSION = `v5-${BUILD_TIME}`;
 const STATIC_CACHE = `xtfetch-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `xtfetch-dynamic-${CACHE_VERSION}`;

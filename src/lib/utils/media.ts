@@ -51,7 +51,24 @@ export function extractPostId(url: string): string {
 }
 
 /**
+ * Sanitize text for filename (remove special chars, truncate)
+ */
+function sanitizeForFilename(text: string, maxLength: number = 50): string {
+    return text
+        .replace(/^@/, '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9\-_\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g, '')
+        .substring(0, maxLength)
+        .replace(/_+$/, '') || 'untitled';
+}
+
+/**
  * Generate standardized filename for downloaded media
+ * Format: Author_Caption_(Quality)_[XTFETCH].ext
+ * 
+ * YouTube: Author_Title_(Quality)_[XTFETCH].ext
+ * Others: Author_Caption_(Quality)_[XTFETCH].ext
  */
 export function generateFilename(
     data: MediaData,
@@ -59,17 +76,31 @@ export function generateFilename(
     format: MediaFormat,
     carouselIndex?: number
 ): string {
-    const platName = PLATFORM_SHORT_NAMES[platform] || platform.toUpperCase();
-    const author = (data.author || 'unknown')
-        .replace(/^@/, '')
-        .replace(/\s+/g, '-')
-        .replace(/[^a-zA-Z0-9\-_\u4e00-\u9fff]/g, '')
-        .substring(0, 25) || 'unknown';
-    const postId = extractPostId(data.url);
+    // Sanitize author
+    const author = sanitizeForFilename(data.author || 'unknown', 25);
+    
+    // Get caption/title based on platform
+    // YouTube uses title, others use description/title as caption
+    const rawCaption = platform === 'youtube' 
+        ? (data.title || '') 
+        : (data.description || data.title || '');
+    const caption = sanitizeForFilename(rawCaption, 50);
+    
+    // Extract quality (e.g., "HD (720p)" -> "720p", "1080p" -> "1080p")
+    const qualityMatch = format.quality.match(/(\d+p|\d+k|HD|SD|Original|Audio)/i);
+    const quality = qualityMatch ? qualityMatch[1] : format.quality.replace(/[^a-zA-Z0-9]/g, '');
+    
+    // File extension
     const ext = format.format || (format.type === 'video' ? 'mp4' : format.type === 'audio' ? 'mp3' : 'jpg');
+    
+    // Carousel suffix for multi-item posts
     const carouselSuffix = carouselIndex ? `_${carouselIndex}` : '';
     
-    return `${platName}_${author}_${postId}${carouselSuffix}_[XTFetch].${ext}`;
+    // Build filename: Author_Caption_(Quality)_[XTFETCH].ext
+    const parts = [author];
+    if (caption && caption !== 'untitled') parts.push(caption);
+    
+    return `${parts.join('_')}${carouselSuffix}_(${quality})_[XTFETCH].${ext}`;
 }
 
 /**
@@ -486,6 +517,8 @@ export interface YouTubeMergeProgress {
     status: 'idle' | 'preparing' | 'merging' | 'downloading' | 'done' | 'error';
     message: string;
     percent?: number;
+    loaded?: number;  // bytes downloaded
+    total?: number;   // total bytes (from Content-Length)
 }
 
 export interface YouTubeMergeResult {
@@ -660,19 +693,51 @@ export function getQualityLabel(format: MediaFormat): { label: string; badge: 'm
  * @param quality - Desired quality (e.g., "1080p", "720p", "480p")
  * @param filename - Output filename
  * @param onProgress - Progress callback
+ * @param estimatedSize - Estimated file size in bytes (for realistic fake progress)
  * @returns Promise with merged blob result
  */
 export async function downloadMergedYouTube(
     youtubeUrl: string,
     quality: string,
     filename: string,
-    onProgress: (progress: YouTubeMergeProgress) => void
+    onProgress: (progress: YouTubeMergeProgress) => void,
+    estimatedSize?: number
 ): Promise<YouTubeMergeResult> {
     try {
-        // Phase 1: Backend downloading + merging
-        onProgress({ status: 'preparing', message: 'Preparing HD video...', percent: 0 });
+        // Phase 1: Start request
+        onProgress({ status: 'preparing', message: 'Preparing...', percent: 0, loaded: 0, total: 0 });
 
-        // Call merge API with YouTube URL + quality
+        // Simulate realistic download progress based on estimated size @ 10 Mbps
+        // 10 Mbps = 1.25 MB/s = 1,250,000 bytes/s
+        const SIMULATED_SPEED = 1.25 * 1024 * 1024; // 10 Mbps in bytes/s
+        const estimatedTotal = estimatedSize || 30 * 1024 * 1024; // Default 30MB if unknown
+        const estimatedDuration = (estimatedTotal / SIMULATED_SPEED) * 1000; // ms to "download"
+        
+        // Converting phase: 0-80% with realistic timing
+        // We simulate downloading at 10 Mbps, progress updates every 200ms
+        const UPDATE_INTERVAL = 200; // ms
+        const bytesPerUpdate = SIMULATED_SPEED * (UPDATE_INTERVAL / 1000);
+        let fakeLoaded = 0;
+        const maxFakePercent = 80; // Stop at 80% until backend responds
+        
+        const fakeProgressInterval = setInterval(() => {
+            fakeLoaded += bytesPerUpdate * (0.8 + Math.random() * 0.4); // Add some variance
+            const fakePercent = Math.min((fakeLoaded / estimatedTotal) * 100, maxFakePercent);
+            const fakeMB = (fakeLoaded / 1024 / 1024).toFixed(1);
+            const totalMB = (estimatedTotal / 1024 / 1024).toFixed(1);
+            
+            if (fakePercent < maxFakePercent) {
+                onProgress({ 
+                    status: 'merging', 
+                    message: `Converting... ${fakeMB} / ~${totalMB} MB (${Math.round(fakePercent)}%)`, 
+                    percent: Math.round(fakePercent),
+                    loaded: Math.round(fakeLoaded),
+                    total: estimatedTotal
+                });
+            }
+        }, UPDATE_INTERVAL);
+
+        // Call merge API
         const response = await fetch(`${API_URL}/api/v1/youtube/merge`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -683,64 +748,72 @@ export async function downloadMergedYouTube(
             })
         });
 
+        // Stop fake progress
+        clearInterval(fakeProgressInterval);
+
         if (!response.ok) {
             const error = await response.json().catch(() => ({ error: 'Merge failed' }));
             throw new Error(error.error || `HTTP ${response.status}`);
         }
 
-        // Phase 2: Backend is processing, we're waiting for first byte
-        onProgress({ status: 'merging', message: 'Converting video + audio...', percent: 10 });
-
-        // Stream response to blob with progress
+        // Get actual file size from Content-Length header
         const contentLength = response.headers.get('content-length');
         const total = contentLength ? parseInt(contentLength) : 0;
+        
         const reader = response.body?.getReader();
-
-        if (!reader) {
-            throw new Error('No response body');
-        }
+        if (!reader) throw new Error('No response body');
 
         const chunks: Uint8Array[] = [];
         let loaded = 0;
-        let firstChunkReceived = false;
+        let lastUpdate = Date.now();
+
+        // First progress with actual total size - jump to 80%
+        const totalMB = total > 0 ? (total / 1024 / 1024).toFixed(1) : '?';
+        onProgress({ 
+            status: 'downloading', 
+            message: `Downloading... 0 / ${totalMB} MB (80%)`, 
+            percent: 80,
+            loaded: 0,
+            total
+        });
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            // First chunk = backend finished merging, now downloading to user
-            if (!firstChunkReceived) {
-                firstChunkReceived = true;
-                onProgress({ 
-                    status: 'downloading', 
-                    message: 'Downloading merged video...', 
-                    percent: 20 
-                });
-            }
-
             chunks.push(value);
             loaded += value.length;
 
-            // Progress: 20-100% is download phase
-            const downloadPercent = total > 0 ? Math.round((loaded / total) * 80) + 20 : 50;
-            const speedMB = (loaded / 1024 / 1024).toFixed(1);
-            
-            onProgress({
-                status: 'downloading',
-                message: `Downloading... ${speedMB} MB`,
-                percent: Math.min(downloadPercent, 99)
-            });
+            // Throttle progress updates (every 50ms for smoother updates)
+            const now = Date.now();
+            if (now - lastUpdate > 50) {
+                lastUpdate = now;
+                // Progress: 80-100% is actual download phase
+                const downloadPercent = total > 0 
+                    ? Math.round((loaded / total) * 20) + 80 
+                    : 90;
+                const loadedMB = (loaded / 1024 / 1024).toFixed(1);
+                
+                onProgress({
+                    status: 'downloading',
+                    message: `Downloading... ${loadedMB} / ${totalMB} MB (${downloadPercent}%)`,
+                    percent: Math.min(downloadPercent, 99),
+                    loaded,
+                    total
+                });
+            }
         }
 
         const blob = new Blob(chunks as BlobPart[], { type: 'video/mp4' });
+        const finalMB = (blob.size / 1024 / 1024).toFixed(1);
 
-        onProgress({ status: 'done', message: 'Ready!', percent: 100 });
+        onProgress({ status: 'done', message: `Done! ${finalMB} MB`, percent: 100, loaded: blob.size, total: blob.size });
 
         return { success: true, blob, filename };
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        onProgress({ status: 'error', message });
+        onProgress({ status: 'error', message, percent: 0, loaded: 0, total: 0 });
         return { success: false, error: message };
     }
 }
@@ -835,32 +908,34 @@ export async function downloadMedia(
         // Generate filename
         let filename = generateFilename(data, platform, format, carouselIndex);
         
-        // Debug log
-        console.log('[downloadMedia] format:', { 
-            quality: format.quality, 
-            needsMerge: format.needsMerge, 
-            hasAudioUrl: !!format.audioUrl 
-        });
-        
         // Case 1: YouTube merge (needsMerge + audioUrl)
         if (format.needsMerge && format.audioUrl) {
-            console.log('[downloadMedia] Using merge flow');
             filename = filename.replace(/\.\w+$/, '.mp4');
             onProgress?.({ status: 'merging', percent: 0, loaded: 0, total: 0, speed: 0, message: 'Preparing HD video...' });
             
             // NEW: Send YouTube URL + quality, not CDN URLs
+            // Pass estimated filesize for realistic fake progress
             const result = await downloadMergedYouTube(
                 data.url, // Original YouTube URL
                 format.quality, // e.g., "1080p", "720p"
                 filename,
-                (p) => onProgress?.({
-                    status: p.status === 'done' ? 'done' : p.status === 'error' ? 'error' : 'merging',
-                    percent: p.percent || 0,
-                    loaded: 0,
-                    total: 0,
-                    speed: 0,
-                    message: p.message
-                })
+                (p) => {
+                    // Map YouTube merge status to download status
+                    const status = p.status === 'done' ? 'done' 
+                        : p.status === 'error' ? 'error' 
+                        : p.status === 'downloading' ? 'downloading' 
+                        : 'merging';
+                    
+                    onProgress?.({
+                        status,
+                        percent: p.percent || 0,
+                        loaded: p.loaded || 0,
+                        total: p.total || 0,
+                        speed: 0,
+                        message: p.message
+                    });
+                },
+                format.filesize // Pass estimated size for realistic progress simulation
             );
             
             if (!result.success || !result.blob) {

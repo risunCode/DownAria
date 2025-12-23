@@ -102,10 +102,32 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         setFileSizeNumerics({});
     }, [data.url]); // Reset when URL changes (new content)
 
-    // Fetch file sizes for ALL formats (not just selected) - skip YouTube
+    // Fetch file sizes for ALL formats - use backend sizes if available, fallback to proxy fetch
     useEffect(() => {
-        if (platform === 'youtube') return; // YouTube sizes are unknown (streaming)
-        if (sizesFetched) return; // Already fetched
+        // Check if formats already have filesize from backend (YouTube + other platforms now)
+        const hasBackendSizes = data.formats?.some(f => f.filesize && f.filesize > 0);
+        if (hasBackendSizes) {
+            // Use backend sizes - populate fileSizes state from format.filesize
+            const newSizes: Record<string, string> = {};
+            const newNumerics: Record<string, number> = {};
+            for (const format of data.formats || []) {
+                if (format.filesize && format.filesize > 0) {
+                    const itemId = format.itemId || 'main';
+                    const key = `${itemId}-${format.url}`;
+                    newSizes[key] = formatBytes(format.filesize);
+                    newNumerics[key] = format.filesize;
+                }
+            }
+            if (Object.keys(newSizes).length > 0) {
+                setFileSizes(newSizes);
+                setFileSizeNumerics(newNumerics);
+                setSizesFetched(true);
+            }
+            return;
+        }
+        
+        // Fallback: fetch sizes via proxy (legacy behavior for platforms without backend sizes)
+        if (sizesFetched) return;
         if (!data.formats || data.formats.length === 0) return;
         
         const fetchSizes = async () => {
@@ -158,19 +180,35 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         };
         
         fetchSizes();
-    }, [platform, data.formats, sizesFetched]); // Re-run when platform or formats change
+    }, [platform, data.formats, sizesFetched]);
 
     const getFileSize = (itemId: string, format: MediaFormat | undefined): string | null => {
         if (!format?.url) return null;
-        const key = `${itemId}-${format.url}`;
-        return fileSizes[key] || null;
+        let size: string | null = null;
+        // Use filesize from response if available (all platforms including YouTube)
+        if (format.filesize) {
+            size = formatBytes(format.filesize);
+        } else {
+            const key = `${itemId}-${format.url}`;
+            size = fileSizes[key] || null;
+        }
+        // Add ~ prefix for estimated sizes (YouTube merge formats)
+        return size && format.needsMerge ? `~${size}` : size;
     };
 
     // Helper to get size for any format (not just selected)
     const getFormatSize = (itemId: string, format: MediaFormat): string | null => {
         if (!format?.url) return null;
-        const key = `${itemId}-${format.url}`;
-        return fileSizes[key] || null;
+        let size: string | null = null;
+        // Use filesize from response if available (all platforms including YouTube)
+        if (format.filesize) {
+            size = formatBytes(format.filesize);
+        } else {
+            const key = `${itemId}-${format.url}`;
+            size = fileSizes[key] || null;
+        }
+        // Add ~ prefix for estimated sizes (YouTube merge formats)
+        return size && format.needsMerge ? `~${size}` : size;
     };
 
     // Use shared progress text utility
@@ -505,7 +543,8 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                         percent: downloadProgress[selectedItemId]?.percent || 0,
                                         loaded: downloadProgress[selectedItemId]?.loaded || 0,
                                         total: downloadProgress[selectedItemId]?.total || 0,
-                                        speed: downloadProgress[selectedItemId]?.speed || 0
+                                        speed: downloadProgress[selectedItemId]?.speed || 0,
+                                        message: downloadProgress[selectedItemId]?.message
                                     }}
                                     animated={false}
                                     className="mt-3"
@@ -578,7 +617,8 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     percent: downloadProgress[itemIds[0]]?.percent || 0,
                                     loaded: downloadProgress[itemIds[0]]?.loaded || 0,
                                     total: downloadProgress[itemIds[0]]?.total || 0,
-                                    speed: downloadProgress[itemIds[0]]?.speed || 0
+                                    speed: downloadProgress[itemIds[0]]?.speed || 0,
+                                    message: downloadProgress[itemIds[0]]?.message
                                 }}
                                 animated={false}
                                 className="mt-3"

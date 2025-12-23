@@ -6,6 +6,15 @@
 import { API_URL } from '@/lib/config';
 import type { PlatformId } from '@/lib/types';
 
+/**
+ * Platforms that work without proxy (direct CDN access)
+ * - Instagram: fbcdn/cdninstagram works direct
+ * - Facebook: fbcdn/scontent works direct  
+ * - Twitter: twimg works direct (non age-restricted)
+ * - TikTok: tiktokcdn works direct
+ */
+const DIRECT_ACCESS_PLATFORMS: PlatformId[] = ['instagram', 'facebook', 'twitter', 'tiktok'];
+
 export function getProxyUrl(url: string, options?: {
     filename?: string;
     platform?: string;
@@ -13,6 +22,11 @@ export function getProxyUrl(url: string, options?: {
     head?: boolean;
     hls?: boolean;
 }): string {
+    // Skip proxy for platforms that work with direct CDN access
+    if (options?.platform && DIRECT_ACCESS_PLATFORMS.includes(options.platform as PlatformId)) {
+        return url; // Return original URL, no proxy
+    }
+    
     const params = new URLSearchParams();
     params.set('url', url);
     
@@ -31,6 +45,11 @@ export function getProxyUrl(url: string, options?: {
  */
 export function getProxiedThumbnail(url: string | undefined, platform?: PlatformId | string): string {
     if (!url) return '';
+    
+    // Skip proxy for platforms that work with direct CDN access
+    if (platform && DIRECT_ACCESS_PLATFORMS.includes(platform as PlatformId)) {
+        return url; // Return original URL, no proxy
+    }
     
     // Check if URL needs proxying (CDN domains that block direct access)
     const needsProxy = 

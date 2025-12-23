@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, ShoppingBag } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface Ad {
     id: string;
@@ -21,8 +22,6 @@ interface Ad {
 interface AdBannerCardProps {
     page?: 'home' | 'history' | 'advanced';
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // Platform colors
 const PLATFORM_COLORS: Record<string, { bg: string; text: string }> = {
@@ -54,8 +53,7 @@ export function AdBannerCard({ page = 'home' }: AdBannerCardProps) {
     useEffect(() => {
         const fetchAds = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/v1/ads?limit=5&page=${page}`);
-                const json = await res.json();
+                const json = await api.get<{ success: boolean; data: Ad[] }>(`/api/v1/ads?limit=5&page=${page}`);
                 if (json.success && json.data?.length > 0) {
                     setAds(json.data);
                 }
@@ -80,11 +78,7 @@ export function AdBannerCard({ page = 'home' }: AdBannerCardProps) {
     // Track click
     const handleClick = async (ad: Ad) => {
         // Track click (fire and forget)
-        fetch(`${API_URL}/api/v1/ads`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: ad.id }),
-        }).catch(() => {});
+        api.post('/api/v1/ads', { id: ad.id }).catch(() => {});
 
         // Open link
         window.open(ad.link_url, '_blank', 'noopener,noreferrer');

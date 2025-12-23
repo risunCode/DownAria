@@ -30,6 +30,7 @@ export interface MediaFormat {
     size?: string;
     fileSize?: string; // Human-readable file size (e.g. "32.5 MB")
     filesize?: number; // File size in bytes
+    filesizeEstimated?: boolean; // True if filesize is estimated (YouTube)
     format?: string;
     mimeType?: string;
     filename?: string; // Custom filename hint

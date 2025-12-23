@@ -17,6 +17,7 @@ import Swal from 'sweetalert2';
 import { 
   extractPostId, 
   groupFormatsByItem, 
+  getItemThumbnails,
   findPreferredFormat,
   canYouTubeAutoplay,
   getYouTubePreviewNotice,
@@ -114,11 +115,13 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
 
   // Memoize grouped formats - only recalculate when formats change
   const groupedItems = useMemo(() => groupFormatsByItem(data.formats || []), [data.formats]);
+  const itemThumbnails = useMemo(() => getItemThumbnails(data.formats || []), [data.formats]);
   const itemIds = useMemo(() => Object.keys(groupedItems), [groupedItems]);
   const isCarousel = itemIds.length > 1;
   const currentItemId = itemIds[currentIndex] || 'main';
   const currentFormats = groupedItems[currentItemId] || [];
-  const currentThumbnail = currentFormats[0]?.thumbnail || data.thumbnail;
+  // Use item-specific thumbnail, fallback to data.thumbnail
+  const currentThumbnail = itemThumbnails[currentItemId] || currentFormats[0]?.thumbnail || data.thumbnail;
 
   // Sync initialFormat when modal opens or initialFormat changes
   useEffect(() => {
@@ -158,7 +161,11 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   useEffect(() => {
     // Only reset if index actually changed by user (not initial sync)
     if (prevIndex.current !== currentIndex && !hasInitialFormat.current) {
-      setSelectedFormat(null);
+      // Immediately select preferred format for new item
+      const newItemId = itemIds[currentIndex] || 'main';
+      const newFormats = groupedItems[newItemId] || [];
+      const preferred = findPreferredFormat(newFormats);
+      setSelectedFormat(preferred || null);
       setDownloadState({ status: 'idle', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
       loopCountRef.current = 0; // Reset loop counter on item change
     }
@@ -167,7 +174,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     if (hasInitialFormat.current) {
       hasInitialFormat.current = false;
     }
-  }, [currentIndex]);
+  }, [currentIndex, itemIds, groupedItems]);
 
   // Reset loop counter when format changes
   useEffect(() => {
@@ -193,16 +200,33 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     }
   }, []);
 
-  // Fetch file sizes (batch + parallel) - skip for YouTube (unknown size anyway)
+  // Fetch file sizes (batch + parallel) - use backend sizes if available, fallback to proxy fetch
   useEffect(() => {
-    if (!isOpen || platform === 'youtube') return;
+    if (!isOpen) return;
+    
+    // First: populate from backend filesize (all platforms including YouTube)
+    const backendSizes: Record<string, string> = {};
+    Object.values(groupedItems).forEach(formats => {
+      formats.forEach(f => {
+        if (f.filesize && f.filesize > 0 && !fileSizes[f.url]) {
+          backendSizes[f.url] = formatBytes(f.filesize);
+        }
+      });
+    });
+    
+    if (Object.keys(backendSizes).length > 0) {
+      setFileSizes(prev => ({ ...prev, ...backendSizes }));
+    }
+    
+    // Skip proxy fetch for YouTube (backend already provides sizes)
+    if (platform === 'youtube') return;
     
     const fetchSizes = async () => {
-      // Collect ALL formats from ALL items (not just current)
+      // Collect formats that don't have size yet (not from backend, not already fetched)
       const allFormats: MediaFormat[] = [];
       Object.values(groupedItems).forEach(formats => {
         formats.forEach(f => {
-          if (!fileSizes[f.url]) {
+          if (!fileSizes[f.url] && !backendSizes[f.url] && !f.filesize) {
             allFormats.push(f);
           }
         });
@@ -465,10 +489,16 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         {/* Carousel Navigation */}
         {isCarousel && (
           <>
-            <button onClick={goToPrev} className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+            <button 
+              onClick={(e) => { e.stopPropagation(); goToPrev(); }} 
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-20 touch-manipulation"
+            >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <button onClick={goToNext} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+            <button 
+              onClick={(e) => { e.stopPropagation(); goToNext(); }} 
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-20 touch-manipulation"
+            >
               <ChevronRight className="w-6 h-6" />
             </button>
           </>
@@ -480,11 +510,12 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         <div className="flex gap-2 px-4 py-2 overflow-x-auto scrollbar-hide">
           {itemIds.map((itemId, idx) => {
             const itemFormats = groupedItems[itemId];
-            const thumb = itemFormats[0]?.thumbnail || data.thumbnail;
+            // Use item-specific thumbnail from getItemThumbnails, fallback chain
+            const thumb = itemThumbnails[itemId] || itemFormats[0]?.thumbnail || data.thumbnail;
             const isVideo = itemFormats[0]?.type === 'video';
             return (
               <button
-                key={idx}
+                key={itemId}
                 onClick={() => setCurrentIndex(idx)}
                 className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden transition-all ${
                   idx === currentIndex 
@@ -635,7 +666,8 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
             loaded: downloadState.loaded,
             total: downloadState.total,
             speed: downloadState.speed,
-            eta: downloadState.eta
+            eta: downloadState.eta,
+            message: downloadState.message
           }}
         />
       )}

@@ -49,6 +49,8 @@ export function FormatSelector({
         const size = getSize?.(format);
         const displayQuality = getDisplayQuality(format);
         const needsMerge = format.needsMerge;
+        // Add ~ prefix for estimated sizes (YouTube merge formats)
+        const displaySize = size ? (needsMerge ? `~${size}` : size) : null;
 
         return (
             <button
@@ -63,7 +65,7 @@ export function FormatSelector({
             >
                 {displayQuality}
                 {needsMerge && <span className="ml-1 text-yellow-500">⚡</span>}
-                {size && <span className="ml-1 opacity-70">({size})</span>}
+                {displaySize && <span className="ml-1 opacity-70">({displaySize})</span>}
             </button>
         );
     };

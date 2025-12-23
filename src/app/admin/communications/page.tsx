@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, RefreshCw, Bell, Megaphone } from 'lucide-react';
+import { MessageSquare, RefreshCw, Bell, Megaphone, Zap } from 'lucide-react';
 import AdminGuard from '@/components/AdminGuard';
-import { AnnouncementsSection, PushNotificationsSection, AdsSection } from './components';
+import { AnnouncementsSection, PushNotificationsSection, AdsSection, CompactAdsSection } from './components';
 
 interface Announcement {
     id: number;
@@ -39,7 +39,7 @@ interface PushStats {
     subscriberCount: number;
 }
 
-type TabType = 'announcements' | 'push' | 'ads';
+type TabType = 'announcements' | 'push' | 'ads' | 'compact-ads';
 
 export default function CommunicationsPage() {
     return (
@@ -153,7 +153,13 @@ function CommunicationsContent() {
                     active={activeTab === 'ads'}
                     onClick={() => setActiveTab('ads')}
                     icon={<Megaphone className="w-4 h-4" />}
-                    label="Advertising"
+                    label="Banner Ads"
+                />
+                <TabButton
+                    active={activeTab === 'compact-ads'}
+                    onClick={() => setActiveTab('compact-ads')}
+                    icon={<Zap className="w-4 h-4" />}
+                    label="Compact Ads"
                 />
             </div>
 
@@ -189,6 +195,9 @@ function CommunicationsContent() {
                             onRefresh={fetchAds}
                             getAuthHeaders={getAuthHeaders}
                         />
+                    )}
+                    {activeTab === 'compact-ads' && (
+                        <CompactAdsSection getAuthHeaders={getAuthHeaders} />
                     )}
                 </motion.div>
             </AnimatePresence>

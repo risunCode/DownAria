@@ -165,7 +165,7 @@ export default function Home() {
         body: JSON.stringify({ url, cookie, skipCache }),
         signal: controller.signal,
       });
-      return response.json();
+      return await response.json();
     } finally {
       clearTimeout(timeoutId);
     }
@@ -197,18 +197,13 @@ export default function Home() {
       // Unified API call for all platforms
       const result = await fetchMedia(sanitizedUrl, platformCookie);
 
-      console.log('[DEBUG] API Response:', JSON.stringify(result, null, 2).substring(0, 500));
-
       if (result.success && result.data) {
-        console.log('[DEBUG] Setting mediaData with formats:', result.data.formats?.length || 0);
         // Use usedCookie from API response - scraper knows if cookie was actually used
         const mediaResult = { ...result.data, usedCookie: result.data.usedCookie === true };
         setMediaData(mediaResult);
         // Caching handled by IndexedDB when download completes
         return;
       }
-
-      console.log('[DEBUG] API returned success=false or no data:', result.error);
 
       // Handle Weibo cookie errors
       if (detectedPlatform === 'weibo') {
