@@ -1,10 +1,10 @@
 'use client';
 
 import { Eye, Heart, MessageCircle, Repeat2, Share2, Bookmark } from 'lucide-react';
-import { UnifiedEngagement } from '@/lib/types';
+import { EngagementStats as EngagementStatsType } from '@/lib/types';
 
 interface EngagementStatsProps {
-    engagement: UnifiedEngagement;
+    engagement: EngagementStatsType;
     compact?: boolean;
 }
 

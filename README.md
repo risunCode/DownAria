@@ -156,9 +156,9 @@ All data fetching uses [SWR](https://swr.vercel.app/) with smart caching:
 
 ### HTTP Cache Headers
 API routes include `Cache-Control` headers for CDN/browser caching:
-- `/api/status` - 30s cache
-- `/api/announcements` - 60s cache
-- `/api/playground` - 30s cache
+- `/api/v1/status` - 30s cache
+- `/api/v1/announcements` - 60s cache
+- `/api/v1/playground` - 30s cache
 
 ### Smart Polling
 - Maintenance page only polls when tab is visible

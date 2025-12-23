@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Play, Trash2, CheckCircle, XCircle, Loader2, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { detectPlatform, sanitizeUrl } from '@/lib/types';
+import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 
 // Queue types (inline - batch-queue.ts was removed)
 export type QueueItemStatus = 'pending' | 'processing' | 'completed' | 'failed';

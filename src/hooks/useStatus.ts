@@ -4,9 +4,8 @@
 'use client';
 
 import useSWR from 'swr';
-import { fetcher, SWR_CONFIG } from '@/lib/swr';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { api } from '@/lib/api';
+import { SWR_CONFIG } from '@/lib/swr';
 
 interface PlatformStatus {
     id: string;
@@ -20,16 +19,19 @@ interface StatusData {
     data: {
         maintenance: boolean;
         maintenanceMessage: string | null;
-        maintenanceDetails: string | null;
-        maintenanceEstimatedEnd: string | null;
+        maintenanceContent: string | null;
+        maintenanceLastUpdated: string | null;
         platforms: PlatformStatus[];
     };
 }
 
 export function useStatus() {
     const { data, error, isLoading, mutate } = useSWR<StatusData>(
-        `${API_URL}/api/v1/status`,
-        fetcher,
+        '/api/v1/status',
+        async (endpoint) => {
+            const res = await api.get<StatusData>(endpoint);
+            return res;
+        },
         {
             ...SWR_CONFIG.static,
             dedupingInterval: 60000, // Cache for 60 seconds
@@ -38,8 +40,8 @@ export function useStatus() {
                 data: {
                     maintenance: false,
                     maintenanceMessage: null,
-                    maintenanceDetails: null,
-                    maintenanceEstimatedEnd: null,
+                    maintenanceContent: null,
+                    maintenanceLastUpdated: null,
                     platforms: [],
                 },
             },
@@ -50,8 +52,8 @@ export function useStatus() {
         platforms: data?.data?.platforms || [],
         maintenance: data?.data?.maintenance || false,
         maintenanceMessage: data?.data?.maintenanceMessage,
-        maintenanceDetails: data?.data?.maintenanceDetails,
-        maintenanceEstimatedEnd: data?.data?.maintenanceEstimatedEnd,
+        maintenanceContent: data?.data?.maintenanceContent,
+        maintenanceLastUpdated: data?.data?.maintenanceLastUpdated,
         isLoading,
         isError: !!error,
         refresh: mutate,

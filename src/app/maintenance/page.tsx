@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Wrench, Clock, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { api, StatusResponse } from '@/lib/api';
+
 interface MaintenanceInfo {
     message: string;
     content?: string;
@@ -17,11 +19,9 @@ export default function MaintenancePage() {
     const [loading, setLoading] = useState(true);
     const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
     const fetchMaintenanceInfo = useCallback(async () => {
         try {
-            const res = await fetch(`${API_URL}/api/v1/status?t=` + Date.now());
-            const data = await res.json();
+            const data = await api.get<StatusResponse>(`/api/v1/status?t=${Date.now()}`);
             
             if (data.success) {
                 // If not in maintenance, redirect to home
@@ -32,8 +32,8 @@ export default function MaintenancePage() {
                 
                 setInfo({
                     message: data.data?.maintenanceMessage || t('defaultMessage'),
-                    content: data.data?.maintenanceContent,
-                    lastUpdated: data.data?.maintenanceLastUpdated,
+                    content: data.data?.maintenanceContent ?? undefined,
+                    lastUpdated: data.data?.maintenanceLastUpdated ?? undefined,
                 });
                 setLastChecked(new Date());
             }

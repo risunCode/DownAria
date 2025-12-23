@@ -5,8 +5,7 @@
 
 import useSWR from 'swr';
 import { SWR_CONFIG } from '@/lib/swr';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { api } from '@/lib/api';
 
 interface Announcement {
     id: string | number;
@@ -26,16 +25,15 @@ interface AnnouncementsResponse {
 }
 
 // Fetcher for announcements (no auth needed for public endpoint)
-const announcementsFetcher = async (url: string): Promise<AnnouncementsResponse> => {
-    const res = await fetch(url);
-    return res.json();
+const announcementsFetcher = async (endpoint: string): Promise<AnnouncementsResponse> => {
+    return await api.get<AnnouncementsResponse>(endpoint);
 };
 
 export function useAnnouncements(page: string) {
-    const url = `${API_URL}/api/v1/announcements?page=${page}`;
+    const endpoint = `/api/v1/announcements?page=${page}`;
     
     const { data, error, isLoading, mutate } = useSWR<AnnouncementsResponse>(
-        url,
+        endpoint,
         announcementsFetcher,
         {
             ...SWR_CONFIG.static,

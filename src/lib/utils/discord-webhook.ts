@@ -12,6 +12,7 @@
  */
 
 import Swal from 'sweetalert2';
+import { formatNumber, formatBytes } from './format';
 
 const APP_NAME = 'XTFetch';
 const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB - Discord stops auto-embedding above this
@@ -79,18 +80,6 @@ export function saveUserDiscordSettings(settings: UserDiscordSettings): void {
     } catch (e) {
         console.error('[Discord] Failed to save settings:', e);
     }
-}
-
-function formatNumber(num: number): string {
-    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-    return num.toString();
-}
-
-function formatBytes(bytes: number): string {
-    if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + 'MB';
-    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + 'KB';
-    return bytes + 'B';
 }
 
 // Duplicate prevention

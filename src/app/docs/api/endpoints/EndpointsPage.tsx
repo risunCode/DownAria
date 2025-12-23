@@ -6,8 +6,8 @@ import { Copy, Check, Code } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const BASE_URL = 'https://xt-fetch.vercel.app';
-const PLAYGROUND_ENDPOINT = '/api/playground';
+const BASE_URL = 'https://xtfetch-api-production.up.railway.app';
+const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -175,7 +175,7 @@ if (success) {
                         transition={{ delay: 0.2 }}
                         className="glass-card p-5"
                     >
-                        <EndpointCard method="POST" path="/api" description="Main API (Higher Limits)" auth="required" />
+                        <EndpointCard method="POST" path="/api/v1" description="Main API (Higher Limits)" auth="required" />
                         <p className="text-sm text-[var(--text-muted)] mb-4">
                             Main download endpoint with higher rate limits. Requires API key in header.
                         </p>
@@ -242,7 +242,7 @@ if (success) {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${BASE_URL}/api', {
+                            code={`const response = await fetch('${BASE_URL}/api/v1', {
   method: 'POST',
   headers: { 
     'Content-Type': 'application/json',
@@ -299,7 +299,7 @@ if (success) {
                         transition={{ delay: 0.3 }}
                         className="glass-card p-5"
                     >
-                        <EndpointCard method="GET" path="/api/status" description="Service status" />
+                        <EndpointCard method="GET" path="/api/v1/status" description="Service status" />
                         <p className="text-sm text-[var(--text-muted)] mb-4">
                             Get current service status and platform availability.
                         </p>
@@ -327,7 +327,7 @@ if (success) {
                         transition={{ delay: 0.4 }}
                         className="glass-card p-5"
                     >
-                        <EndpointCard method="GET" path="/api/proxy" description="Media proxy" />
+                        <EndpointCard method="GET" path="/api/v1/proxy" description="Media proxy" />
                         <p className="text-sm text-[var(--text-muted)] mb-4">
                             Proxy media URLs to bypass CORS restrictions.
                         </p>
@@ -360,6 +360,130 @@ if (success) {
                         <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
                             <p className="text-xs text-[var(--text-secondary)]">
                                 <strong className="text-yellow-400">⚠️ Note:</strong> Proxy only works with whitelisted CDN domains for security.
+                            </p>
+                        </div>
+                    </motion.div>
+
+                    {/* POST /api/v1/chat - AI Chat */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="glass-card p-5"
+                    >
+                        <EndpointCard method="POST" path="/api/v1/chat" description="AI Chat" />
+                        <p className="text-sm text-[var(--text-muted)] mb-4">
+                            Chat with AI models. Supports Gemini (with image & web search) and external models (GPT-5, Copilot Smart).
+                        </p>
+
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Available Models</h3>
+                        <div className="overflow-x-auto mb-4">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-[var(--border-color)]">
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Model</th>
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Features</th>
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Session</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[var(--border-color)]">
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gemini-2.5-flash</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Image, Web Search</td>
+                                        <td className="py-2 px-3"><span className="text-green-400">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gemini-flash-latest</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Image, Web Search</td>
+                                        <td className="py-2 px-3"><span className="text-green-400">✓</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gpt5</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Text only</td>
+                                        <td className="py-2 px-3"><span className="text-red-400">✗</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">copilot-smart</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Text only</td>
+                                        <td className="py-2 px-3"><span className="text-red-400">✗</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request Body</h3>
+                        <div className="overflow-x-auto mb-4">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-[var(--border-color)]">
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Field</th>
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Type</th>
+                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[var(--border-color)]">
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">message</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Chat message (max 4000 chars)</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">model</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Model name (see table above)</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">sessionKey</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">string?</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Session key for conversation history (Gemini only)</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">image</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">object?</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">{`{mimeType, data}`} base64 (Gemini only)</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">webSearch</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">boolean?</td>
+                                        <td className="py-2 px-3 text-[var(--text-muted)]">Enable web search (Gemini only)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
+                        <CodeBlock 
+                            language="javascript"
+                            code={`const response = await fetch('${BASE_URL}/api/v1/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    message: 'Explain React hooks',
+    model: 'gemini-2.5-flash',
+    webSearch: false
+  })
+});
+
+const { success, text, sessionKey, rateLimit } = await response.json();
+console.log(text); // AI response`}
+                        />
+
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 mt-4">Response</h3>
+                        <CodeBlock 
+                            language="json"
+                            code={`{
+  "success": true,
+  "text": "React hooks are functions that...",
+  "model": "gemini-2.5-flash",
+  "sessionKey": "abc123...",
+  "tokensUsed": 150,
+  "rateLimit": { "remaining": 59, "limit": 60 }
+}`}
+                        />
+
+                        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 mt-4">
+                            <p className="text-xs text-[var(--text-secondary)]">
+                                <strong className="text-amber-400">⚠️ Note:</strong> GPT-5 dan Copilot Smart tidak mendukung session. Setiap request adalah chat baru.
                             </p>
                         </div>
                     </motion.div>

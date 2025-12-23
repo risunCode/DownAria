@@ -2,17 +2,28 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ChevronDown, Download, Send, Link2, Play, Heart, MessageCircle, Share2, User, Loader2, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ChevronDown, Download, Send, Link2, Play, User, Loader2, Check } from 'lucide-react';
 import Image from 'next/image';
-import { MediaData, MediaFormat, Platform } from '@/lib/types';
-import { formatBytes } from '@/lib/utils/format-utils';
-import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { MediaData, MediaFormat, PlatformId } from '@/lib/types';
+import { formatBytes } from '@/lib/utils/format';
+import { getProxiedThumbnail } from '@/lib/api/proxy';
 import { getProxyUrl } from '@/lib/api/proxy';
 import { RichText } from '@/lib/utils/text-parser';
 import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/discord-webhook';
 import { addHistory, type HistoryEntry } from '@/lib/storage';
 import Swal from 'sweetalert2';
-import Hls from 'hls.js';
+
+// Shared utilities and components
+import { 
+  extractPostId, 
+  groupFormatsByItem, 
+  findPreferredFormat,
+  canYouTubeAutoplay,
+  getYouTubePreviewNotice,
+} from '@/lib/utils/media';
+import { EngagementDisplay } from '@/components/media/EngagementDisplay';
+import { FormatSelector } from '@/components/media/FormatSelector';
+import { DownloadProgress } from '@/components/media/DownloadProgress';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -20,7 +31,7 @@ import Hls from 'hls.js';
 
 interface MediaGalleryProps {
   data: MediaData;
-  platform: Platform;
+  platform: PlatformId;
   isOpen: boolean;
   onClose: () => void;
   initialIndex?: number;
@@ -35,6 +46,7 @@ interface DownloadState {
   loaded: number;
   total: number;
   eta: number; // seconds remaining
+  message?: string; // Custom message for merge status
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -95,8 +107,8 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const [downloadState, setDownloadState] = useState<DownloadState>({ status: 'idle', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
   const [fileSizes, setFileSizes] = useState<Record<string, string>>({});
   const [discordSent, setDiscordSent] = useState<Record<string, boolean>>({}); // Track per itemId
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const loopCountRef = useRef(0);
   const MAX_LOOPS = 8; // Auto-stop after 8 loops (user might be asleep 😴)
 
@@ -107,17 +119,6 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const currentItemId = itemIds[currentIndex] || 'main';
   const currentFormats = groupedItems[currentItemId] || [];
   const currentThumbnail = currentFormats[0]?.thumbnail || data.thumbnail;
-
-  // Check if format is m3u8/HLS
-  const isHlsFormat = (format: MediaFormat | null) => {
-    if (!format) return false;
-    // Check isHLS flag from backend, or URL/format patterns
-    return format.isHLS === true ||
-           format.url.includes('.m3u8') || 
-           format.url.includes('hls_playlist') ||
-           format.format === 'm3u8' || 
-           format.format === 'hls';
-  };
 
   // Sync initialFormat when modal opens or initialFormat changes
   useEffect(() => {
@@ -136,36 +137,8 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   // Auto-select format when switching items (only if no initialFormat or user switched manually)
   useEffect(() => {
     if (currentFormats.length > 0 && !selectedFormat) {
-      // First try to find HD video (by type or quality string)
-      let preferred = currentFormats.find(f => 
-        (f.type === 'video' || f.quality.toLowerCase().includes('video')) && (
-          f.quality.toLowerCase().includes('hd') || 
-          f.quality.toLowerCase().includes('1080') ||
-          f.quality.toLowerCase().includes('720')
-        )
-      );
-      // If no HD video, find any video
-      if (!preferred) {
-        preferred = currentFormats.find(f => 
-          f.type === 'video' || f.quality.toLowerCase().includes('video')
-        );
-      }
-      // If no video at all, find HD anything (but not audio)
-      if (!preferred) {
-        preferred = currentFormats.find(f => 
-          f.type !== 'audio' && !f.quality.toLowerCase().includes('audio') && (
-            f.quality.toLowerCase().includes('hd') || 
-            f.quality.toLowerCase().includes('1080')
-          )
-        );
-      }
-      // Fallback to first non-audio format, then first format
-      if (!preferred) {
-        preferred = currentFormats.find(f => 
-          f.type !== 'audio' && !f.quality.toLowerCase().includes('audio')
-        ) || currentFormats[0];
-      }
-      setSelectedFormat(preferred);
+      const preferred = findPreferredFormat(currentFormats);
+      if (preferred) setSelectedFormat(preferred);
     }
   }, [currentFormats, selectedFormat]);
 
@@ -219,82 +192,6 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       }
     }
   }, []);
-
-  // HLS.js setup for m3u8 streams
-  useEffect(() => {
-    if (!videoRef.current || !selectedFormat || !isHlsFormat(selectedFormat)) {
-      // Cleanup HLS if not needed
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      return;
-    }
-
-    const video = videoRef.current;
-    
-    // Check if HLS.js is supported (requires MSE - not available on iOS Safari)
-    const hlsJsSupported = Hls.isSupported();
-    
-    // Check if native HLS is supported (Safari, iOS)
-    const nativeHlsSupported = video.canPlayType('application/vnd.apple.mpegurl') !== '';
-
-    // Use proxy for HLS playback
-    const proxyUrl = getProxyUrl(selectedFormat.url, { platform, inline: true, hls: true });
-
-    // iOS with no HLS.js support - use native HLS with rewritten playlist
-    if (!hlsJsSupported && nativeHlsSupported) {
-      video.src = proxyUrl;
-      video.play().catch(() => {});
-      return;
-    }
-
-    // Use native HLS for Safari/iOS
-    if (nativeHlsSupported) {
-      video.src = proxyUrl;
-      video.play().catch(() => {});
-      return;
-    }
-
-    // Use HLS.js for browsers that support it (Chrome, Firefox, Edge, etc.)
-    if (hlsJsSupported) {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-      }
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        // Custom loader to proxy all segment requests
-        xhrSetup: (xhr: XMLHttpRequest, url: string) => {
-          // If URL is already our proxy, use as-is
-          if (url.includes('/api/v1/proxy')) {
-            return;
-          }
-          // Otherwise, proxy the URL
-          const proxiedUrl = getProxyUrl(url, { platform, inline: true });
-          xhr.open('GET', proxiedUrl, true);
-        },
-      });
-      hlsRef.current = hls;
-      hls.loadSource(proxyUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        console.error('[HLS] Error:', data.type, data.details, data);
-      });
-    } else {
-      console.error('[HLS] No HLS playback method available!');
-    }
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [selectedFormat, platform]);
 
   // Fetch file sizes (batch + parallel) - skip for YouTube (unknown size anyway)
   useEffect(() => {
@@ -359,173 +256,37 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  // HLS segment downloader - downloads all segments and merges into single blob
-  const downloadHlsAsBlob = async (
-    m3u8Url: string,
-    onProgress: (loaded: number, total: number, segment: number, totalSegments: number) => void
-  ): Promise<Blob> => {
-    // Fetch m3u8 playlist via proxy
-    const proxyM3u8 = getProxyUrl(m3u8Url, { platform, inline: true, hls: true });
-    const m3u8Res = await fetch(proxyM3u8);
-    if (!m3u8Res.ok) {
-      const errorText = await m3u8Res.text().catch(() => 'Unknown error');
-      console.error('[HLS] Error response:', errorText);
-      throw new Error('Failed to fetch HLS playlist');
-    }
-    
-    const m3u8Text = await m3u8Res.text();
-    
-    // Parse segment URLs from m3u8
-    const lines = m3u8Text.split('\n');
-    const segmentUrls: string[] = [];
-    const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf('/') + 1);
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        // Could be relative or absolute URL
-        if (trimmed.startsWith('http')) {
-          segmentUrls.push(trimmed);
-        } else {
-          segmentUrls.push(baseUrl + trimmed);
-        }
-      }
-    }
-    
-    if (segmentUrls.length === 0) {
-      throw new Error('No segments found in HLS playlist');
-    }
-    
-    // Download all segments
-    const segments: Uint8Array[] = [];
-    let totalLoaded = 0;
-    const estimatedTotal = segmentUrls.length * 500000; // Estimate ~500KB per segment
-    
-    for (let i = 0; i < segmentUrls.length; i++) {
-      const segUrl = segmentUrls[i];
-      const proxySegUrl = getProxyUrl(segUrl, { platform, inline: true });
-      
-      const segRes = await fetch(proxySegUrl, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      });
-      
-      if (!segRes.ok) {
-        console.warn(`Segment ${i + 1} failed, skipping...`);
-        continue;
-      }
-      
-      const segData = await segRes.arrayBuffer();
-      segments.push(new Uint8Array(segData));
-      totalLoaded += segData.byteLength;
-      
-      onProgress(totalLoaded, estimatedTotal, i + 1, segmentUrls.length);
-    }
-    
-    // Merge all segments into single blob (MPEG-TS segments concatenated, playable as MP4)
-    return new Blob(segments as BlobPart[], { type: 'video/mp4' });
-  };
-
-  // Download handler with real-time progress (IDM-proof using Blob)
+  // Download handler - uses unified helper
   const handleDownload = async () => {
     if (!selectedFormat) return;
     setDownloadState({ status: 'downloading', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
 
     try {
-      // Generate filename
-      const isHls = isHlsFormat(selectedFormat);
-      let filename = generateFilename(data, platform, selectedFormat, isCarousel ? currentIndex + 1 : undefined);
+      const { downloadMedia, triggerBlobDownload } = await import('@/lib/utils/media');
+      const carouselIndex = isCarousel ? currentIndex + 1 : undefined;
       
-      // For HLS, change extension to .mp4 (we merge segments into playable MP4)
-      if (isHls) {
-        filename = filename.replace(/\.m3u8$/i, '.mp4');
-      }
-      
-      let blob: Blob;
-      const startTime = Date.now();
-      
-      if (isHls) {
-        // HLS download - fetch all segments and merge
-        blob = await downloadHlsAsBlob(
-          selectedFormat.url,
-          (loaded, total, segment, totalSegments) => {
-            const now = Date.now();
-            const elapsed = (now - startTime) / 1000;
-            const speed = loaded / elapsed;
-            const progress = Math.round((segment / totalSegments) * 100);
-            const remaining = ((totalSegments - segment) / segment) * elapsed;
-            
-            setDownloadState({
-              status: 'downloading',
-              progress,
-              speed,
-              loaded,
-              total,
-              eta: remaining,
-            });
-          }
-        );
-      } else {
-        // Regular download
-        const proxyUrl = getProxyUrl(selectedFormat.url, { filename, platform });
-        
-        const response = await fetch(proxyUrl, {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      const result = await downloadMedia(selectedFormat, data, platform, carouselIndex, (progress) => {
+        setDownloadState({
+          status: progress.status === 'done' ? 'done' : progress.status === 'error' ? 'error' : 'downloading',
+          progress: progress.percent,
+          speed: progress.speed,
+          loaded: progress.loaded,
+          total: progress.total,
+          eta: 0,
+          message: progress.message,
         });
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      });
 
-        const contentLength = response.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength) : 0;
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
-
-        const chunks: Uint8Array[] = [];
-        let loaded = 0;
-        let lastUpdateTime = startTime;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          loaded += value.length;
-
-          const now = Date.now();
-          const elapsed = (now - startTime) / 1000;
-          const speed = loaded / elapsed;
-          const remaining = total > 0 ? (total - loaded) / speed : 0;
-          const progress = total > 0 ? Math.round((loaded / total) * 100) : 0;
-
-          // Update every chunk for realtime progress (throttle to 50ms for performance)
-          if (now - lastUpdateTime >= 50) {
-            lastUpdateTime = now;
-            setDownloadState({ status: 'downloading', progress, speed, loaded, total, eta: remaining });
-          }
-        }
-        
-        // Final update to ensure 100%
-        setDownloadState({ status: 'downloading', progress: 100, speed: 0, loaded, total, eta: 0 });
-
-        const contentType = response.headers.get('content-type') || 'video/mp4';
-        blob = new Blob(chunks as BlobPart[], { type: contentType });
+      if (!result.success) {
+        throw new Error(result.error || 'Download failed');
       }
-      
-      // Create blob URL and trigger download (IDM cannot intercept blob URLs)
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.style.display = 'none';
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
-      setDownloadState({ status: 'done', progress: 100, speed: 0, loaded: blob.size, total: blob.size, eta: 0 });
+      // Trigger browser download if we have a blob
+      if (result.blob && result.filename) {
+        triggerBlobDownload(result.blob, result.filename);
+      }
+
+      setDownloadState({ status: 'done', progress: 100, speed: 0, loaded: result.blob?.size || 0, total: result.blob?.size || 0, eta: 0 });
 
       // Add to history
       const historyId = await addHistory({
@@ -617,28 +378,26 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       {/* Media Preview - max height to prevent overflow */}
       <div className="relative w-full aspect-video max-h-[45vh] bg-black rounded-lg overflow-hidden">
         {selectedFormat?.type === 'video' ? (
-          isHlsFormat(selectedFormat) ? (
-            <video
-              ref={videoRef}
-              poster={currentThumbnail ? getProxiedThumbnail(currentThumbnail, platform) : undefined}
-              className="w-full h-full object-contain"
-              controls
-              autoPlay
-              playsInline
-              onEnded={handleVideoEnded}
-            />
-          ) : (
+          <>
             <video
               ref={videoRef}
               src={getProxyUrl(selectedFormat.url, { platform, inline: true })}
               poster={currentThumbnail ? getProxiedThumbnail(currentThumbnail, platform) : undefined}
               className="w-full h-full object-contain"
               controls
-              autoPlay
+              autoPlay={canYouTubeAutoplay(selectedFormat, platform)}
               playsInline
               onEnded={handleVideoEnded}
             />
-          )
+            {/* YouTube video-only notice */}
+            {getYouTubePreviewNotice(selectedFormat, platform) && (
+              <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none">
+                <span className="px-3 py-1.5 text-xs bg-black/80 text-amber-400 rounded-full">
+                  {getYouTubePreviewNotice(selectedFormat, platform)}
+                </span>
+              </div>
+            )}
+          </>
         ) : selectedFormat?.type === 'audio' ? (
           // Audio Player with thumbnail background
           <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-purple-900/50 to-black">
@@ -787,46 +546,32 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         </div>
 
         {/* Engagement - right after author */}
-        {data.engagement && (
-          <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
-            {data.engagement.likes !== undefined && <span className="flex items-center gap-1 text-red-400"><Heart className="w-3 h-3" />{formatNumber(data.engagement.likes)}</span>}
-            {data.engagement.comments !== undefined && <span className="flex items-center gap-1 text-blue-400"><MessageCircle className="w-3 h-3" />{formatNumber(data.engagement.comments)}</span>}
-            {data.engagement.shares !== undefined && <span className="flex items-center gap-1 text-green-400"><Share2 className="w-3 h-3" />{formatNumber(data.engagement.shares)}</span>}
+        {data.engagement && <EngagementDisplay engagement={data.engagement} className="text-[var(--text-muted)]" />}
+
+        {/* Caption/Description - with show more/less */}
+        {data.description && (
+          <div className="text-sm text-[var(--text-secondary)]">
+            <span className={!captionExpanded ? 'line-clamp-2' : ''}>
+              <RichText text={data.description} platform={platform} />
+            </span>
+            {data.description.length > 150 && (
+              <button 
+                onClick={() => setCaptionExpanded(!captionExpanded)}
+                className="text-[var(--accent-primary)] hover:underline text-xs mt-1 block"
+              >
+                {captionExpanded ? 'Show less' : 'Show more'}
+              </button>
+            )}
           </div>
         )}
 
-        {/* Caption - truncated with expand */}
-        {data.title && (
-          <span className="block text-sm text-[var(--text-secondary)] line-clamp-2" title={data.title}>
-            <RichText text={data.title} platform={platform} />
-          </span>
-        )}
-
-        {/* Quality Selector - Pills with size (hide if only one format with generic name) */}
-        {!(currentFormats.length === 1 && currentFormats[0].quality.toLowerCase().startsWith('image')) && (
-          <div className="flex flex-wrap gap-2">
-            {currentFormats.map((format, idx) => {
-              // For carousel images, show cleaner label
-              const isGenericImage = format.quality.toLowerCase().startsWith('image');
-              const displayQuality = isGenericImage ? (format.type === 'video' ? 'Video' : 'Original') : format.quality;
-              
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedFormat(format)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    selectedFormat === format
-                      ? 'bg-[var(--accent-primary)] text-white'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-card)]'
-                  }`}
-                >
-                  {displayQuality}
-                  {fileSizes[format.url] && <span className="ml-1 opacity-70">({fileSizes[format.url]})</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* Quality Selector - Pills with size */}
+        <FormatSelector
+          formats={currentFormats}
+          selected={selectedFormat}
+          onSelect={setSelectedFormat}
+          getSize={(f) => fileSizes[f.url] || null}
+        />
 
       </div>
     </>
@@ -845,7 +590,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
           {downloadState.status === 'downloading' ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              {downloadState.progress}%
+              {downloadState.message || `${downloadState.progress}%`}
             </>
           ) : downloadState.status === 'done' ? (
             <>
@@ -884,23 +629,15 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
 
       {/* Download Progress Bar - Real-time */}
       {downloadState.status === 'downloading' && (
-        <div className="space-y-1">
-          <div className="w-full h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-[var(--accent-primary)] to-purple-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${downloadState.progress}%` }}
-              transition={{ duration: 0.1, ease: 'linear' }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-[var(--text-muted)]">
-            <span>{formatBytes(downloadState.loaded)} / {downloadState.total ? formatBytes(downloadState.total) : '?'}</span>
-            <span className="text-[var(--accent-primary)]">
-              {(downloadState.speed / 1024 / 1024).toFixed(1)} MB/s
-              {downloadState.eta > 0 && ` · ${Math.ceil(downloadState.eta)}s left`}
-            </span>
-          </div>
-        </div>
+        <DownloadProgress 
+          progress={{
+            percent: downloadState.progress,
+            loaded: downloadState.loaded,
+            total: downloadState.total,
+            speed: downloadState.speed,
+            eta: downloadState.eta
+          }}
+        />
       )}
     </div>
   );
@@ -1215,10 +952,10 @@ function FullscreenWrapper({ children, isOpen, onClose, footer }: { children: Re
               </div>
             </div>
             
-            {/* Scrollable Content */}
+            {/* Scrollable Content - hide scrollbar on mobile */}
             <div 
               ref={contentRef}
-              className="overflow-y-auto flex-1 min-h-0 pb-safe overscroll-contain"
+              className="overflow-y-auto flex-1 min-h-0 pb-safe overscroll-contain scrollbar-hide"
               style={{ maxHeight: footer ? 'calc(92vh - 70px - 120px)' : 'calc(92vh - 70px)' }}
             >
               {children}
@@ -1235,58 +972,6 @@ function FullscreenWrapper({ children, isOpen, onClose, footer }: { children: Re
       )}
     </AnimatePresence>
   );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
-
-function groupFormatsByItem(formats: MediaFormat[]): Record<string, MediaFormat[]> {
-  const grouped: Record<string, MediaFormat[]> = {};
-  formats.forEach(format => {
-    const id = format.itemId || 'main';
-    if (!grouped[id]) grouped[id] = [];
-    grouped[id].push(format);
-  });
-  return grouped;
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return num.toString();
-}
-
-function extractPostId(url: string): string {
-  const patterns = [
-    /\/share\/[rvp]\/([^/?]+)/,
-    /\/reel\/(\d+)/,
-    /\/videos?\/(\d+)/,
-    /\/(p|reel|reels|tv)\/([^/?]+)/,
-    /\/video\/(\d+)/,
-    /\/status\/(\d+)/,
-    /[?&]v=([a-zA-Z0-9_-]{11})/,
-    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-    /\/shorts\/([a-zA-Z0-9_-]{11})/,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[match.length - 1];
-  }
-  return Date.now().toString(36);
-}
-
-function generateFilename(data: MediaData, platform: Platform, format: MediaFormat, carouselIndex?: number): string {
-  const platformShort: Record<string, string> = {
-    facebook: 'FB', instagram: 'IG', twitter: 'X', tiktok: 'TT', weibo: 'WB', youtube: 'YT'
-  };
-  const platName = platformShort[platform] || platform.toUpperCase();
-  const author = (data.author || 'unknown').replace(/^@/, '').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_\u4e00-\u9fff]/g, '').substring(0, 25) || 'unknown';
-  const postId = extractPostId(data.url);
-  const ext = format.format || (format.type === 'video' ? 'mp4' : format.type === 'audio' ? 'mp3' : 'jpg');
-  const carouselSuffix = carouselIndex ? `_${carouselIndex}` : '';
-  
-  return `${platName}_${author}_${postId}${carouselSuffix}_[XTFetch].${ext}`;
 }
 
 export default MediaGallery;

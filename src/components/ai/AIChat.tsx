@@ -12,7 +12,10 @@ import ReactMarkdown from 'react-markdown';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const STORAGE_KEY = 'xtfetch_ai_chat_sessions';
 
-type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'gemini-2.0-flash-lite';
+type AIModel = 'gemini-2.5-flash' | 'gemini-flash-latest' | 'gpt5' | 'copilot-smart';
+
+// Models that support image upload and web search (Gemini only)
+const GEMINI_MODELS: AIModel[] = ['gemini-2.5-flash', 'gemini-flash-latest'];
 
 interface ChatMessage {
     id: string;
@@ -27,7 +30,7 @@ interface ChatMessage {
 interface SavedSession {
     sessionKey: string;
     messages: ChatMessage[];
-    model: GeminiModel;
+    model: AIModel;
     savedAt: string;
     title: string;
 }
@@ -36,10 +39,11 @@ interface AIChatProps {
     className?: string;
 }
 
-const MODEL_OPTIONS: { value: GeminiModel; label: string; description: string }[] = [
+const MODEL_OPTIONS: { value: AIModel; label: string; description: string }[] = [
     { value: 'gemini-2.5-flash', label: 'Flash 2.5', description: 'Fast & balanced' },
-    { value: 'gemini-2.5-pro', label: 'Pro 2.5', description: 'Most capable' },
-    { value: 'gemini-2.0-flash-lite', label: 'Lite 2.0', description: 'Lightweight' },
+    { value: 'gemini-flash-latest', label: 'Flash Latest', description: 'Newest version' },
+    { value: 'gpt5', label: 'GPT-5', description: 'OpenAI GPT-5' },
+    { value: 'copilot-smart', label: 'Copilot Smart', description: 'Microsoft Copilot' },
 ];
 
 export function AIChat({ className = '' }: AIChatProps) {
@@ -47,7 +51,10 @@ export function AIChat({ className = '' }: AIChatProps) {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sessionKey, setSessionKey] = useState<string | null>(null);
-    const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash');
+    const [model, setModel] = useState<AIModel>('gemini-2.5-flash');
+    
+    // Check if current model supports image/web search (Gemini only)
+    const supportsAdvancedFeatures = GEMINI_MODELS.includes(model);
     const [webSearch, setWebSearch] = useState(false);
     const [image, setImage] = useState<{ file: File; preview: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -56,11 +63,24 @@ export function AIChat({ className = '' }: AIChatProps) {
     const [showSessionMenu, setShowSessionMenu] = useState(false);
     const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
     const [rateLimit, setRateLimit] = useState({ remaining: 60, limit: 60 });
+    const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const importInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const sessionMenuRef = useRef<HTMLDivElement>(null);
+    const modelMenuRef = useRef<HTMLDivElement>(null);
+    
+    // Check dropdown position based on available space
+    const checkDropdownPosition = useCallback((ref: React.RefObject<HTMLDivElement | null>) => {
+        if (!ref.current) return 'bottom';
+        const rect = ref.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        // If less than 200px below and more space above, show on top
+        return spaceBelow < 200 && spaceAbove > spaceBelow ? 'top' : 'bottom';
+    }, []);
     
     // Load saved sessions from localStorage
     useEffect(() => {
@@ -325,22 +345,26 @@ export function AIChat({ className = '' }: AIChatProps) {
     }, [sendMessage]);
     
     return (
-        <div className={`flex flex-col h-[600px] glass-card overflow-hidden ${className}`}>
+        <div className={`flex flex-col h-[600px] glass-card overflow-hidden w-full max-w-full ${className}`}>
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-[var(--border-color)] gap-2 flex-wrap sm:flex-nowrap">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20">
                         <Bot className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
                         <h3 className="font-semibold text-sm">AI Assistant</h3>
-                        <p className="text-xs text-[var(--text-muted)]">Powered by Gemini</p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                            {model === 'gpt5' ? 'GPT-5' : 
+                             model === 'copilot-smart' ? 'Copilot Smart' : 
+                             'Powered by Gemini'}
+                        </p>
                     </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                    {/* Session Key Display */}
-                    {sessionKey && (
+                    {/* Session Key Display - Gemini only */}
+                    {sessionKey && supportsAdvancedFeatures && (
                         <button
                             onClick={copySessionKey}
                             className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--bg-secondary)] text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
@@ -361,10 +385,16 @@ export function AIChat({ className = '' }: AIChatProps) {
                         {rateLimit.remaining}/{rateLimit.limit}
                     </span>
                     
-                    {/* Session Menu */}
-                    <div className="relative">
+                    {/* Session Menu - Gemini only */}
+                    {supportsAdvancedFeatures && (
+                    <div className="relative" ref={sessionMenuRef}>
                         <button
-                            onClick={() => setShowSessionMenu(!showSessionMenu)}
+                            onClick={() => { 
+                                const pos = checkDropdownPosition(sessionMenuRef);
+                                setDropdownPosition(pos);
+                                setShowSessionMenu(!showSessionMenu); 
+                                setShowModelSelect(false); 
+                            }}
                             className="p-2 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                             title="Session History"
                         >
@@ -374,10 +404,12 @@ export function AIChat({ className = '' }: AIChatProps) {
                         <AnimatePresence>
                             {showSessionMenu && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
+                                    initial={{ opacity: 0, y: dropdownPosition === 'bottom' ? -10 : 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute right-0 top-full mt-1 w-72 p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-50"
+                                    exit={{ opacity: 0, y: dropdownPosition === 'bottom' ? -10 : 10 }}
+                                    className={`absolute right-0 w-72 p-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-50 ${
+                                        dropdownPosition === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1'
+                                    }`}
                                 >
                                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-[var(--border-color)]">
                                         <span className="text-xs font-medium">Saved Sessions</span>
@@ -453,11 +485,17 @@ export function AIChat({ className = '' }: AIChatProps) {
                             )}
                         </AnimatePresence>
                     </div>
+                    )}
                     
                     {/* Model Selector */}
-                    <div className="relative">
+                    <div className="relative" ref={modelMenuRef}>
                         <button
-                            onClick={() => setShowModelSelect(!showModelSelect)}
+                            onClick={() => { 
+                                const pos = checkDropdownPosition(modelMenuRef);
+                                setDropdownPosition(pos);
+                                setShowModelSelect(!showModelSelect); 
+                                setShowSessionMenu(false); 
+                            }}
                             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] text-xs hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <Sparkles className="w-3 h-3 text-purple-400" />
@@ -468,10 +506,12 @@ export function AIChat({ className = '' }: AIChatProps) {
                         <AnimatePresence>
                             {showModelSelect && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
+                                    initial={{ opacity: 0, y: dropdownPosition === 'bottom' ? -10 : 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute right-0 top-full mt-1 w-48 p-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-50"
+                                    exit={{ opacity: 0, y: dropdownPosition === 'bottom' ? -10 : 10 }}
+                                    className={`absolute right-0 w-48 p-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-50 ${
+                                        dropdownPosition === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1'
+                                    }`}
                                 >
                                     {MODEL_OPTIONS.map(opt => (
                                         <button
@@ -490,17 +530,6 @@ export function AIChat({ className = '' }: AIChatProps) {
                         </AnimatePresence>
                     </div>
                     
-                    {/* Web Search Toggle */}
-                    <button
-                        onClick={() => setWebSearch(!webSearch)}
-                        className={`p-2 rounded-lg transition-colors ${
-                            webSearch ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)]'
-                        }`}
-                        title="Web Search"
-                    >
-                        <Globe className="w-4 h-4" />
-                    </button>
-                    
                     {/* Clear Chat */}
                     {messages.length > 0 && (
                         <button
@@ -514,6 +543,15 @@ export function AIChat({ className = '' }: AIChatProps) {
                 </div>
             </div>
             
+            {/* Warning Banner for non-session models */}
+            {!supportsAdvancedFeatures && (
+                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20">
+                    <p className="text-xs text-amber-400 text-center">
+                        ⚠️ {model === 'gpt5' ? 'GPT-5' : 'Copilot Smart'} tidak mendukung session. Setiap pesan adalah chat baru.
+                    </p>
+                </div>
+            )}
+            
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 ? (
@@ -521,10 +559,12 @@ export function AIChat({ className = '' }: AIChatProps) {
                         <Bot className="w-12 h-12 text-[var(--text-muted)] mb-4 opacity-50" />
                         <h4 className="font-medium mb-1">Start a conversation</h4>
                         <p className="text-sm text-[var(--text-muted)] max-w-xs">
-                            Ask me anything! I can help with coding, explain concepts, analyze images, and more.
+                            {supportsAdvancedFeatures 
+                                ? 'Ask me anything! I can help with coding, explain concepts, analyze images, and more.'
+                                : 'Ask me anything! I can help with coding and explain concepts.'}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-4 justify-center">
-                            {['Explain React hooks', 'Debug my code', 'Analyze this image'].map(suggestion => (
+                            {['Explain React hooks', 'Debug my code', ...(supportsAdvancedFeatures ? ['Analyze this image'] : [])].map(suggestion => (
                                 <button
                                     key={suggestion}
                                     onClick={() => setInput(suggestion)}
@@ -557,8 +597,8 @@ export function AIChat({ className = '' }: AIChatProps) {
                             </div>
                             
                             {/* Content */}
-                            <div className={`flex-1 max-w-[80%] ${msg.role === 'user' ? 'text-right' : ''}`}>
-                                <div className={`inline-block p-3 rounded-xl ${
+                            <div className={`flex-1 min-w-0 max-w-[85%] sm:max-w-[80%] ${msg.role === 'user' ? 'text-right' : ''}`}>
+                                <div className={`inline-block p-3 rounded-xl break-words ${
                                     msg.role === 'user'
                                         ? 'bg-blue-500/20 text-left'
                                         : 'bg-[var(--bg-secondary)]'
@@ -574,11 +614,11 @@ export function AIChat({ className = '' }: AIChatProps) {
                                     
                                     {/* Text */}
                                     {msg.role === 'assistant' ? (
-                                        <div className="prose prose-sm prose-invert max-w-none">
+                                        <div className="prose prose-sm prose-invert max-w-none overflow-x-auto">
                                             <ReactMarkdown>{msg.content}</ReactMarkdown>
                                         </div>
                                     ) : (
-                                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                                     )}
                                 </div>
                                 
@@ -670,7 +710,7 @@ export function AIChat({ className = '' }: AIChatProps) {
                 )}
                 
                 <div className="flex gap-2">
-                    {/* Image Upload */}
+                    {/* Image Upload - Gemini only */}
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -680,10 +720,34 @@ export function AIChat({ className = '' }: AIChatProps) {
                     />
                     <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2.5 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                        title="Upload Image"
+                        disabled={!supportsAdvancedFeatures}
+                        className={`p-2.5 rounded-lg transition-colors ${
+                            supportsAdvancedFeatures 
+                                ? 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]' 
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] opacity-40 cursor-not-allowed'
+                        }`}
+                        title={supportsAdvancedFeatures ? 'Upload Image' : 'Image upload only available for Gemini models'}
                     >
                         <ImageIcon className="w-5 h-5" />
+                    </button>
+                    
+                    {/* Web Search Toggle - Gemini only */}
+                    <button
+                        onClick={() => supportsAdvancedFeatures && setWebSearch(!webSearch)}
+                        disabled={!supportsAdvancedFeatures}
+                        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg transition-colors text-xs ${
+                            !supportsAdvancedFeatures 
+                                ? 'bg-[var(--bg-secondary)] text-[var(--text-muted)] opacity-40 cursor-not-allowed'
+                                : webSearch 
+                                    ? 'bg-blue-500/20 text-blue-400' 
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)]'
+                        }`}
+                        title={supportsAdvancedFeatures 
+                            ? (webSearch ? 'Web Search ON' : 'Web Search OFF') 
+                            : 'Web search only available for Gemini models'}
+                    >
+                        <Globe className="w-4 h-4" />
+                        <span className="hidden sm:inline">{webSearch ? 'Web ON' : 'Web'}</span>
                     </button>
                     
                     {/* Text Input */}
@@ -713,7 +777,7 @@ export function AIChat({ className = '' }: AIChatProps) {
                 </div>
                 
                 <p className="text-xs text-[var(--text-muted)] mt-2 text-center">
-                    Press Enter to send, Shift+Enter for new line
+                    Enter untuk kirim, Shift+Enter untuk baris baru • AI dapat membuat kesalahan, periksa kembali responsenya
                 </p>
             </div>
         </div>

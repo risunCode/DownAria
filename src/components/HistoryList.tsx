@@ -14,7 +14,8 @@ import {
     Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { HistoryItem, PLATFORMS, formatRelativeTime, Platform } from '@/lib/types';
+import { HistoryItem, PLATFORMS, PlatformId } from '@/lib/types';
+import { formatRelativeTime } from '@/lib/utils/format';
 import {
     getHistory,
     deleteHistory,
@@ -23,7 +24,7 @@ import {
     type HistoryEntry
 } from '@/lib/storage';
 import { PlatformIcon, VideoIcon, ImageIcon, MusicIcon } from '@/components/ui/Icons';
-import { getProxiedThumbnail } from '@/lib/utils/thumbnail-utils';
+import { getProxiedThumbnail } from '@/lib/api/proxy';
 import { useTranslations } from 'next-intl';
 import Swal from 'sweetalert2';
 

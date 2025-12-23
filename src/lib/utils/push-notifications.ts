@@ -3,6 +3,8 @@
  * Handles subscription management and notification sending
  */
 
+import { api } from '@/lib/api';
+
 // VAPID public key - set in .env as NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
@@ -116,21 +118,15 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     return false;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
 /**
  * Save subscription to server
  */
 async function saveSubscriptionToServer(subscription: PushSubscription): Promise<void> {
-    const response = await fetch(`${API_URL}/api/v1/push/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            subscription: subscription.toJSON()
-        })
+    const response = await api.post<{ success: boolean; data?: unknown }>('/api/v1/push/subscribe', {
+        subscription: subscription.toJSON()
     });
 
-    if (!response.ok) {
+    if (!response.success) {
         throw new Error('Failed to save subscription');
     }
 }
@@ -139,17 +135,27 @@ async function saveSubscriptionToServer(subscription: PushSubscription): Promise
  * Remove subscription from server
  */
 async function removeSubscriptionFromServer(subscription: PushSubscription): Promise<void> {
-    await fetch(`${API_URL}/api/v1/push/subscribe`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    await api.delete<{ success: boolean }>('/api/v1/push/subscribe', {
+        body: {
             endpoint: subscription.endpoint
-        })
+        }
     });
 }
 
 /**
- * Check if user is subscribed
+ * Check subscription status on server
+ */
+export async function checkSubscriptionStatus(endpoint?: string): Promise<{ success: boolean; data?: unknown }> {
+    const url = endpoint 
+        ? `/api/v1/push/subscribe?endpoint=${encodeURIComponent(endpoint)}`
+        : '/api/v1/push/subscribe';
+    
+    const response = await api.get<{ success: boolean; data?: unknown }>(url);
+    return response;
+}
+
+/**
+ * Check if user is subscribed (local check)
  */
 export async function isSubscribed(): Promise<boolean> {
     const subscription = await getSubscription();

@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
-type Platform = 'ios' | 'android' | 'desktop' | 'unknown';
+type PlatformId = 'ios' | 'android' | 'desktop' | 'unknown';
 type Browser = 'chrome' | 'safari' | 'firefox' | 'edge' | 'samsung' | 'unknown';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -19,7 +19,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstallPage() {
-    const [platform, setPlatform] = useState<Platform>('unknown');
+    const [platform, setPlatform] = useState<PlatformId>('unknown');
     const [browser, setBrowser] = useState<Browser>('unknown');
     const [isInstalled, setIsInstalled] = useState(false);
     const [isInstallable, setIsInstallable] = useState(false);
@@ -371,7 +371,7 @@ function InstallInstructions({
     browser, 
     onClose 
 }: { 
-    platform: Platform; 
+    platform: PlatformId; 
     browser: Browser; 
     onClose: () => void;
 }) {

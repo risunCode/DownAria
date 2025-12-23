@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     Download,
     Zap,
@@ -15,9 +14,7 @@ import {
     MessageCircle,
     Code,
     Server,
-    ChevronDown,
     AlertTriangle,
-    Lightbulb,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import Announcements from '@/components/Announcements';
@@ -36,8 +33,6 @@ import {
 // ============================================================================
 
 function ChangelogSection() {
-    const [showOldChangelog, setShowOldChangelog] = useState(false);
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -47,14 +42,14 @@ function ChangelogSection() {
         >
             <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                 <span className="text-lg">📋</span>
-                Changelog
+                Latest Changes
             </h3>
 
             <div className="space-y-4">
-                {/* Latest Version - v1.3.0 */}
+                {/* Latest Version - v1.4.0 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.3.0</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.4.0</span>
                         <span className="text-xs text-[var(--text-muted)]">December 23, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
@@ -65,11 +60,11 @@ function ChangelogSection() {
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• <strong>Hashtag Search</strong> - Click #hashtag to search across platforms</li>
-                            <li>• <strong>Ad Banner System</strong> - Advertising cards with auto-rotate</li>
-                            <li>• <strong>File Size Detection</strong> - Size shown on quality buttons (HD/SD)</li>
-                            <li>• <strong>Video Auto-Stop</strong> - Auto-pause after 8 loops (battery saver)</li>
-                            <li>• <strong>Smart Discord Send</strong> - Per-item tracking for carousels</li>
+                            <li>• <strong>AI Chat Multi-Model</strong> - GPT-5 & Copilot Smart via Magma API</li>
+                            <li>• <strong>Dynamic UI</strong> - Header changes based on selected model</li>
+                            <li>• <strong>Feature Gating</strong> - Image/Web search disabled for non-Gemini</li>
+                            <li>• <strong>Session Warning</strong> - Banner for models without session support</li>
+                            <li>• <strong>AI Disclaimer</strong> - Footer warning about AI accuracy</li>
                         </ul>
                     </div>
 
@@ -79,52 +74,12 @@ function ChangelogSection() {
                             <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• MediaGallery - Image carousel now renders full resolution</li>
-                            <li>• Playground API - Rate limit syncs with Admin Console</li>
-                            <li>• Proxy API - CORS headers for file size detection</li>
-                        </ul>
-                    </div>
-
-                    {/* What's Fixed */}
-                    <div className="mb-3">
-                        <h4 className="text-xs font-semibold text-red-400 mb-1.5 flex items-center gap-1">
-                            <span>🐛</span> What&apos;s Fixed
-                        </h4>
-                        <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Playground rate limit not syncing with Admin settings</li>
-                            <li>• File size not showing on quality buttons</li>
-                            <li>• Image carousel always showing index 1</li>
+                            <li>• Dropdown Auto-Position - Adjusts based on viewport space</li>
+                            <li>• Dropdown Single-Open - Opening one closes the other</li>
+                            <li>• Responsive AI Chat - Fixed container width on mobile</li>
                         </ul>
                     </div>
                 </div>
-
-                {/* Version 1.2.0 */}
-                <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.2.0</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 21, 2025</span>
-                    </div>
-                    <div className="mb-2">
-                        <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
-                            <span>✨</span> What&apos;s New
-                        </h4>
-                        <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                            <li>• MediaGallery Component - Global media preview with carousel</li>
-                            <li>• YouTube Support - Added to sidebar platforms</li>
-                            <li>• Redis Cache Strategy - URL hash-based cache keys</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
-                            <span>🔧</span> What&apos;s Improved
-                        </h4>
-                        <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                            <li>• Admin Playground - Uses global MediaGallery</li>
-                            <li>• IndexedDB Optimization - Removed media_cache store</li>
-                        </ul>
-                    </div>
-                </div>
-
 
                 {/* Known Issues */}
                 <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
@@ -134,150 +89,18 @@ function ChangelogSection() {
                     </h4>
                     <ul className="text-xs text-[var(--text-muted)] space-y-1.5 ml-4">
                         <li>• <strong>Facebook carousels 6+ images</strong> - Only first 5 images extracted (Facebook lazy-loads)</li>
+                        <li>• <strong>GPT-5 & Copilot Smart</strong> - No session support, each message is a new chat</li>
                     </ul>
-
-                    {/* Solutions */}
-                    <div className="mt-3 pt-3 border-t border-amber-500/10">
-                        <h4 className="text-xs font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
-                            <Lightbulb className="w-3.5 h-3.5" />
-                            Workarounds
-                        </h4>
-                        <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• For large carousels: Open individual photo URLs from Facebook</li>
-                        </ul>
-                    </div>
                 </div>
 
-                {/* Expand Old Changelog */}
-                <button
-                    onClick={() => setShowOldChangelog(!showOldChangelog)}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                {/* Button to full changelog */}
+                <Link
+                    href="/docs/changelog"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                    <span>{showOldChangelog ? 'Hide' : 'Show'} older versions</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showOldChangelog ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Old Changelog - Expandable */}
-                <AnimatePresence>
-                    {showOldChangelog && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="space-y-4 overflow-hidden"
-                        >
-                            {/* Version 1.0.3 */}
-                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.3</span>
-                                    <span className="text-xs text-[var(--text-muted)]">December 20, 2025</span>
-                                </div>
-                                <div className="mb-2">
-                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
-                                        <span>✨</span> What&apos;s New
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Settings page redesign - Tab-based navigation</li>
-                                        <li>• Discord Webhook with tagging support</li>
-                                        <li>• Redis result caching</li>
-                                        <li>• SEO metadata for all pages</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
-                                        <span>🔧</span> What&apos;s Fixed
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Fixed Facebook 403 errors</li>
-                                        <li>• Fixed cache key case sensitivity</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            {/* Version 1.0.2 */}
-                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.2</span>
-                                    <span className="text-xs text-[var(--text-muted)]">December 18, 2025</span>
-                                </div>
-                                <div className="mb-2">
-                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
-                                        <span>✨</span> What&apos;s New
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Facebook scraper v3 - improved image extraction accuracy</li>
-                                        <li>• Smart target block detection using comet_sections markers</li>
-                                        <li>• New photo_image extraction method for single/dual image posts</li>
-                                        <li>• Expandable changelog section in About page</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
-                                        <span>🔧</span> What&apos;s Fixed
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Fixed profile picture being extracted as post image</li>
-                                        <li>• Fixed image URLs missing query params (403 errors)</li>
-                                        <li>• Fixed wrong images from related posts (improved logic)</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            {/* Version 1.0.1 */}
-                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.1</span>
-                                    <span className="text-xs text-[var(--text-muted)]">December 17, 2025</span>
-                                </div>
-                                <div className="mb-2">
-                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
-                                        <span>✨</span> What&apos;s New
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Changelog section in About page</li>
-                                        <li>• Consolidated test suite for all platforms</li>
-                                        <li>• All-in-one Facebook debug tool</li>
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-semibold text-blue-400/70 mb-1 flex items-center gap-1">
-                                        <span>🔧</span> What&apos;s Fixed
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Merged redundant test files into single test suite</li>
-                                        <li>• Cleaned up Facebook debug tools (5 files → 1)</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            {/* Version 1.0.0 */}
-                            <div className="border-l-2 border-l-[var(--text-muted)]/30 pl-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-bold text-[var(--text-muted)] bg-[var(--text-muted)]/10 px-2 py-0.5 rounded">v1.0.0</span>
-                                    <span className="text-xs text-[var(--text-muted)]">December 2025</span>
-                                    <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">Initial Release</span>
-                                </div>
-                                <div className="mb-2">
-                                    <h4 className="text-xs font-semibold text-green-400/70 mb-1 flex items-center gap-1">
-                                        <span>✨</span> Features
-                                    </h4>
-                                    <ul className="text-xs text-[var(--text-muted)]/80 space-y-0.5 ml-4">
-                                        <li>• Multi-platform downloader (Facebook, Instagram, Twitter, TikTok, Weibo)</li>
-                                        <li>• Auto-detect platform from URL</li>
-                                        <li>• Multi-quality options (HD, SD)</li>
-                                        <li>• Download history & batch queue</li>
-                                        <li>• 3 Themes (Dark, Light, Solarized)</li>
-                                        <li>• Cookie support for private content</li>
-                                        <li>• Discord webhook notifications</li>
-                                        <li>• Admin panel with analytics</li>
-                                        <li>• PWA support (offline mode)</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                    <span>📜</span>
+                    View Full Changelog
+                </Link>
             </div>
         </motion.div>
     );

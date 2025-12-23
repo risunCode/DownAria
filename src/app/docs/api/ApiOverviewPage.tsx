@@ -7,8 +7,8 @@ import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 import { useState } from 'react';
 
-const BASE_URL = 'https://xt-fetch.vercel.app';
-const PLAYGROUND_ENDPOINT = '/api/playground';
+const BASE_URL = 'https://xtfetch-api-production.up.railway.app';
+const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -107,8 +107,8 @@ export function ApiOverviewPage() {
                         className="glass-card p-4 border-l-4 border-l-yellow-500"
                     >
                         <p className="text-sm text-[var(--text-secondary)]">
-                            <strong className="text-yellow-400">⚠️ Note:</strong> The main <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api</code> endpoint is protected and only accessible from our website or with a valid API key. 
-                            Use <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api/playground</code> for testing.
+                            <strong className="text-yellow-400">⚠️ Note:</strong> The main <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api/v1</code> endpoint is protected and only accessible from our website or with a valid API key. 
+                            Use <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api/v1/playground</code> for testing.
                         </p>
                     </motion.div>
 
@@ -158,7 +158,7 @@ console.log(data.rateLimit);    // { remaining: 4, limit: 5 }`}
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${BASE_URL}/api \\
+                            code={`curl -X POST ${BASE_URL}/api/v1 \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: xtf_sk_your_api_key" \\
   -d '{"url": "..."}'`}

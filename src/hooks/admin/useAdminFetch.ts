@@ -2,9 +2,98 @@
 
 import useSWR, { SWRConfiguration } from 'swr';
 import { useCallback } from 'react';
+import { API_URL } from '@/lib/config';
 
-// API URL from environment
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Custom error class for admin API errors with user-friendly messages
+ */
+export class AdminApiError extends Error {
+    public readonly isNetworkError: boolean;
+    public readonly isServerOffline: boolean;
+    public readonly userMessage: string;
+    public readonly originalError?: Error;
+
+    constructor(message: string, options?: { 
+        isNetworkError?: boolean; 
+        isServerOffline?: boolean;
+        userMessage?: string;
+        originalError?: Error;
+    }) {
+        super(message);
+        this.name = 'AdminApiError';
+        this.isNetworkError = options?.isNetworkError ?? false;
+        this.isServerOffline = options?.isServerOffline ?? false;
+        this.userMessage = options?.userMessage ?? message;
+        this.originalError = options?.originalError;
+    }
+}
+
+/**
+ * Check if an error is a network/connection error
+ */
+function isNetworkError(error: unknown): boolean {
+    if (error instanceof TypeError) {
+        const message = error.message.toLowerCase();
+        return (
+            message.includes('failed to fetch') ||
+            message.includes('network') ||
+            message.includes('fetch') ||
+            message.includes('cors') ||
+            message.includes('connection')
+        );
+    }
+    if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        return (
+            message === 'failed to fetch' ||
+            message.includes('network error') ||
+            message.includes('net::err_') ||
+            message.includes('econnrefused')
+        );
+    }
+    return false;
+}
+
+/**
+ * Transform raw errors into user-friendly AdminApiError
+ */
+function transformError(error: unknown): AdminApiError {
+    // Network/connection errors
+    if (isNetworkError(error)) {
+        return new AdminApiError('Server tidak dapat dihubungi', {
+            isNetworkError: true,
+            isServerOffline: true,
+            userMessage: 'Backend server offline - tidak dapat terhubung ke server. Pastikan backend sedang berjalan.',
+            originalError: error instanceof Error ? error : undefined,
+        });
+    }
+
+    // Already an AdminApiError
+    if (error instanceof AdminApiError) {
+        return error;
+    }
+
+    // Standard Error
+    if (error instanceof Error) {
+        return new AdminApiError(error.message, {
+            userMessage: error.message,
+            originalError: error,
+        });
+    }
+
+    // Unknown error type
+    return new AdminApiError('Terjadi kesalahan tidak diketahui', {
+        userMessage: 'Terjadi kesalahan tidak diketahui. Silakan coba lagi.',
+    });
+}
+
+// ============================================================================
+// AUTH HELPERS
+// ============================================================================
 
 // Get auth token from Supabase session
 export function getAuthToken(): string | null {
@@ -35,14 +124,25 @@ export function getAdminHeaders(): Record<string, string> {
     return headers;
 }
 
-// Admin fetcher with auth header
+// Admin fetcher with auth header and improved error handling
 const adminFetcher = async <T>(url: string): Promise<T> => {
-    const res = await fetch(url, { headers: getAdminHeaders() });
-    const json = await res.json();
-    if (!json.success) {
-        throw new Error(json.error || 'Request failed');
+    try {
+        const res = await fetch(url, { headers: getAdminHeaders() });
+        const json = await res.json();
+        if (!json.success) {
+            throw new AdminApiError(json.error || 'Request failed', {
+                userMessage: json.error || 'Permintaan gagal',
+            });
+        }
+        return json.data;
+    } catch (error) {
+        // Re-throw if already transformed
+        if (error instanceof AdminApiError) {
+            throw error;
+        }
+        // Transform and throw
+        throw transformError(error);
     }
-    return json.data;
 };
 
 // SWR config presets for admin
@@ -84,7 +184,9 @@ interface UseAdminFetchOptions {
 interface UseAdminFetchResult<T> {
     data: T | null;
     loading: boolean;
-    error: Error | null;
+    error: AdminApiError | null;
+    isServerOffline: boolean;
+    userErrorMessage: string | null;
     refetch: () => Promise<T | undefined>;
     mutate: (method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown) => Promise<{ success: boolean; data?: unknown; error?: string }>;
 }
@@ -108,16 +210,17 @@ export function useAdminFetch<T>(
         swrConfig
     );
 
+    // Transform error for user-friendly display
+    const transformedError = error ? transformError(error) : null;
+    const isServerOffline = transformedError?.isServerOffline ?? false;
+    const userErrorMessage = transformedError?.userMessage ?? null;
+
     // Manual mutation for POST/PUT/PATCH/DELETE
     const mutate = useCallback(async (
         method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', 
         body?: unknown
     ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
         if (!url) return { success: false, error: 'No URL' };
-        
-        const token = getAuthToken();
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
         
         try {
             const res = await fetch(buildAdminUrl(url), {
@@ -128,7 +231,8 @@ export function useAdminFetch<T>(
             const json = await res.json();
             return json;
         } catch (err) {
-            return { success: false, error: err instanceof Error ? err.message : 'Request failed' };
+            const transformed = transformError(err);
+            return { success: false, error: transformed.userMessage };
         }
     }, [url]);
 
@@ -140,7 +244,9 @@ export function useAdminFetch<T>(
     return { 
         data: data ?? null, 
         loading: isLoading, 
-        error: error ?? null, 
+        error: transformedError, 
+        isServerOffline,
+        userErrorMessage,
         refetch, 
         mutate 
     };

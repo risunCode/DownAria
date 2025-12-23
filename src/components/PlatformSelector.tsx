@@ -1,11 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Platform, PLATFORMS } from '@/lib/types';
+import { PlatformId, PLATFORMS } from '@/lib/types';
 
 interface PlatformSelectorProps {
-    selected: Platform;
-    onChange: (platform: Platform) => void;
+    selected: PlatformId;
+    onChange: (platform: PlatformId) => void;
 }
 
 export function PlatformSelector({ selected, onChange }: PlatformSelectorProps) {

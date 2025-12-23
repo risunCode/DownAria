@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DownloadForm } from '@/components/DownloadForm';
 import { DownloadPreview } from '@/components/DownloadPreview';
 import { HistoryList } from '@/components/HistoryList';
 import { CardSkeleton } from '@/components/ui/Card';
-import { Platform, MediaData, detectPlatform, sanitizeUrl } from '@/lib/types';
-import type { HistoryEntry } from '@/lib/storage';
 import { MagicIcon, BoltIcon, LayersIcon, LockIcon } from '@/components/ui/Icons';
+import { PlatformId, MediaData } from '@/lib/types';
+import type { HistoryEntry } from '@/lib/storage';
 import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
-import { useTranslations } from 'next-intl';
+import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 import Swal from 'sweetalert2';
 import Announcements from '@/components/Announcements';
 import { AdBannerCard } from '@/components/AdBannerCard';
@@ -137,7 +138,7 @@ function handleMetaError(errorMsg: string, platform: 'facebook' | 'instagram') {
 }
 
 export default function Home() {
-  const [platform, setPlatform] = useState<Platform>('facebook');
+  const [platform, setPlatform] = useState<PlatformId>('facebook');
   const [isLoading, setIsLoading] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
@@ -153,12 +154,21 @@ export default function Home() {
     const { getSkipCache } = await import('@/lib/storage');
     const skipCache = getSkipCache();
     
-    const response = await fetch(`${API_URL}/api/v1/publicservices`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, cookie, skipCache }),
-    });
-    return response.json();
+    // Use AbortController with 120s timeout (backend yt-dlp has 90s timeout)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+    
+    try {
+      const response = await fetch(`${API_URL}/api/v1/publicservices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, cookie, skipCache }),
+        signal: controller.signal,
+      });
+      return response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
   const handleSubmit = async (url: string) => {
@@ -187,13 +197,18 @@ export default function Home() {
       // Unified API call for all platforms
       const result = await fetchMedia(sanitizedUrl, platformCookie);
 
+      console.log('[DEBUG] API Response:', JSON.stringify(result, null, 2).substring(0, 500));
+
       if (result.success && result.data) {
+        console.log('[DEBUG] Setting mediaData with formats:', result.data.formats?.length || 0);
         // Use usedCookie from API response - scraper knows if cookie was actually used
         const mediaResult = { ...result.data, usedCookie: result.data.usedCookie === true };
         setMediaData(mediaResult);
         // Caching handled by IndexedDB when download completes
         return;
       }
+
+      console.log('[DEBUG] API returned success=false or no data:', result.error);
 
       // Handle Weibo cookie errors
       if (detectedPlatform === 'weibo') {
@@ -232,11 +247,31 @@ export default function Home() {
       const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
 
+      // Check for AbortError (our timeout)
+      if (error instanceof Error && error.name === 'AbortError') {
+        showError('⏱️ Request Timeout', `
+          <p style="margin-bottom: 12px; font-size: 14px;">The server is taking too long to respond.</p>
+          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">${detectedPlatform === 'youtube' ? 'YouTube extraction can be slow for some videos.' : 'This might be a temporary issue.'}</p>
+          <p style="font-size: 11px; color: #a1a1aa;">Try again - the result may be cached now.</p>
+        `, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
+        return;
+      }
+
       // Check for network errors FIRST (offline, timeout, server unreachable)
       const networkStatus = analyzeNetworkError(error);
       if (networkStatus.type === 'offline' || networkStatus.type === 'timeout' || 
           errorMsg.toLowerCase().includes('failed to fetch') || !isOnline()) {
         showNetworkError(error, () => handleSubmit(url));
+        return;
+      }
+
+      // Handle YouTube extraction timeout from backend
+      if (errorMsg.includes('timed out') || errorMsg.includes('timeout')) {
+        showError('⏱️ Extraction Timeout', `
+          <p style="margin-bottom: 12px; font-size: 14px;">${detectedPlatform === 'youtube' ? 'YouTube video extraction timed out.' : 'The extraction process timed out.'}</p>
+          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">Some videos take longer to process.</p>
+          <p style="font-size: 11px; color: #a1a1aa;">Try again - the result may be cached now.</p>
+        `, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
         return;
       }
 

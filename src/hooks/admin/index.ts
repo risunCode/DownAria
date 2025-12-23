@@ -1,6 +1,6 @@
 // Admin Hooks - Barrel Export
 
-export { useAdminFetch, ADMIN_SWR_CONFIG, getAuthToken, buildAdminUrl, getAdminHeaders } from './useAdminFetch';
+export { useAdminFetch, ADMIN_SWR_CONFIG, getAuthToken, buildAdminUrl, getAdminHeaders, AdminApiError } from './useAdminFetch';
 export { useServices } from './useServices';
 export { useCookies, useCookieStats, type CookiePoolStats, type PooledCookie } from './useCookies';
 export { useUserAgents, useUserAgentStats, type UserAgentPoolStats, type PooledUserAgent } from './useUserAgents';

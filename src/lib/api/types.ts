@@ -2,39 +2,15 @@
  * API Response Types
  */
 
-export interface MediaFormat {
-    url: string;
-    quality: string;
-    type: 'video' | 'audio' | 'image';
-    size?: number;
-    ext?: string;
-}
+import type { 
+    MediaFormat,
+    MediaData,
+    DownloadResponse,
+    PlatformId 
+} from '../types';
 
-export interface MediaData {
-    title: string;
-    thumbnail: string;
-    author?: string;
-    duration?: number;
-    views?: number;
-    description?: string;
-    formats: MediaFormat[];
-    url: string;
-    engagement?: {
-        likes?: number;
-        comments?: number;
-        shares?: number;
-    };
-    usedCookie?: boolean;
-    cached?: boolean;
-    responseTime?: number;
-}
-
-export interface DownloadResponse {
-    success: boolean;
-    platform?: string;
-    data?: MediaData;
-    error?: string;
-}
+// Re-export types from ../types for convenience
+export type { MediaData, DownloadResponse } from '../types';
 
 export interface StatusResponse {
     success: boolean;

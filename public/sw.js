@@ -1,6 +1,6 @@
 // XTFetch Service Worker - Offline First PWA
 // Cache version - update this on each deploy or use build timestamp
-const BUILD_TIME = '20251222190312'; // YYYYMMDD format - UPDATE ON DEPLOY
+const BUILD_TIME = '20251223133254'; // YYYYMMDD format - UPDATE ON DEPLOY
 const CACHE_VERSION = `v5-${BUILD_TIME}`;
 const STATIC_CACHE = `xtfetch-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `xtfetch-dynamic-${CACHE_VERSION}`;
@@ -19,7 +19,7 @@ const APP_SHELL = [
 
 // API endpoints to cache (status data)
 const CACHEABLE_API = [
-  '/api/status'
+  '/api/v1/status'
 ];
 
 // Cache duration for API responses (5 minutes)
@@ -120,7 +120,7 @@ async function handleApiRequest(request) {
     }
     
     // Return offline response for status API
-    if (url.pathname === '/api/status') {
+    if (url.pathname === '/api/v1/status') {
       return new Response(JSON.stringify({
         success: true,
         offline: true,

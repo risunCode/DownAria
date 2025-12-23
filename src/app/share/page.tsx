@@ -2,16 +2,17 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { AnimatePresence } from 'framer-motion';
+import Swal from 'sweetalert2';
+import { useTranslations } from 'next-intl';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DownloadForm } from '@/components/DownloadForm';
 import { DownloadPreview } from '@/components/DownloadPreview';
 import { CardSkeleton } from '@/components/ui/Card';
-import { Platform, MediaData, detectPlatform, sanitizeUrl } from '@/lib/types';
+import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
 import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
-import { AnimatePresence } from 'framer-motion';
-import Swal from 'sweetalert2';
-import { useTranslations } from 'next-intl';
+import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -21,7 +22,7 @@ function ShareContent() {
   const t = useTranslations('share');
   const tErrors = useTranslations('errors');
 
-  const [platform, setPlatform] = useState<Platform>('facebook');
+  const [platform, setPlatform] = useState<PlatformId>('facebook');
   const [isLoading, setIsLoading] = useState(false);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
   const [sharedUrl, setSharedUrl] = useState<string>('');

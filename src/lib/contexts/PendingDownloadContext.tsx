@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { MediaData, Platform } from '@/lib/types';
+import { MediaData, PlatformId } from '@/lib/types';
 
 export interface QueuedMedia {
   id: string;
   mediaData: MediaData;
-  platform: Platform;
+  platform: PlatformId;
   addedAt: number;
 }
 
@@ -16,7 +16,7 @@ interface PendingDownloadContextType {
   clearMediaData: () => void;
   // Queue management
   queue: QueuedMedia[];
-  addToQueue: (media: MediaData, platform: Platform) => void;
+  addToQueue: (media: MediaData, platform: PlatformId) => void;
   removeFromQueue: (id: string) => void;
   clearQueue: () => void;
   isQueueMinimized: boolean;
@@ -69,7 +69,7 @@ export function PendingDownloadProvider({ children }: { children: ReactNode }) {
     setMediaDataState(null);
   }, []);
 
-  const addToQueue = useCallback((media: MediaData, platform: Platform) => {
+  const addToQueue = useCallback((media: MediaData, platform: PlatformId) => {
     const id = `mq-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setQueue(prev => {
       const updated = [...prev, { id, mediaData: media, platform, addedAt: Date.now() }];

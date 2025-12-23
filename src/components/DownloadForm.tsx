@@ -3,15 +3,16 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Clipboard, Check, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Platform, PLATFORMS, validateUrl, detectPlatform, sanitizeUrl } from '@/lib/types';
 import { LightbulbIcon, PlatformIcon } from '@/components/ui/Icons';
-import { useTranslations } from 'next-intl';
+import { PlatformId, PLATFORMS } from '@/lib/types';
+import { validateUrl, detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 
 interface DownloadFormProps {
-    platform: Platform;
-    onPlatformChange: (platform: Platform) => void;
+    platform: PlatformId;
+    onPlatformChange: (platform: PlatformId) => void;
     onSubmit: (url: string) => void;
     isLoading: boolean;
     initialUrl?: string;

@@ -12,7 +12,7 @@
  * - Platform-based filtering
  */
 
-import { Platform } from '@/lib/types';
+import { PlatformId } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -20,7 +20,7 @@ import { Platform } from '@/lib/types';
 
 export interface HistoryEntry {
     id: string;                 // Unique ID (generated)
-    platform: Platform;         // facebook, instagram, etc.
+    platform: PlatformId;         // facebook, instagram, etc.
     contentId: string;          // Platform-specific content ID
     resolvedUrl: string;        // Final URL after resolution
     title: string;              // Content title/caption (truncated)
@@ -175,7 +175,7 @@ export async function getHistoryCount(): Promise<number> {
     });
 }
 
-export async function getHistoryByPlatform(platform: Platform, limit = 100): Promise<HistoryEntry[]> {
+export async function getHistoryByPlatform(platform: PlatformId, limit = 100): Promise<HistoryEntry[]> {
     const database = await openDB();
     
     return new Promise((resolve, reject) => {

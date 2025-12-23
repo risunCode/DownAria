@@ -9,7 +9,7 @@
  * - xt_cache_v2: Media cache object (max 20)
  */
 
-import { Platform, MediaFormat } from '@/lib/types';
+import { PlatformId, MediaFormat } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS & TYPES
@@ -24,7 +24,7 @@ const CACHE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export interface HistoryEntry {
     id: string;
-    platform: Platform;
+    platform: PlatformId;
     contentId: string;
     resolvedUrl: string;
     title: string;
@@ -37,7 +37,7 @@ export interface HistoryEntry {
 
 export interface MediaCacheEntry {
     cacheKey: string;
-    platform: Platform;
+    platform: PlatformId;
     contentId: string;
     resolvedUrl: string;
     title: string;
@@ -132,7 +132,7 @@ export async function getHistory(limit = 100): Promise<HistoryEntry[]> {
     return history.slice(0, limit);
 }
 
-export async function getHistoryByPlatform(platform: Platform): Promise<HistoryEntry[]> {
+export async function getHistoryByPlatform(platform: PlatformId): Promise<HistoryEntry[]> {
     const history = getStoredHistory();
     return history.filter(h => h.platform === platform);
 }
@@ -197,9 +197,9 @@ export async function getCachedMedia(cacheKey: string): Promise<MediaCacheEntry 
 }
 
 export async function getCachedMediaByUrl(
-    platform: Platform,
+    platform: PlatformId,
     url: string,
-    extractContentId: (p: Platform, u: string) => string | null
+    extractContentId: (p: PlatformId, u: string) => string | null
 ): Promise<MediaCacheEntry | null> {
     const contentId = extractContentId(platform, url);
     if (!contentId) return null;
@@ -264,7 +264,7 @@ export async function clearExpiredCache(): Promise<number> {
     return count;
 }
 
-export async function clearCacheByPlatform(platform: Platform): Promise<number> {
+export async function clearCacheByPlatform(platform: PlatformId): Promise<number> {
     const cache = getStoredCache();
     let count = 0;
 

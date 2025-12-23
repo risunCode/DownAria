@@ -7,6 +7,14 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.4.0',
+        date: 'December 23, 2025',
+        changes: [
+            { type: 'new', items: ['AI Chat Multi-Model - GPT-5 & Copilot Smart via Magma API', 'Dynamic UI - Header changes based on selected model', 'Feature Gating - Image/Web search disabled for non-Gemini', 'Session Warning - Banner for models without session support', 'AI Disclaimer - Footer warning about AI accuracy'] },
+            { type: 'improved', items: ['Dropdown Auto-Position - Adjusts based on viewport space', 'Dropdown Single-Open - Opening one closes the other', 'Responsive AI Chat - Fixed container width on mobile'] },
+        ],
+    },
+    {
         version: '1.3.0',
         date: 'December 23, 2025',
         changes: [

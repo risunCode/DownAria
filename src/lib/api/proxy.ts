@@ -3,7 +3,8 @@
  * Builds proxy URLs pointing to backend API
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { API_URL } from '@/lib/config';
+import type { PlatformId } from '@/lib/types';
 
 export function getProxyUrl(url: string, options?: {
     filename?: string;
@@ -24,10 +25,14 @@ export function getProxyUrl(url: string, options?: {
     return `${API_URL}/api/v1/proxy?${params.toString()}`;
 }
 
-export function getProxiedThumbnail(url: string, platform?: string): string {
+/**
+ * Get proxied thumbnail URL for platforms that block direct access
+ * Consolidated from thumbnail-utils.ts
+ */
+export function getProxiedThumbnail(url: string | undefined, platform?: PlatformId | string): string {
     if (!url) return '';
     
-    // Check if URL needs proxying (CDN domains)
+    // Check if URL needs proxying (CDN domains that block direct access)
     const needsProxy = 
         url.includes('fbcdn.net') || 
         url.includes('cdninstagram.com') || 
@@ -37,5 +42,5 @@ export function getProxiedThumbnail(url: string, platform?: string): string {
     
     if (!needsProxy) return url;
     
-    return getProxyUrl(url, { platform, inline: true });
+    return getProxyUrl(url, { platform: platform as string, inline: true });
 }

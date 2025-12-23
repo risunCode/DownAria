@@ -2,7 +2,58 @@
 
 All notable changes to XTFetch will be documented in this file.
 
-## [1.3.0] - December 23, 2025
+## [1.4.0] - December 23, 2025
+
+### ✨ AI Chat Multi-Model Support
+- **New Models** - Added GPT-5 and Copilot Smart via Magma API
+  - `gemini-2.5-flash` - Gemini Flash 2.5 (image, web search, session)
+  - `gemini-flash-latest` - Gemini Flash Latest (image, web search, session)
+  - `gpt5` - GPT-5 (text only, no session)
+  - `copilot-smart` - Copilot Smart (text only, no session)
+- **Dynamic UI** - Header subtitle changes based on selected model
+- **Feature Gating** - Image upload & web search disabled for non-Gemini models
+- **Session Warning** - Banner for GPT-5/Copilot: "tidak mendukung session"
+- **AI Disclaimer** - Footer: "AI dapat membuat kesalahan, periksa kembali responsenya"
+
+### 🔧 UI Improvements
+- **Dropdown Auto-Position** - Model & Session dropdowns auto-adjust based on viewport
+- **Dropdown Single-Open** - Opening one dropdown closes the other
+- **Responsive AI Chat** - Fixed container width issues on mobile
+
+---
+
+## [December 2025] - Code Cleanup & API Routing
+
+### Added
+- Type sync documentation (TYPES-CONTRACT.md)
+- Consolidated changelog system with archives
+- Improved cross-project type consistency
+
+### Changed
+- Migrated all API endpoints to v1 routing (`/api/v1/*`)
+- Updated `useStatus` hook to use v1 endpoint
+- Updated push notifications to use v1 endpoint
+- Improved console logging with centralized logger
+- Enhanced type consistency between frontend/backend
+
+### Removed
+- Legacy API route references in documentation
+- Duplicate code and outdated endpoint references
+- Nested project folder structure
+
+### Fixed
+- API endpoint consistency across projects
+- Type mismatches between frontend and backend
+- Documentation outdated references
+
+### Documentation
+- See `Proposal/archives/` for detailed migration logs
+- Updated README files with current architecture
+- Consolidated individual changelogs into main CHANGELOG.md
+
+---
+
+## [1.3.0_v0] - December 23, 2025
 
 ### ✨ What's New
 - **Hashtag Search** - Click any #hashtag in captions to search across platforms
