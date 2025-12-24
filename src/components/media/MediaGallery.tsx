@@ -21,6 +21,7 @@ import {
   findPreferredFormat,
   canYouTubeAutoplay,
   getYouTubePreviewNotice,
+  getQualityBadge,
 } from '@/lib/utils/media';
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
@@ -570,6 +571,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
             // Use item-specific thumbnail from getItemThumbnails, fallback chain
             const thumb = itemThumbnails[itemId] || itemFormats[0]?.thumbnail || data.thumbnail;
             const isVideo = itemFormats[0]?.type === 'video';
+            const qualityBadge = getQualityBadge(itemFormats);
             return (
               <button
                 key={itemId}
@@ -593,11 +595,24 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
                     <span className="text-xs text-[var(--text-muted)]">{idx + 1}</span>
                   </div>
                 )}
-                {/* Index number badge */}
+                {/* Index number badge - top left */}
                 <div className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">
                   {idx + 1}
                 </div>
-                {isVideo && (
+                {/* Quality badge - top right (only for video) */}
+                {qualityBadge && (
+                  <div className={`absolute top-0.5 right-0.5 px-1 py-0.5 rounded text-[8px] font-bold ${
+                    qualityBadge === '4K' || qualityBadge === 'FHD' 
+                      ? 'bg-purple-500/90 text-white' 
+                      : qualityBadge === 'HD' 
+                        ? 'bg-blue-500/90 text-white' 
+                        : 'bg-gray-500/90 text-white'
+                  }`}>
+                    {qualityBadge}
+                  </div>
+                )}
+                {/* Video play icon - only show if no quality badge */}
+                {isVideo && !qualityBadge && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <Play className="w-4 h-4 text-white" />
                   </div>

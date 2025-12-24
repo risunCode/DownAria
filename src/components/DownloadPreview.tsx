@@ -29,7 +29,8 @@ import {
     extractPostId, 
     groupFormatsByItem,
     getItemThumbnails,
-    findPreferredFormat 
+    findPreferredFormat,
+    getQualityBadge,
 } from '@/lib/utils/media';
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
@@ -460,6 +461,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                         {itemIds.map((itemId, index) => {
                             const thumbnail = itemThumbnails[itemId] || data.thumbnail;
                             const isSelected = selectedItemId === itemId;
+                            const itemFormats = groupedItems[itemId] || [];
+                            const qualityBadge = getQualityBadge(itemFormats);
+                            const isVideo = itemFormats.some(f => f.type === 'video');
                             return (
                                 <button key={itemId} onClick={() => setSelectedItemId(itemId)}
                                     className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${isSelected
@@ -472,7 +476,26 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                             <Play className="w-4 h-4 text-[var(--text-muted)]" />
                                         </div>
                                     )}
+                                    {/* Index badge - top left */}
                                     <div className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold">{index + 1}</div>
+                                    {/* Quality badge - top right (only for video) */}
+                                    {qualityBadge && (
+                                        <div className={`absolute top-0.5 right-0.5 px-1 py-0.5 rounded text-[8px] font-bold ${
+                                            qualityBadge === '4K' || qualityBadge === 'FHD' 
+                                                ? 'bg-purple-500/90 text-white' 
+                                                : qualityBadge === 'HD' 
+                                                    ? 'bg-blue-500/90 text-white' 
+                                                    : 'bg-gray-500/90 text-white'
+                                        }`}>
+                                            {qualityBadge}
+                                        </div>
+                                    )}
+                                    {/* Video play icon overlay */}
+                                    {isVideo && !qualityBadge && (
+                                        <div className="absolute bottom-0.5 right-0.5">
+                                            <Play className="w-3 h-3 text-white drop-shadow-md" fill="white" />
+                                        </div>
+                                    )}
                                     {isSelected && (
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="absolute inset-0 bg-black/30" />

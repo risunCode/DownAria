@@ -217,6 +217,31 @@ export function findPreferredFormat(formats: MediaFormat[]): MediaFormat | undef
     return preferred;
 }
 
+/**
+ * Get quality badge text for a format (HD/SD/4K)
+ * Returns null for images or unknown quality
+ */
+export function getQualityBadge(formats: MediaFormat[]): string | null {
+    // Only show badge for video content
+    const videoFormat = formats.find(f => f.type === 'video');
+    if (!videoFormat) return null;
+    
+    const quality = videoFormat.quality.toLowerCase();
+    
+    // Check for specific resolutions
+    if (quality.includes('4k') || quality.includes('2160')) return '4K';
+    if (quality.includes('1080') || quality.includes('fhd')) return 'FHD';
+    if (quality.includes('hd') || quality.includes('720')) return 'HD';
+    if (quality.includes('sd') || quality.includes('480') || quality.includes('360')) return 'SD';
+    
+    // Check format quality field patterns
+    if (/\b(hd|high)\b/i.test(quality)) return 'HD';
+    if (/\b(sd|low|standard)\b/i.test(quality)) return 'SD';
+    
+    // Default for video without clear quality indicator
+    return null;
+}
+
 
 // ============================================================================
 // HLS DOWNLOADER (from hls-downloader.ts)
