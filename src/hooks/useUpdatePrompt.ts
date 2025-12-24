@@ -20,7 +20,7 @@ interface UpdatePromptResponse {
 
 export function useUpdatePrompt() {
     const { data, error, isLoading } = useSWR<UpdatePromptResponse>(
-        `${API_URL}/api/admin/settings`,
+        `${API_URL}/api/admin/system-config`,
         fetcher,
         {
             ...SWR_CONFIG.static,

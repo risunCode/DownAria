@@ -19,7 +19,7 @@ const toast = (icon: 'success' | 'error', title: string) => {
 
 export function useSettings() {
     const { data, loading, error, refetch, mutate } = useAdminFetch<GlobalSettings>(
-        '/api/admin/settings',
+        '/api/admin/system-config',
         {
             revalidateOnFocus: false,
             revalidateOnReconnect: false,
