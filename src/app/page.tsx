@@ -221,8 +221,48 @@ export default function Home() {
         }
       }
 
-      throw new Error(result.error || 'Failed to fetch');
+      // Handle specific error codes from backend
+      const errorCode = (result as { errorCode?: string }).errorCode;
+      const errorMessage = result.error || 'Failed to fetch';
+      
+      // Map error codes to user-friendly messages
+      if (errorCode) {
+        switch (errorCode) {
+          case 'PRIVATE_CONTENT':
+          case 'COOKIE_REQUIRED':
+          case 'AGE_RESTRICTED':
+            showError('🔒 Login Required', 'This content is private or requires login. Add your cookie in Settings to access.', { showSettings: true, buttonColor: '#f59e0b' });
+            return;
+          case 'COOKIE_EXPIRED':
+            showError('⏰ Cookie Expired', 'Your cookie has expired. Please update it in Settings.', { showSettings: true, buttonColor: '#f59e0b' });
+            return;
+          case 'COOKIE_BANNED':
+          case 'CHECKPOINT_REQUIRED':
+            showError('🚫 Account Issue', 'The account requires verification or has been restricted. Try using a different cookie.', { showSettings: true, buttonColor: '#ef4444' });
+            return;
+          case 'NOT_FOUND':
+          case 'DELETED':
+          case 'CONTENT_REMOVED':
+            showError('❌ Content Not Found', 'This content may have been deleted or removed.', { icon: 'error' });
+            return;
+          case 'NO_MEDIA':
+            showError('📭 No Media', 'No downloadable media found in this post.', { icon: 'info' });
+            return;
+          case 'GEO_BLOCKED':
+            showError('🌍 Region Blocked', 'This content is not available in your region.', { icon: 'warning' });
+            return;
+          case 'RATE_LIMITED':
+            showError('⏳ Slow Down!', 'Too many requests. Please wait a moment and try again.', { icon: 'warning', buttonColor: '#f59e0b' });
+            return;
+          case 'BLOCKED':
+            showError('🚫 Blocked', 'Request was blocked by the platform. Try again later.', { icon: 'error' });
+            return;
+        }
+      }
+
+      throw new Error(errorMessage);
     } catch (error) {
+      // Get error details - check if it's from API response
       const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
 
@@ -268,10 +308,10 @@ export default function Home() {
         showError('🔧 Under Maintenance', 'We\'re working on improvements. Check back soon!', { icon: 'warning', buttonColor: '#f59e0b' });
       } else if (errorMsg.includes('disabled') || errorMsg.includes('unavailable')) {
         showError('⏸️ Service Paused', displayMsg, { icon: 'info', buttonColor: '#3b82f6' });
-      } else if (detectedPlatform === 'facebook' || detectedPlatform === 'instagram') {
-        handleMetaError(errorMsg, detectedPlatform);
+      } else if (errorMsg.includes('Unauthorized origin')) {
+        showError('🚫 Unauthorized', 'Request blocked. Please try again or contact support.', { icon: 'error' });
       } else {
-        showError('Failed', displayMsg);
+        showError('❌ Failed', displayMsg);
       }
     } finally {
       setIsLoading(false);
