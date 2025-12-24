@@ -46,11 +46,11 @@ function ChangelogSection() {
             </h3>
 
             <div className="space-y-4">
-                {/* Latest Version - v1.4.0 */}
+                {/* Latest Version - v1.5.0 */}
                 <div className="border-l-2 border-l-green-500 pl-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.4.0</span>
-                        <span className="text-xs text-[var(--text-muted)]">December 23, 2025</span>
+                        <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded">v1.5.0</span>
+                        <span className="text-xs text-[var(--text-muted)]">December 25, 2025</span>
                         <span className="text-[10px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded animate-pulse">Latest</span>
                     </div>
 
@@ -60,11 +60,10 @@ function ChangelogSection() {
                             <span>✨</span> What&apos;s New
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• <strong>AI Chat Multi-Model</strong> - GPT-5 & Copilot Smart via Magma API</li>
-                            <li>• <strong>Dynamic UI</strong> - Header changes based on selected model</li>
-                            <li>• <strong>Feature Gating</strong> - Image/Web search disabled for non-Gemini</li>
-                            <li>• <strong>Session Warning</strong> - Banner for models without session support</li>
-                            <li>• <strong>AI Disclaimer</strong> - Footer warning about AI accuracy</li>
+                            <li>• <strong>API Bridge</strong> - Fixed hostname via Vercel proxy for stability</li>
+                            <li>• <strong>Bridge Secret Key</strong> - Secure server-to-server authentication</li>
+                            <li>• <strong>Origin Whitelist</strong> - Block unauthorized direct API access</li>
+                            <li>• <strong>YouTube Merge Queue</strong> - Concurrency control for HD merging</li>
                         </ul>
                     </div>
 
@@ -74,9 +73,21 @@ function ChangelogSection() {
                             <span>🔧</span> What&apos;s Improved
                         </h4>
                         <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
-                            <li>• Dropdown Auto-Position - Adjusts based on viewport space</li>
-                            <li>• Dropdown Single-Open - Opening one closes the other</li>
-                            <li>• Responsive AI Chat - Fixed container width on mobile</li>
+                            <li>• Error Handling - Proper error codes instead of generic messages</li>
+                            <li>• YouTube Filesize - Accurate size from yt-dlp</li>
+                            <li>• Stories/Groups - Cookie used from first try for auth URLs</li>
+                        </ul>
+                    </div>
+
+                    {/* What's Fixed */}
+                    <div className="mb-3">
+                        <h4 className="text-xs font-semibold text-yellow-400 mb-1.5 flex items-center gap-1">
+                            <span>🐛</span> What&apos;s Fixed
+                        </h4>
+                        <ul className="text-xs text-[var(--text-muted)] space-y-1 ml-4">
+                            <li>• Thumbnail proxy &quot;URL required&quot; error</li>
+                            <li>• Facebook Stories redirect to login with cookie</li>
+                            <li>• Error messages concatenating multiple errors</li>
                         </ul>
                     </div>
                 </div>

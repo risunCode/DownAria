@@ -2,6 +2,29 @@
 
 All notable changes to XTFetch will be documented in this file.
 
+## [1.5.0] - December 25, 2025
+
+### ✨ API Bridge Architecture
+- **API Bridge** - New proxy layer on Vercel for fixed hostname stability
+  - Frontend → Bridge (Vercel) → Backend (Railway/Render)
+  - Allows backend to change hosts without frontend updates
+- **Bridge Secret Key** - Secure server-to-server authentication
+- **Origin Whitelist** - Block unauthorized direct API access
+- **YouTube Merge Queue** - Concurrency control (max 2 concurrent, per-IP rate limit)
+
+### 🔧 What's Improved
+- **Error Handling** - Proper error codes (`PRIVATE_CONTENT`, `COOKIE_REQUIRED`, etc.) instead of generic messages
+- **YouTube Filesize** - Now uses accurate `filesize` from yt-dlp instead of estimation
+- **Stories/Groups URL Resolution** - Cookie used from first HTTP request for auth-required URLs
+- **Proxy Query Params** - Now properly forwarded through bridge
+
+### 🐛 What's Fixed
+- Thumbnail proxy returning "URL parameter is required" error
+- Facebook Stories redirect to login page even with valid cookie
+- Error messages concatenating multiple errors ("Unauthorized origin This content may be private...")
+
+---
+
 ## [1.4.0] - December 23, 2025
 
 ### ✨ AI Chat Multi-Model Support

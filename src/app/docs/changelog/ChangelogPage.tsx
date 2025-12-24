@@ -7,6 +7,15 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.5.0',
+        date: 'December 25, 2025',
+        changes: [
+            { type: 'new', items: ['API Bridge Architecture - Fixed hostname via Vercel proxy', 'Bridge Secret Key - Secure server-to-server authentication', 'Origin Whitelist - Block unauthorized API access', 'YouTube Merge Queue - Concurrency control for HD merging'] },
+            { type: 'improved', items: ['Error Handling - Proper error codes instead of generic messages', 'YouTube Filesize - Accurate size from yt-dlp (not estimation)', 'Stories/Groups URL - Cookie used from first try for auth-required URLs', 'Proxy Query Params - Now properly forwarded through bridge'] },
+            { type: 'fixed', items: ['Thumbnail proxy returning "URL required" error', 'Facebook Stories redirect to login even with cookie', 'Error messages concatenating multiple errors'] },
+        ],
+    },
+    {
         version: '1.4.0',
         date: 'December 23, 2025',
         changes: [
