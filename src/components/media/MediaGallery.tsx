@@ -97,6 +97,54 @@ function useKeyboardNavigation(
   }, [isOpen, onClose, onPrev, onNext]);
 }
 
+/**
+ * Hook for swipe gesture navigation (left/right)
+ */
+function useSwipeNavigation(
+  onPrev: () => void,
+  onNext: () => void,
+  isEnabled: boolean
+) {
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isSwiping = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwiping.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isEnabled) return;
+    
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    
+    // Only consider horizontal swipe if deltaX > deltaY (not scrolling)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+      isSwiping.current = true;
+    }
+  }, [isEnabled]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isEnabled || !isSwiping.current) return;
+    
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const threshold = 50; // minimum swipe distance
+    
+    if (deltaX > threshold) {
+      onPrev(); // Swipe right = go to previous
+    } else if (deltaX < -threshold) {
+      onNext(); // Swipe left = go to next
+    }
+    
+    isSwiping.current = false;
+  }, [isEnabled, onPrev, onNext]);
+
+  return { handleTouchStart, handleTouchMove, handleTouchEnd };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -159,21 +207,22 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   // Reset format on item change (user navigation)
   const prevIndex = useRef(currentIndex);
   useEffect(() => {
-    // Only reset if index actually changed by user (not initial sync)
-    if (prevIndex.current !== currentIndex && !hasInitialFormat.current) {
-      // Immediately select preferred format for new item
+    // Only reset if index actually changed
+    if (prevIndex.current !== currentIndex) {
+      // Always select preferred format for new item when navigating
       const newItemId = itemIds[currentIndex] || 'main';
       const newFormats = groupedItems[newItemId] || [];
       const preferred = findPreferredFormat(newFormats);
       setSelectedFormat(preferred || null);
       setDownloadState({ status: 'idle', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
       loopCountRef.current = 0; // Reset loop counter on item change
+      
+      // Clear hasInitialFormat after first navigation
+      if (hasInitialFormat.current) {
+        hasInitialFormat.current = false;
+      }
     }
     prevIndex.current = currentIndex;
-    // Clear hasInitialFormat after first navigation
-    if (hasInitialFormat.current) {
-      hasInitialFormat.current = false;
-    }
   }, [currentIndex, itemIds, groupedItems]);
 
   // Reset loop counter when format changes
@@ -269,6 +318,9 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   }, [itemIds.length]);
 
   useKeyboardNavigation(onClose, goToPrev, goToNext, isOpen);
+
+  // Swipe navigation for carousel
+  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useSwipeNavigation(goToPrev, goToNext, isCarousel);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -400,7 +452,12 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const content = (
     <>
       {/* Media Preview - max height to prevent overflow */}
-      <div className="relative w-full aspect-video max-h-[45vh] bg-black rounded-lg overflow-hidden">
+      <div 
+        className="relative w-full aspect-video max-h-[45vh] bg-black rounded-lg overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {selectedFormat?.type === 'video' ? (
           <>
             <video
