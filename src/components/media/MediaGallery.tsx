@@ -413,11 +413,11 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
               playsInline
               onEnded={handleVideoEnded}
             />
-            {/* YouTube video-only notice */}
+            {/* YouTube video-only notice - centered in video area */}
             {getYouTubePreviewNotice(selectedFormat, platform) && (
-              <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none">
-                <span className="px-3 py-1.5 text-xs bg-black/80 text-amber-400 rounded-full">
-                  {getYouTubePreviewNotice(selectedFormat, platform)}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="px-4 py-2 text-sm font-medium bg-black/70 text-amber-400 rounded-lg backdrop-blur-sm border border-amber-400/30">
+                  🔇 Preview tanpa suara
                 </span>
               </div>
             )}
@@ -603,6 +603,13 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
           onSelect={setSelectedFormat}
           getSize={(f) => fileSizes[f.url] || null}
         />
+
+        {/* YouTube size estimation notice */}
+        {platform === 'youtube' && (
+          <p className="text-[10px] text-[var(--text-muted)] text-center mt-1">
+            ⚠️ File sizes are estimated and may differ from actual download
+          </p>
+        )}
 
       </div>
     </>

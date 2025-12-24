@@ -1,4 +1,23 @@
 // ============================================================================
+// DATABASE ENUMS (New Schema Jan 2025)
+// ============================================================================
+
+/** User status enum */
+export type UserStatus = 'active' | 'frozen' | 'banned';
+
+/** API key type enum */
+export type ApiKeyType = 'public' | 'private';
+
+/** AI provider enum */
+export type AiProvider = 'gemini' | 'openai' | 'anthropic' | 'other';
+
+/** Cookie status enum */
+export type CookieStatus = 'healthy' | 'cooldown' | 'expired' | 'disabled';
+
+/** Alert type enum */
+export type AlertType = 'error_rate' | 'response_time' | 'cookie_health' | 'rate_limit' | 'platform_down';
+
+// ============================================================================
 // PLATFORM TYPES (Aligned with Backend)
 // ============================================================================
 

@@ -3,24 +3,38 @@
 import { useState, useCallback } from 'react';
 import { useAdminFetch } from './useAdminFetch';
 import Swal from 'sweetalert2';
+import type { UserStatus } from '@/lib/types';
 
 export interface User {
     id: string;
     email: string;
     username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
     role: 'user' | 'admin';
-    status: 'active' | 'frozen';
-    referral_code: string | null;
-    created_at: string;
-    last_login: string | null;
+    status: UserStatus;  // 'active' | 'frozen' | 'banned'
+    referralCode: string;
+    referredBy: string | null;
+    totalReferrals: number;
+    lastSeen: string | null;
+    firstJoined: string;
+    updatedAt: string;
 }
 
 export interface UserFilters {
     search?: string;
     role?: 'user' | 'admin';
-    status?: 'active' | 'frozen';
+    status?: UserStatus;
     page?: number;
     limit?: number;
+}
+
+interface UsersResponse {
+    users: User[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
 }
 
 const toast = (icon: 'success' | 'error', title: string) => {
@@ -41,7 +55,7 @@ export function useUsers(filters: UserFilters = {}) {
     const queryString = params.toString();
     const url = `/api/admin/users${queryString ? `?${queryString}` : ''}`;
     
-    const { data, loading, error, refetch, mutate } = useAdminFetch<User[]>(url);
+    const { data, loading, error, refetch, mutate } = useAdminFetch<UsersResponse>(url);
 
     const updateRole = useCallback(async (userId: string, role: 'user' | 'admin') => {
         const confirm = await Swal.fire({
@@ -70,11 +84,27 @@ export function useUsers(filters: UserFilters = {}) {
     }, [mutate, refetch]);
 
     const toggleFreeze = useCallback(async (userId: string, freeze: boolean) => {
+        // Legacy method - calls updateStatus internally
+        return updateStatus(userId, freeze ? 'frozen' : 'active');
+    }, []);
+
+    const updateStatus = useCallback(async (userId: string, status: UserStatus) => {
+        const statusLabels: Record<UserStatus, string> = {
+            active: 'Activate',
+            frozen: 'Freeze',
+            banned: 'Ban',
+        };
+        const statusColors: Record<UserStatus, string> = {
+            active: '#22c55e',
+            frozen: '#f59e0b',
+            banned: '#ef4444',
+        };
+
         const confirm = await Swal.fire({
-            title: freeze ? 'Freeze user?' : 'Unfreeze user?',
-            icon: 'warning',
+            title: `${statusLabels[status]} user?`,
+            icon: status === 'active' ? 'question' : 'warning',
             showCancelButton: true,
-            confirmButtonColor: freeze ? '#ef4444' : '#22c55e',
+            confirmButtonColor: statusColors[status],
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
         });
@@ -82,19 +112,23 @@ export function useUsers(filters: UserFilters = {}) {
 
         setSaving(userId);
         try {
-            const result = await mutate('POST', { action: freeze ? 'freeze' : 'unfreeze', userId });
+            const result = await mutate('POST', { action: 'updateStatus', userId, status });
             if (result.success) {
-                toast('success', freeze ? 'User frozen' : 'User unfrozen');
+                toast('success', `User ${status === 'active' ? 'activated' : status}`);
                 refetch();
                 return true;
             } else {
-                toast('error', result.error || 'Failed to update');
+                toast('error', result.error || 'Failed to update status');
                 return false;
             }
         } finally {
             setSaving(null);
         }
     }, [mutate, refetch]);
+
+    const banUser = useCallback(async (userId: string) => {
+        return updateStatus(userId, 'banned');
+    }, [updateStatus]);
 
     const deleteUser = useCallback(async (userId: string, email: string) => {
         const confirm = await Swal.fire({
@@ -142,13 +176,18 @@ export function useUsers(filters: UserFilters = {}) {
     }, [mutate, refetch]);
 
     return {
-        users: data || [],
+        users: data?.users || [],
+        total: data?.total || 0,
+        page: data?.page || 1,
+        totalPages: data?.totalPages || 1,
         loading,
         error,
         saving,
         refetch,
         updateRole,
-        toggleFreeze,
+        updateStatus,
+        banUser,
+        toggleFreeze,  // Legacy - kept for backward compatibility
         deleteUser,
         addUser,
     };

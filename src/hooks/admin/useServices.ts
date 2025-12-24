@@ -21,6 +21,11 @@ interface PlatformConfig {
     disabledMessage: string;
     lastUpdated: string;
     stats: PlatformStats;
+    // Database-synced fields (from service_config table)
+    requireCookie?: boolean;
+    requireAuth?: boolean;
+    priority?: number;
+    healthStatus?: string;
 }
 
 export interface ServiceConfig {
@@ -83,6 +88,22 @@ export function useServices() {
         return result.success;
     }, [mutate, refetch]);
 
+    const setMaintenanceMode = useCallback(async (mode: 'off' | 'api' | 'all', message?: string) => {
+        const result = await mutate('PUT', { 
+            maintenanceMode: mode !== 'off',
+            maintenanceType: mode,
+            ...(message && { maintenanceMessage: message }) 
+        });
+        if (result.success) {
+            const labels = { off: 'Normal', api: 'API Only', all: 'Full Maintenance' };
+            toast('success', `Mode: ${labels[mode]}`);
+            refetch();
+        } else {
+            toast('error', result.error || 'Failed to update');
+        }
+        return result.success;
+    }, [mutate, refetch]);
+
     const toggleApiKey = useCallback(async (required: boolean) => {
         const result = await mutate('PUT', { apiKeyRequired: required });
         if (result.success) {
@@ -124,6 +145,7 @@ export function useServices() {
         togglePlatform,
         updatePlatform,
         toggleMaintenance,
+        setMaintenanceMode,
         toggleApiKey,
         updateGlobal,
         resetStats,

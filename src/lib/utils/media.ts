@@ -908,19 +908,33 @@ export async function downloadMedia(
         // Generate filename
         let filename = generateFilename(data, platform, format, carouselIndex);
         
-        // Case 1: YouTube merge (needsMerge + audioUrl)
-        if (format.needsMerge && format.audioUrl) {
-            filename = filename.replace(/\.\w+$/, '.mp4');
-            onProgress?.({ status: 'merging', percent: 0, loaded: 0, total: 0, speed: 0, message: 'Preparing HD video...' });
+        // Case 1: ALL YouTube downloads go through backend merge endpoint
+        // Backend handles everything: HD merge, SD direct, audio-only
+        if (platform === 'youtube') {
+            // Determine extension based on format
+            // Audio: use format.format (mp3, m4a) or default to mp3
+            // Video: always mp4
+            let ext: string;
+            if (format.type === 'audio') {
+                ext = format.format === 'm4a' ? '.m4a' : '.mp3';
+            } else {
+                ext = '.mp4';
+            }
+            filename = filename.replace(/\.\w+$/, ext);
             
-            // NEW: Send YouTube URL + quality, not CDN URLs
-            // Pass estimated filesize for realistic fake progress
+            onProgress?.({ status: 'merging', percent: 0, loaded: 0, total: 0, speed: 0, message: 'Preparing...' });
+            
+            // For audio, pass quality that backend understands
+            // M4A -> "M4A", MP3 -> "MP3"
+            const qualityParam = format.type === 'audio' 
+                ? format.quality // "M4A" or "MP3"
+                : format.quality; // "1080p", "720p", etc
+            
             const result = await downloadMergedYouTube(
                 data.url, // Original YouTube URL
-                format.quality, // e.g., "1080p", "720p"
+                qualityParam, // e.g., "1080p", "720p", "320kbps", "MP3"
                 filename,
                 (p) => {
-                    // Map YouTube merge status to download status
                     const status = p.status === 'done' ? 'done' 
                         : p.status === 'error' ? 'error' 
                         : p.status === 'downloading' ? 'downloading' 
@@ -935,16 +949,16 @@ export async function downloadMedia(
                         message: p.message
                     });
                 },
-                format.filesize // Pass estimated size for realistic progress simulation
+                format.filesize
             );
             
             if (!result.success || !result.blob) {
-                return { success: false, error: result.error || 'Merge failed' };
+                return { success: false, error: result.error || 'Download failed' };
             }
             return { success: true, blob: result.blob, filename };
         }
         
-        // Case 2: HLS/m3u8 stream
+        // Case 2: HLS/m3u8 stream (non-YouTube)
         if (isHlsFormat(format)) {
             filename = filename.replace(/\.m3u8$/i, '.mp4');
             const result = await downloadHLSAsMP4(format.url, filename, (p) => {

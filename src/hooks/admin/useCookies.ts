@@ -36,6 +36,8 @@ export interface PooledCookie {
     enabled: boolean;
     note: string | null;
     created_at: string;
+    user_id?: string;      // Owner user ID (if applicable)
+    updated_at?: string;   // Last update timestamp
 }
 
 const toast = (icon: 'success' | 'error', title: string) => {

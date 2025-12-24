@@ -16,6 +16,7 @@ export interface StatusResponse {
     success: boolean;
     data: {
         maintenance: boolean;
+        maintenanceType: 'off' | 'api' | 'full';
         maintenanceMessage: string | null;
         maintenanceContent: string | null;
         maintenanceLastUpdated: string | null;

@@ -17,7 +17,7 @@ import {
     AlertTriangle,
 } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
-import Announcements from '@/components/Announcements';
+import CompactAdDisplay from '@/components/CompactAdDisplay';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import {
@@ -119,7 +119,6 @@ export default function AboutPage() {
 
     return (
         <SidebarLayout>
-            <Announcements page="about" />
             <div className="py-6 px-4 lg:px-8">
                 <div className="max-w-5xl mx-auto space-y-6">
                     {/* Hero */}
@@ -129,6 +128,9 @@ export default function AboutPage() {
                         </h1>
                         <p className="text-sm text-[var(--text-muted)]">{t('subtitle')}</p>
                     </motion.div>
+
+                    {/* Compact Ads - Below hero */}
+                    <CompactAdDisplay placement="about" maxAds={3} />
 
                     {/* Main Grid - Story + Pain Points */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

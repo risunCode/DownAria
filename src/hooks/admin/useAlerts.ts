@@ -7,21 +7,36 @@ import { useAdminFetch } from './useAdminFetch';
 
 export interface AlertConfig {
     id: string;
-    webhookUrl: string | null;
-    enabled: boolean;
+    // Alert type toggles (boolean flags)
     alertErrorSpike: boolean;
     alertCookieLow: boolean;
     alertPlatformDown: boolean;
+    alertRateLimit: boolean;          // NEW: alert_rate_limit from schema
+    // Thresholds
     errorSpikeThreshold: number;
     errorSpikeWindow: number;
     cookieLowThreshold: number;
     platformDownThreshold: number;
+    rateLimitThreshold: number;       // NEW: rate_limit_threshold from schema
     cooldownMinutes: number;
+    // Alert state
     lastAlertAt: string | null;
     lastAlertType: string | null;
+    // Notification settings
+    notifyEmail: boolean;             // NEW: notify_email from schema
+    notifyDiscord: boolean;           // NEW: notify_discord from schema
+    discordWebhookUrl: string | null; // RENAMED: was webhookUrl, now discordWebhookUrl per schema
+    emailRecipients: string[] | null; // NEW: email_recipients from schema (JSONB array)
+    // Health check settings
     healthCheckEnabled: boolean;
     healthCheckInterval: number;
     lastHealthCheckAt: string | null;
+    // Timestamps
+    createdAt?: string;               // NEW: created_at from schema
+    updatedAt?: string;               // NEW: updated_at from schema
+    // Legacy alias for backward compatibility
+    webhookUrl?: string | null;       // DEPRECATED: use discordWebhookUrl
+    enabled?: boolean;                // DEPRECATED: use individual alert flags
 }
 
 export interface HealthCheckResult {

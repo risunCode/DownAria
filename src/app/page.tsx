@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { SidebarLayout } from '@/components/Sidebar';
@@ -9,13 +9,16 @@ import { DownloadPreview } from '@/components/DownloadPreview';
 import { HistoryList } from '@/components/HistoryList';
 import { CardSkeleton } from '@/components/ui/Card';
 import { MagicIcon, BoltIcon, LayersIcon, LockIcon } from '@/components/ui/Icons';
+import { MaintenanceMode } from '@/components/MaintenanceMode';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
+import CompactAdDisplay from '@/components/CompactAdDisplay';
+import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
 import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
 import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
 import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 import Swal from 'sweetalert2';
-import Announcements from '@/components/Announcements';
-import { AdBannerCard } from '@/components/AdBannerCard';
+import { api } from '@/lib/api';
 import { analyzeNetworkError, isOnline } from '@/lib/utils/network';
 
 // ============================================================================
@@ -82,7 +85,7 @@ function showError(title: string, message: string, options?: {
   Swal.fire({
     icon,
     title,
-    html: message,
+    text: message,
     ...SWAL_CONFIG,
     confirmButtonColor: buttonColor || SWAL_CONFIG.confirmButtonColor,
     showCancelButton: showSettings || showAdvanced || showRetry,
@@ -108,10 +111,11 @@ function showNetworkError(error: unknown, onRetry?: () => void) {
     'unknown': '❌',
   };
 
-  showError(`${iconMap[status.type]} ${status.message}`, `
-    <p style="margin-bottom: 12px; font-size: 14px;">${status.suggestion}</p>
-    ${!status.online ? '<p style="font-size: 12px; color: #f87171;">Check your WiFi or mobile data connection.</p>' : ''}
-  `, { 
+  const message = !status.online 
+    ? `${status.suggestion} Check your WiFi or mobile data connection.`
+    : status.suggestion;
+
+  showError(`${iconMap[status.type]} ${status.message}`, message, { 
     icon: status.type === 'server-error' ? 'warning' : 'error',
     buttonColor: '#6366f1',
     showRetry: true,
@@ -124,16 +128,9 @@ function handleMetaError(errorMsg: string, platform: 'facebook' | 'instagram') {
   const displayMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
 
   if (hasCookie) {
-    showError('Extraction Failed', `
-      <p style="margin-bottom: 12px;">${displayMsg}</p>
-      <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">⚠️ Cookie is set but extraction still failed.</p>
-      <p style="font-size: 11px; color: #a1a1aa;">Try: Refresh cookie, use HTML extractor in Advanced, or the post may be restricted.</p>
-    `, { showAdvanced: true });
+    showError('Extraction Failed', `${displayMsg} ⚠️ Cookie is set but extraction still failed. Try: Refresh cookie, use HTML extractor in Advanced, or the post may be restricted.`, { showAdvanced: true });
   } else {
-    showError('Failed to Fetch', `
-      <p style="margin-bottom: 12px;">${displayMsg}</p>
-      <p style="font-size: 12px; color: #a1a1aa;">This content may be private. Add your cookie in Settings to access.</p>
-    `, { showSettings: true, buttonColor: '#f59e0b' });
+    showError('Failed to Fetch', `${displayMsg} This content may be private. Add your cookie in Settings to access.`, { showSettings: true, buttonColor: '#f59e0b' });
   }
 }
 
@@ -144,31 +141,22 @@ export default function Home() {
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
   const t = useTranslations('home');
   const tErrors = useTranslations('errors');
+  
+  // Check maintenance status
+  const { isFullMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
+  
+  // Show maintenance page if full maintenance is active
+  if (isFullMaintenance) {
+    return <MaintenanceMode message={maintenanceMessage} />;
+  }
 
-  // API URL from environment
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
-  // Unified fetch for all platforms
+  // Unified fetch for all platforms using centralized API client
   const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; platform?: string }> => {
     // Check if skip cache is enabled in settings
     const { getSkipCache } = await import('@/lib/storage');
     const skipCache = getSkipCache();
     
-    // Use AbortController with 120s timeout (backend yt-dlp has 90s timeout)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
-    
-    try {
-      const response = await fetch(`${API_URL}/api/v1/publicservices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, cookie, skipCache }),
-        signal: controller.signal,
-      });
-      return await response.json();
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return api.post('/api/v1/publicservices', { url, cookie, skipCache });
   };
 
   const handleSubmit = async (url: string) => {
@@ -217,11 +205,7 @@ export default function Home() {
           const { isConfirmed } = await Swal.fire({
             icon: 'warning',
             title: tErrors('weiboCookie.title'),
-            html: `
-              <p style="margin-bottom: 8px;">${tErrors('weiboCookie.message')}</p>
-              <p style="font-size: 12px; color: #facc15; margin-bottom: 8px;">${tErrors('weiboCookie.expired')}</p>
-              <p style="font-size: 13px; color: #a1a1aa;">${tErrors('weiboCookie.hint')}</p>
-            `,
+            text: `${tErrors('weiboCookie.message')} ${tErrors('weiboCookie.expired')} ${tErrors('weiboCookie.hint')}`,
             showCancelButton: true,
             confirmButtonText: tErrors('weiboCookie.goToSettings'),
             cancelButtonText: 'Cancel',
@@ -244,11 +228,10 @@ export default function Home() {
 
       // Check for AbortError (our timeout)
       if (error instanceof Error && error.name === 'AbortError') {
-        showError('⏱️ Request Timeout', `
-          <p style="margin-bottom: 12px; font-size: 14px;">The server is taking too long to respond.</p>
-          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">${detectedPlatform === 'youtube' ? 'YouTube extraction can be slow for some videos.' : 'This might be a temporary issue.'}</p>
-          <p style="font-size: 11px; color: #a1a1aa;">Try again - the result may be cached now.</p>
-        `, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
+        const timeoutMsg = detectedPlatform === 'youtube' 
+          ? 'The server is taking too long to respond. YouTube extraction can be slow for some videos. Try again - the result may be cached now.'
+          : 'The server is taking too long to respond. This might be a temporary issue. Try again - the result may be cached now.';
+        showError('⏱️ Request Timeout', timeoutMsg, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
         return;
       }
 
@@ -262,11 +245,10 @@ export default function Home() {
 
       // Handle YouTube extraction timeout from backend
       if (errorMsg.includes('timed out') || errorMsg.includes('timeout')) {
-        showError('⏱️ Extraction Timeout', `
-          <p style="margin-bottom: 12px; font-size: 14px;">${detectedPlatform === 'youtube' ? 'YouTube video extraction timed out.' : 'The extraction process timed out.'}</p>
-          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">Some videos take longer to process.</p>
-          <p style="font-size: 11px; color: #a1a1aa;">Try again - the result may be cached now.</p>
-        `, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
+        const extractionMsg = detectedPlatform === 'youtube' 
+          ? 'YouTube video extraction timed out. Some videos take longer to process. Try again - the result may be cached now.'
+          : 'The extraction process timed out. Some videos take longer to process. Try again - the result may be cached now.';
+        showError('⏱️ Extraction Timeout', extractionMsg, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
         return;
       }
 
@@ -275,30 +257,17 @@ export default function Home() {
         const resetMatch = errorMsg.match(/(\d+)s/);
         const resetIn = resetMatch ? parseInt(resetMatch[1]) : 60;
         
-        showError('⏳ Slow Down!', `
-          <p style="margin-bottom: 12px; font-size: 14px;">Whoops, calm down bro!</p>
-          <p style="font-size: 13px; color: #facc15; margin-bottom: 8px;">You've made too many requests.</p>
-          <p style="font-size: 16px; font-weight: bold; color: #f87171;">Please wait ${resetIn} seconds</p>
-          <p style="font-size: 11px; color: #a1a1aa; margin-top: 8px;">Rate limiting helps keep the service fast for everyone.</p>
-        `, { icon: 'warning', buttonColor: '#f59e0b' });
+        showError('⏳ Slow Down!', `Whoops, calm down bro! You've made too many requests. Please wait ${resetIn} seconds. Rate limiting helps keep the service fast for everyone.`, { icon: 'warning', buttonColor: '#f59e0b' });
         return;
       }
 
       // Handle different error types
       if (errorMsg.includes('CHECKPOINT_REQUIRED')) {
-        showError('🚫 Cookie Blocked', `
-          <p style="margin-bottom: 12px;">Facebook detected unusual activity on the admin cookie.</p>
-          <p style="font-size: 12px; color: #f87171; margin-bottom: 8px;">The account may be shadow banned or requires verification.</p>
-          <p style="font-size: 11px; color: #a1a1aa;">Try adding your own cookie in Settings, or wait for admin to update.</p>
-        `, { icon: 'warning', buttonColor: '#ef4444', showSettings: true });
+        showError('🚫 Cookie Blocked', 'Facebook detected unusual activity on the admin cookie. The account may be shadow banned or requires verification. Try adding your own cookie in Settings, or wait for admin to update.', { icon: 'warning', buttonColor: '#ef4444', showSettings: true });
       } else if (errorMsg.includes('maintenance')) {
-        showError('🔧 Under Maintenance', `
-          <p style="font-size: 14px; color: #facc15;">We're working on improvements. Check back soon!</p>
-        `, { icon: 'warning', buttonColor: '#f59e0b' });
+        showError('🔧 Under Maintenance', 'We\'re working on improvements. Check back soon!', { icon: 'warning', buttonColor: '#f59e0b' });
       } else if (errorMsg.includes('disabled') || errorMsg.includes('unavailable')) {
-        showError('⏸️ Service Paused', `
-          <p style="margin-bottom: 12px;">${displayMsg}</p>
-        `, { icon: 'info', buttonColor: '#3b82f6' });
+        showError('⏸️ Service Paused', displayMsg, { icon: 'info', buttonColor: '#3b82f6' });
       } else if (detectedPlatform === 'facebook' || detectedPlatform === 'instagram') {
         handleMetaError(errorMsg, detectedPlatform);
       } else {
@@ -318,9 +287,11 @@ export default function Home() {
 
   return (
     <SidebarLayout>
-      <Announcements page="home" />
       <div className="py-4 px-3 sm:py-6 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+          {/* Announcements */}
+          <AnnouncementBanner page="home" />
+          
           {/* Compact Hero */}
           <div className="text-center py-2 sm:py-4">
             <AnimatedTitle />
@@ -352,6 +323,9 @@ export default function Home() {
             isLoading={isLoading}
           />
 
+          {/* Compact Ad - Below Input (always visible) */}
+          <CompactAdDisplay placement="home-input" maxAds={1} />
+
           {/* Loading */}
           <AnimatePresence>
             {isLoading && <CardSkeleton />}
@@ -368,11 +342,11 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* Ad Banner */}
-          <AdBannerCard />
-
           {/* History - compact */}
           <HistoryList refreshTrigger={historyRefresh} compact />
+
+          {/* Compact Ads - Bottom of page */}
+          <CompactAdDisplay placement="home-bottom" maxAds={3} className="mt-6" />
         </div>
       </div>
     </SidebarLayout>

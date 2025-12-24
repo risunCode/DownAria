@@ -9,7 +9,7 @@ import { ThemeType, getTheme, saveTheme, savePlatformCookie, clearPlatformCookie
 import { isPushSupported, getPermissionStatus, subscribeToPush, unsubscribeFromPush, isSubscribed } from '@/lib/utils/push-notifications';
 import { FacebookIcon, WeiboIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
 import Swal from 'sweetalert2';
-import Announcements from '@/components/Announcements';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 import { DiscordWebhookSettings } from '@/components/DiscordWebhookSettings';
 import { locales, localeNames, localeFlags } from '@/i18n/config';
 import { useLocaleRefresh } from '@/components/IntlProvider';
@@ -379,9 +379,11 @@ export default function SettingsPage() {
 
     return (
         <SidebarLayout>
-            <Announcements page="settings" />
             <div className="py-6 px-4 lg:px-8">
                 <div className="max-w-3xl mx-auto">
+                    {/* Announcements */}
+                    <AnnouncementBanner page="settings" />
+                    
                     {/* Header */}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
                         <h1 className="text-2xl font-bold gradient-text mb-1">{t('title')}</h1>

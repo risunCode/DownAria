@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, createContext, useContext, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
     LayoutDashboard, Key, Settings, LogOut, 
-    ChevronLeft, Menu, Shield, Server, Users,
-    ChevronDown, X, MessageSquare, Code
+    ChevronLeft, Menu, Shield, Globe, Users,
+    ChevronDown, X, MessageSquare, Database
 } from 'lucide-react';
 import { signOut, getSession, getUserProfile, supabase } from '@/lib/supabase';
 
@@ -52,7 +52,8 @@ const NAV_ITEMS = {
         { href: '/admin/access', label: 'Access', icon: Key },
     ],
     admin: [
-        { href: '/admin/services', label: 'Services', icon: Server },
+        { href: '/admin/platforms', label: 'Platforms', icon: Globe },
+        { href: '/admin/resources', label: 'Resources', icon: Database },
         { href: '/admin/users', label: 'Users', icon: Users },
         { href: '/admin/communications', label: 'Communications', icon: MessageSquare },
         { href: '/admin/settings', label: 'Settings', icon: Settings },
@@ -76,6 +77,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [user, setUser] = useState<UserProfile | null>(null);
+    const [previousTheme, setPreviousTheme] = useState<string | null>(null);
+
+    // Force solarized theme in admin console
+    useEffect(() => {
+        // Save current theme before switching
+        const currentTheme = document.documentElement.classList.contains('theme-dark') 
+            ? 'dark' 
+            : document.documentElement.classList.contains('theme-light') 
+                ? 'light' 
+                : 'solarized';
+        
+        if (currentTheme !== 'solarized') {
+            setPreviousTheme(currentTheme);
+            // Apply solarized theme
+            document.documentElement.classList.remove('theme-light', 'theme-dark');
+            document.documentElement.classList.add('theme-solarized');
+        }
+
+        // Restore previous theme when leaving admin
+        return () => {
+            if (previousTheme && previousTheme !== 'solarized') {
+                document.documentElement.classList.remove('theme-solarized');
+                document.documentElement.classList.add(`theme-${previousTheme}`);
+            }
+        };
+    }, [previousTheme]);
 
     // Admin fetch with auth token injection
     const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {

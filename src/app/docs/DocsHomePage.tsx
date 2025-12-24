@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Rocket, Code, BookOpen, HelpCircle, ArrowRight, Zap, Shield, Globe, CheckCircle, FileText } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 
 const features = [
     { icon: Zap, title: 'Fast & Free', desc: 'No registration, no limits, instant downloads' },
@@ -34,6 +35,8 @@ export function DocsHomePage() {
             <div className="py-6 px-4 lg:px-8">
                 <div className="max-w-4xl mx-auto">
                     <DocsNavbar />
+                    {/* Announcements */}
+                    <AnnouncementBanner page="docs" />
                     <div className="space-y-6">
                     {/* Hero */}
                     <motion.div

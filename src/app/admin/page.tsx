@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-    BarChart3, Globe, Layers, CheckCircle, XCircle, RefreshCw, 
-    AlertTriangle, Key, Clock, Activity, Link2 
+    BarChart3, Layers, CheckCircle, XCircle, RefreshCw, 
+    AlertTriangle, Key, Clock, Activity, Globe, Link2
 } from 'lucide-react';
 import { StatCard, AdminCard } from '@/components/admin';
 import { useStats, getCountryFlag, PLATFORM_COLORS, useApiKeys } from '@/hooks/admin';
@@ -16,8 +16,11 @@ export default function AdminOverviewPage() {
     const { 
         stats, loading, error, refetch, 
         autoRefresh, setAutoRefresh,
-        totalDownloads, platformCount, countryCount, failedCount 
+        totalDownloads, platformCount, failedCount, successRate, uniqueUsers
     } = useStats(days);
+    
+    // Calculate country count from stats
+    const countryCount = stats?.byCountry ? Object.keys(stats.byCountry).length : 0;
     
     // Use SWR hook for API keys (cached, deduplicated)
     const { stats: apiKeyStats, refetch: refetchApiKeys } = useApiKeys();
@@ -102,8 +105,8 @@ export default function AdminOverviewPage() {
                             <StatCard
                                 icon={<CheckCircle className="w-5 h-5" />}
                                 label="Success Rate"
-                                value={`${stats.successRate.rate}%`}
-                                color={stats.successRate.rate >= 90 ? 'text-green-400' : stats.successRate.rate >= 70 ? 'text-yellow-400' : 'text-red-400'}
+                                value={`${successRate}%`}
+                                color={successRate >= 90 ? 'text-green-400' : successRate >= 70 ? 'text-yellow-400' : 'text-red-400'}
                             />
                             <StatCard
                                 icon={<XCircle className="w-5 h-5" />}
@@ -140,20 +143,23 @@ export default function AdminOverviewPage() {
                                     Downloads by Platform
                                 </h2>
                                 <div className="space-y-3">
-                                    {Object.entries(stats.platform)
-                                        .sort(([, a], [, b]) => b - a)
-                                        .map(([platform, count]) => (
+                                    {stats.byPlatform && Object.entries(stats.byPlatform)
+                                        .sort(([, a], [, b]) => b.total - a.total)
+                                        .map(([platform, data]) => (
                                             <div key={platform} className="flex items-center gap-3">
                                                 <span className="w-20 text-sm capitalize">{platform}</span>
                                                 <div className="flex-1 h-6 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
                                                     <div
                                                         className={`h-full ${PLATFORM_COLORS[platform] || 'bg-gray-500'} transition-all`}
-                                                        style={{ width: `${(count / totalDownloads) * 100}%` }}
+                                                        style={{ width: `${totalDownloads > 0 ? (data.total / totalDownloads) * 100 : 0}%` }}
                                                     />
                                                 </div>
-                                                <span className="w-16 text-right text-sm font-medium">{count}</span>
+                                                <span className="w-16 text-right text-sm font-medium">{data.total}</span>
                                             </div>
                                         ))}
+                                    {(!stats.byPlatform || Object.keys(stats.byPlatform).length === 0) && (
+                                        <p className="text-sm text-[var(--text-muted)]">No data available</p>
+                                    )}
                                 </div>
                             </AdminCard>
 
@@ -167,7 +173,7 @@ export default function AdminOverviewPage() {
                                     apiRequests={apiKeyStats.totalRequests || 0}
                                     downloads={totalDownloads}
                                     failed={failedCount}
-                                    successRate={stats.successRate.rate}
+                                    successRate={successRate}
                                 />
                             </AdminCard>
                         </div>
@@ -180,27 +186,31 @@ export default function AdminOverviewPage() {
                                     <Globe className="w-5 h-5 text-blue-400" />
                                     Downloads by Country
                                 </h2>
-                                {(() => {
-                                    const countryEntries = Object.entries(stats.country).sort(([, a], [, b]) => b - a).slice(0, 8);
-                                    const maxCountry = countryEntries.length > 0 ? countryEntries[0][1] : 1;
-                                    return (
-                                        <div className="space-y-3">
-                                            {countryEntries.map(([country, count]) => (
-                                                <div key={country} className="flex items-center gap-3">
-                                                    <span className="w-8 text-lg">{getCountryFlag(country)}</span>
-                                                    <span className="w-10 text-sm">{country}</span>
-                                                    <div className="flex-1 h-6 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-blue-500 transition-all"
-                                                            style={{ width: `${(count / maxCountry) * 100}%` }}
-                                                        />
+                                {stats.byCountry && Object.keys(stats.byCountry).length > 0 ? (
+                                    (() => {
+                                        const countryEntries = Object.entries(stats.byCountry).sort(([, a], [, b]) => b - a).slice(0, 8);
+                                        const maxCountry = countryEntries.length > 0 ? countryEntries[0][1] : 1;
+                                        return (
+                                            <div className="space-y-3">
+                                                {countryEntries.map(([country, count]) => (
+                                                    <div key={country} className="flex items-center gap-3">
+                                                        <span className="w-8 text-lg">{getCountryFlag(country)}</span>
+                                                        <span className="w-10 text-sm">{country}</span>
+                                                        <div className="flex-1 h-6 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-blue-500 transition-all"
+                                                                style={{ width: `${(count / maxCountry) * 100}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="w-16 text-right text-sm font-medium">{count}</span>
                                                     </div>
-                                                    <span className="w-16 text-right text-sm font-medium">{count}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })()}
+                                                ))}
+                                            </div>
+                                        );
+                                    })()
+                                ) : (
+                                    <p className="text-sm text-[var(--text-muted)]">No data available</p>
+                                )}
                             </AdminCard>
 
                             {/* Source Breakdown */}
@@ -209,30 +219,36 @@ export default function AdminOverviewPage() {
                                     <Link2 className="w-5 h-5 text-cyan-400" />
                                     Downloads by Source
                                 </h2>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {Object.entries(stats.source).map(([source, count]) => {
-                                        const sourceLabels: Record<string, { label: string; color: string }> = {
-                                            web: { label: '🌐 Guest (Home)', color: 'text-blue-400' },
-                                            api: { label: '🔑 API Key', color: 'text-amber-400' },
-                                            playground: { label: '🧪 Playground', color: 'text-purple-400' },
-                                        };
-                                        const info = sourceLabels[source] || { label: source, color: 'text-gray-400' };
-                                        return (
-                                            <div key={source} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-secondary)]">
-                                                <span className={`text-sm ${info.color}`}>{info.label}</span>
-                                                <span className="font-medium">{count}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="mt-3 pt-3 border-t border-[var(--border-color)] text-xs text-[var(--text-muted)]">
-                                    Total: {Object.values(stats.source).reduce((a, b) => a + b, 0)} requests
-                                </div>
+                                {stats.bySource && Object.keys(stats.bySource).length > 0 ? (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {Object.entries(stats.bySource).map(([source, count]) => {
+                                                const sourceLabels: Record<string, { label: string; color: string }> = {
+                                                    web: { label: '🌐 Guest (Home)', color: 'text-blue-400' },
+                                                    api: { label: '🔑 API Key', color: 'text-amber-400' },
+                                                    playground: { label: '🧪 Playground', color: 'text-purple-400' },
+                                                };
+                                                const info = sourceLabels[source] || { label: source, color: 'text-gray-400' };
+                                                return (
+                                                    <div key={source} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-secondary)]">
+                                                        <span className={`text-sm ${info.color}`}>{info.label}</span>
+                                                        <span className="font-medium">{count}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-[var(--border-color)] text-xs text-[var(--text-muted)]">
+                                            Total: {Object.values(stats.bySource).reduce((a, b) => a + b, 0)} requests
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-[var(--text-muted)]">No data available</p>
+                                )}
                             </AdminCard>
                         </div>
 
                         {/* Recent Errors */}
-                        {stats.recentErrors.length > 0 && (
+                        {stats.recentErrors && stats.recentErrors.length > 0 && (
                             <AdminCard>
                                 <h2 className="font-semibold mb-4 flex items-center gap-2">
                                     <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -245,12 +261,16 @@ export default function AdminOverviewPage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium capitalize">{err.platform}</span>
-                                                    <span className="text-xs text-[var(--text-muted)]">{err.error_type}</span>
+                                                    <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">{err.error_type}</span>
+                                                    <span className="text-xs text-[var(--text-muted)]">{err.error_code}</span>
                                                 </div>
                                                 <p className="text-xs text-[var(--text-muted)] truncate">{err.error_message}</p>
+                                                {err.request_url && (
+                                                    <p className="text-xs text-[var(--text-muted)] truncate opacity-60">{err.request_url}</p>
+                                                )}
                                             </div>
                                             <span className="text-xs text-[var(--text-muted)] shrink-0">
-                                                {new Date(err.created_at).toLocaleTimeString()}
+                                                {err.timestamp ? new Date(err.timestamp).toLocaleTimeString() : '-'}
                                             </span>
                                         </div>
                                     ))}

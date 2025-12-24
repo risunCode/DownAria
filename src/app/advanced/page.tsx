@@ -6,8 +6,6 @@ import { Code, Loader2, Cloud, AlertTriangle, Play, Bot } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { SidebarLayout } from '@/components/Sidebar';
-import Announcements from '@/components/Announcements';
-import { AdBannerCard } from '@/components/AdBannerCard';
 import { useTranslations } from 'next-intl';
 
 // Tab Components
@@ -25,7 +23,6 @@ export default function AdvancedPage() {
 
     return (
         <SidebarLayout>
-            <Announcements page="advanced" />
             <div className="py-6 px-4 lg:px-8 overflow-x-hidden">
                 <div className="max-w-4xl mx-auto space-y-6 overflow-hidden">
                     {/* Header */}
@@ -51,9 +48,6 @@ export default function AdvancedPage() {
                             </p>
                         </div>
                     </motion.div>
-
-                    {/* Ad Banner */}
-                    <AdBannerCard page="advanced" />
 
                     {/* Tab Navigation */}
                     <div className="flex flex-wrap gap-2">

@@ -18,6 +18,7 @@ interface StatusData {
     success: boolean;
     data: {
         maintenance: boolean;
+        maintenanceType: 'off' | 'api' | 'all' | 'full';
         maintenanceMessage: string | null;
         maintenanceContent: string | null;
         maintenanceLastUpdated: string | null;
@@ -39,6 +40,7 @@ export function useStatus() {
                 success: true,
                 data: {
                     maintenance: false,
+                    maintenanceType: 'off',
                     maintenanceMessage: null,
                     maintenanceContent: null,
                     maintenanceLastUpdated: null,
@@ -51,6 +53,7 @@ export function useStatus() {
     return {
         platforms: data?.data?.platforms || [],
         maintenance: data?.data?.maintenance || false,
+        maintenanceType: data?.data?.maintenanceType || 'off',
         maintenanceMessage: data?.data?.maintenanceMessage,
         maintenanceContent: data?.data?.maintenanceContent,
         maintenanceLastUpdated: data?.data?.maintenanceLastUpdated,

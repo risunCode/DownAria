@@ -8,6 +8,7 @@ import { PendingDownloadProvider } from "@/lib/contexts/PendingDownloadContext";
 import { IntlProvider } from "@/components/IntlProvider";
 import { StructuredData, FAQStructuredData } from "@/components/StructuredData";
 import { SkipToContent } from "@/components/ui/Accessibility";
+import { MaintenanceCheck } from "@/components/MaintenanceCheck";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -84,8 +85,10 @@ export default function RootLayout({
         <SkipToContent />
         <IntlProvider>
           <PendingDownloadProvider>
-            <ServiceWorkerRegister />
-            {children}
+            <MaintenanceCheck>
+              <ServiceWorkerRegister />
+              {children}
+            </MaintenanceCheck>
           </PendingDownloadProvider>
         </IntlProvider>
         <Analytics />

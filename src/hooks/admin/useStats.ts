@@ -3,47 +3,64 @@
 import { useState } from 'react';
 import { useAdminFetch, ADMIN_SWR_CONFIG } from './useAdminFetch';
 
-interface PlatformStats {
-    [platform: string]: number;
-}
+// ============================================================================
+// INTERFACES - Matching backend /api/admin/stats response
+// ============================================================================
 
-interface CountryStats {
-    [country: string]: number;
-}
-
-interface SourceStats {
-    [source: string]: number;
-}
-
-interface SuccessRate {
+interface PlatformStat {
     total: number;
     success: number;
-    rate: number;
+    failed: number;
+}
+
+interface Summary {
+    totalDownloads: number;
+    successfulDownloads: number;
+    failedDownloads: number;
+    uniqueUsers: number;
+    successRate: number;  // percentage (0-100)
+}
+
+interface DailyStat {
+    id: string;
+    platform: string;
+    date: string;
+    total_downloads: number;
+    successful_downloads: number;
+    failed_downloads: number;
+    unique_users: number;
+    avg_response_time_ms: number;
 }
 
 interface RecentError {
-    id: number;
+    id: string;
     platform: string;
     error_type: string;
+    error_code: string;
     error_message: string;
-    created_at: string;
+    request_url: string | null;
+    user_agent: string | null;
+    ip_address: string | null;
+    timestamp: string;
 }
 
-export interface DashboardStats {
-    period: string;
-    platform: PlatformStats;
-    country: CountryStats;
-    source: SourceStats;
-    successRate: SuccessRate;
-    dailyTrend: Record<string, number>;
+/** Stats data structure from /api/admin/stats (after adminFetcher extracts .data) */
+export interface StatsData {
+    summary: Summary;
+    byPlatform: Record<string, PlatformStat>;
+    byCountry: Record<string, number>;
+    bySource: Record<string, number>;
     recentErrors: RecentError[];
+    errorsByCode: Record<string, number>;
+    dailyStats: DailyStat[];
 }
 
 export function useStats(days: number = 7) {
     const [autoRefresh, setAutoRefresh] = useState(false);
     
     // Use SWR with conditional auto-refresh
-    const { data, loading, error, refetch } = useAdminFetch<DashboardStats>(
+    // Note: adminFetcher already extracts .data from response
+    const { data: stats, loading, error, refetch } = useAdminFetch<StatsData>(
         `/api/admin/stats?days=${days}`,
         {
             ...ADMIN_SWR_CONFIG.default,
@@ -54,14 +71,15 @@ export function useStats(days: number = 7) {
         }
     );
 
-    // Computed stats
-    const totalDownloads = data ? Object.values(data.platform).reduce((a, b) => a + b, 0) : 0;
-    const platformCount = data ? Object.keys(data.platform).length : 0;
-    const countryCount = data ? Object.keys(data.country).length : 0;
-    const failedCount = data ? data.successRate.total - data.successRate.success : 0;
+    // Computed stats - with null checks
+    const totalDownloads = stats?.summary?.totalDownloads ?? 0;
+    const platformCount = stats?.byPlatform ? Object.keys(stats.byPlatform).length : 0;
+    const failedCount = stats?.summary?.failedDownloads ?? 0;
+    const successRate = stats?.summary?.successRate ?? 0;
+    const uniqueUsers = stats?.summary?.uniqueUsers ?? 0;
 
     return {
-        stats: data,
+        stats,
         loading,
         error,
         refetch,
@@ -70,8 +88,9 @@ export function useStats(days: number = 7) {
         // Computed
         totalDownloads,
         platformCount,
-        countryCount,
         failedCount,
+        successRate,
+        uniqueUsers,
     };
 }
 

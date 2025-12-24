@@ -7,7 +7,6 @@ import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { LightbulbIcon, PlatformIcon } from '@/components/ui/Icons';
-import { AdBannerCompact } from '@/components/AdBannerCompact';
 import { PlatformId, PLATFORMS } from '@/lib/types';
 import { validateUrl, detectPlatform, sanitizeUrl } from '@/lib/utils/format';
 
@@ -39,7 +38,8 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
     const [progress, setProgress] = useState(0);
     const [progressText, setProgressText] = useState('');
     const [elapsedMs, setElapsedMs] = useState(0);
-    const lastSubmittedUrl = useRef<string>('');
+    const lastSubmission = useRef<{ url: string; timestamp: number } | null>(null);
+    const MIN_RESUBMIT_INTERVAL = 5000; // 5 seconds cooldown
     const progressInterval = useRef<NodeJS.Timeout | null>(null);
     const elapsedInterval = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number>(0);
@@ -125,8 +125,11 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             const detected = detectPlatform(url);
             if (detected) {
                 if (detected !== platform) onPlatformChange(detected);
-                if (validateUrl(url, detected) && lastSubmittedUrl.current !== url) {
-                    lastSubmittedUrl.current = url;
+                if (validateUrl(url, detected) && 
+                    (!lastSubmission.current || 
+                     lastSubmission.current.url !== url || 
+                     Date.now() - lastSubmission.current.timestamp >= MIN_RESUBMIT_INTERVAL)) {
+                    lastSubmission.current = { url, timestamp: Date.now() };
                     const timer = setTimeout(() => onSubmit(url), 300);
                     return () => clearTimeout(timer);
                 }
@@ -169,8 +172,8 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             setJustPasted(true);
             setTimeout(() => setJustPasted(false), 1500);
             setError('');
-            // Reset lastSubmittedUrl to allow re-submit
-            lastSubmittedUrl.current = '';
+            // Reset lastSubmission to allow re-submit
+            lastSubmission.current = null;
             const detected = detectPlatform(cleanUrl);
             if (detected && detected !== platform) onPlatformChange(detected);
             return true;
@@ -192,8 +195,8 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     setJustPasted(true);
                     setTimeout(() => setJustPasted(false), 1500);
                     setError('');
-                    // Reset lastSubmittedUrl to allow re-submit of same URL
-                    lastSubmittedUrl.current = '';
+                    // Reset lastSubmission to allow re-submit of same URL
+                    lastSubmission.current = null;
                     const detected = detectPlatform(cleanUrl);
                     if (detected && detected !== platform) onPlatformChange(detected);
                     return;
@@ -358,15 +361,6 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     </motion.div>
                 )}
 
-                {/* Ad slot - shows when loading or has preview */}
-                {(isLoading || url) && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                    >
-                        <AdBannerCompact />
-                    </motion.div>
-                )}
 
 
                 </div>

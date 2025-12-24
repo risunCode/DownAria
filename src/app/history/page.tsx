@@ -2,8 +2,7 @@
 
 import { SidebarLayout } from '@/components/Sidebar';
 import { HistoryList } from '@/components/HistoryList';
-import Announcements from '@/components/Announcements';
-import { AdBannerCard } from '@/components/AdBannerCard';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 import { motion } from 'framer-motion';
 import { Shield, HardDrive } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -13,9 +12,11 @@ export default function HistoryPage() {
     
     return (
         <SidebarLayout>
-            <Announcements page="history" />
             <div className="py-8 px-6 lg:px-12">
                 <div className="max-w-4xl mx-auto">
+                    {/* Announcements */}
+                    <AnnouncementBanner page="history" />
+                    
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -50,9 +51,6 @@ export default function HistoryPage() {
                                 </p>
                             </div>
                         </motion.div>
-
-                        {/* Ad Banner */}
-                        <AdBannerCard page="history" />
 
                         <HistoryList />
                     </motion.div>

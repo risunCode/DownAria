@@ -7,9 +7,6 @@
 // Status & Platform
 export { useStatus } from './useStatus';
 
-// Announcements
-export { useAnnouncements } from './useAnnouncements';
-
 // Cookie Status (for settings page)
 export { useCookieStatus } from './useCookieStatus';
 

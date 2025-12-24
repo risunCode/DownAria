@@ -95,13 +95,23 @@ function AuthContent() {
             // Check special referral codes first (admin codes)
             const { data: specialRef } = await supabase
                 .from('special_referrals')
-                .select('code, role_grant')
+                .select('code, role, max_uses, current_uses, is_active, expires_at')
                 .eq('code', referralCode)
-                .is('used_by', null)
+                .eq('is_active', true)
                 .single();
             
             if (specialRef) {
-                setVerifiedRole(specialRef.role_grant);
+                // Check if not expired
+                if (specialRef.expires_at && new Date(specialRef.expires_at) < new Date()) {
+                    setError('Referral code has expired');
+                    return;
+                }
+                // Check if not exhausted
+                if (specialRef.max_uses && specialRef.current_uses >= specialRef.max_uses) {
+                    setError('Referral code has reached max uses');
+                    return;
+                }
+                setVerifiedRole(specialRef.role);
                 setReferrerName(null);
                 setRegisterStep('details');
                 return;
@@ -193,12 +203,35 @@ function AuthContent() {
                 if (result.error) {
                     setError(result.error.message || 'Registration failed');
                 } else if (result.data?.user && supabase) {
+                    // Process referral - increment usage for special referrals
                     if (referralCode) {
                         try {
-                            await supabase.rpc('process_referral', {
-                                user_id: result.data.user.id,
-                                ref_code: referralCode
-                            });
+                            // Check if it's a special referral and increment usage
+                            const { data: specialRef } = await supabase
+                                .from('special_referrals')
+                                .select('id, role')
+                                .eq('code', referralCode)
+                                .eq('is_active', true)
+                                .single();
+                            
+                            if (specialRef) {
+                                // Increment current_uses using RPC
+                                await supabase.rpc('increment_referral_uses', { referral_id: specialRef.id });
+                                
+                                // Update user role if admin
+                                if (specialRef.role === 'admin') {
+                                    await supabase
+                                        .from('users')
+                                        .update({ role: 'admin' })
+                                        .eq('id', result.data.user.id);
+                                }
+                            } else {
+                                // Normal user referral - increment referrer's total_referrals
+                                await supabase
+                                    .from('users')
+                                    .update({ referred_by: referralCode })
+                                    .eq('id', result.data.user.id);
+                            }
                         } catch {
                             // Referral processing failed silently
                         }

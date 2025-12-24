@@ -80,7 +80,7 @@ function MentionDropdown({
   onClose 
 }: { 
   username: string; 
-  position: { top: number; left: number; openUp?: boolean }; 
+  position: { top: number; left: number; openUp?: boolean; openLeft?: boolean }; 
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -131,7 +131,8 @@ function MentionDropdown({
         position: 'fixed',
         top: position.openUp ? 'auto' : position.top, 
         bottom: position.openUp ? `${window.innerHeight - position.top + 4}px` : 'auto',
-        left: position.left,
+        left: position.openLeft ? 'auto' : position.left,
+        right: position.openLeft ? `${window.innerWidth - position.left}px` : 'auto',
         zIndex: 99999,
         minWidth: '180px',
         backgroundColor: 'var(--bg-card)',
@@ -185,7 +186,7 @@ function MentionDropdown({
 // Separate component for mention to handle its own state
 function MentionLink({ username, content }: { username: string; content: string }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, openUp: false });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, openUp: false, openLeft: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   
   const handleClick = (e: React.MouseEvent) => {
@@ -195,13 +196,17 @@ function MentionLink({ username, content }: { username: string; content: string 
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const menuHeight = 280; // approximate dropdown height
+      const menuWidth = 200; // approximate dropdown width
       const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceRight = window.innerWidth - rect.left;
       const openUp = spaceBelow < menuHeight;
+      const openLeft = spaceRight < menuWidth;
       
       setMenuPos({
         top: openUp ? rect.top : rect.bottom + 4,
-        left: rect.left,
+        left: openLeft ? rect.right : rect.left,
         openUp,
+        openLeft,
       });
     }
     setShowMenu(!showMenu);
@@ -236,7 +241,7 @@ function HashtagDropdown({
   onClose 
 }: { 
   hashtag: string; 
-  position: { top: number; left: number; openUp?: boolean }; 
+  position: { top: number; left: number; openUp?: boolean; openLeft?: boolean }; 
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -286,7 +291,8 @@ function HashtagDropdown({
         position: 'fixed',
         top: position.openUp ? 'auto' : position.top, 
         bottom: position.openUp ? `${window.innerHeight - position.top + 4}px` : 'auto',
-        left: position.left,
+        left: position.openLeft ? 'auto' : position.left,
+        right: position.openLeft ? `${window.innerWidth - position.left}px` : 'auto',
         zIndex: 99999,
         minWidth: '180px',
         backgroundColor: 'var(--bg-card)',
@@ -340,7 +346,7 @@ function HashtagDropdown({
 // Separate component for hashtag to handle its own state
 function HashtagLink({ hashtag, content }: { hashtag: string; content: string }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, openUp: false });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, openUp: false, openLeft: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   
   const handleClick = (e: React.MouseEvent) => {
@@ -350,13 +356,17 @@ function HashtagLink({ hashtag, content }: { hashtag: string; content: string })
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const menuHeight = 280;
+      const menuWidth = 200; // approximate dropdown width
       const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceRight = window.innerWidth - rect.left;
       const openUp = spaceBelow < menuHeight;
+      const openLeft = spaceRight < menuWidth;
       
       setMenuPos({
         top: openUp ? rect.top : rect.bottom + 4,
-        left: rect.left,
+        left: openLeft ? rect.right : rect.left,
         openUp,
+        openLeft,
       });
     }
     setShowMenu(!showMenu);

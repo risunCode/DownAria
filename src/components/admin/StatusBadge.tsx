@@ -1,6 +1,6 @@
 'use client';
 
-type Status = 'active' | 'inactive' | 'on' | 'off' | 'healthy' | 'cooldown' | 'expired' | 'disabled' | 'warning' | 'error' | 'success' | 'info';
+type Status = 'active' | 'inactive' | 'on' | 'off' | 'healthy' | 'cooldown' | 'expired' | 'disabled' | 'warning' | 'error' | 'success' | 'info' | 'banned' | 'frozen';
 
 interface StatusBadgeProps {
     status: Status;
@@ -20,7 +20,9 @@ const STATUS_CONFIG: Record<Status, { bg: string; text: string; dot: string; def
     cooldown: { bg: 'bg-yellow-500/15', text: 'text-yellow-400', dot: 'bg-yellow-400', defaultLabel: 'Cooldown' },
     error: { bg: 'bg-red-500/15', text: 'text-red-400', dot: 'bg-red-400', defaultLabel: 'Error' },
     expired: { bg: 'bg-red-500/15', text: 'text-red-400', dot: 'bg-red-400', defaultLabel: 'Expired' },
+    banned: { bg: 'bg-red-600/15', text: 'text-red-500', dot: 'bg-red-500', defaultLabel: 'Banned' },
     info: { bg: 'bg-blue-500/15', text: 'text-blue-400', dot: 'bg-blue-400', defaultLabel: 'Info' },
+    frozen: { bg: 'bg-blue-500/15', text: 'text-blue-400', dot: 'bg-blue-400', defaultLabel: 'Frozen' },
 };
 
 export function StatusBadge({ status, label, size = 'sm' }: StatusBadgeProps) {

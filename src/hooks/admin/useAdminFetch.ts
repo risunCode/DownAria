@@ -188,7 +188,7 @@ interface UseAdminFetchResult<T> {
     isServerOffline: boolean;
     userErrorMessage: string | null;
     refetch: () => Promise<T | undefined>;
-    mutate: (method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown) => Promise<{ success: boolean; data?: unknown; error?: string }>;
+    mutate: (method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown, customUrl?: string) => Promise<{ success: boolean; data?: unknown; error?: string }>;
 }
 
 export function useAdminFetch<T>(
@@ -218,12 +218,14 @@ export function useAdminFetch<T>(
     // Manual mutation for POST/PUT/PATCH/DELETE
     const mutate = useCallback(async (
         method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', 
-        body?: unknown
+        body?: unknown,
+        customUrl?: string
     ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
-        if (!url) return { success: false, error: 'No URL' };
+        const targetUrl = customUrl || url;
+        if (!targetUrl) return { success: false, error: 'No URL' };
         
         try {
-            const res = await fetch(buildAdminUrl(url), {
+            const res = await fetch(buildAdminUrl(targetUrl), {
                 method,
                 headers: getAdminHeaders(),
                 body: body ? JSON.stringify(body) : undefined,

@@ -4,13 +4,19 @@ import { useState, useCallback } from 'react';
 import { useAdminFetch } from './useAdminFetch';
 import Swal from 'sweetalert2';
 
+import type { ApiKeyType } from '@/lib/types';
+
 export interface ApiKey {
     id: string;
+    userId?: string;          // user_id from schema
     name: string;
-    key: string;
+    key: string;              // Display key (preview)
+    keyHash?: string;         // NEW: key_hash from schema
+    keyPreview?: string;      // NEW: key_preview from schema
+    keyType: ApiKeyType;      // 'public' | 'private'
     enabled: boolean;
     rateLimit: number;
-    created: string;
+    createdAt: string;        // RENAMED: was 'created', now 'createdAt' for consistency
     lastUsed: string | null;
     expiresAt: string | null;
     stats: {
@@ -21,6 +27,7 @@ export interface ApiKey {
 }
 
 export interface CreateKeyOptions {
+    keyType?: ApiKeyType;  // NEW: 'public' | 'private'
     rateLimit?: number;
     validityDays?: number | null;
     isTest?: boolean;

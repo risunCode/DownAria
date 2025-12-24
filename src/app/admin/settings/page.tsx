@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Settings, Shield, Database, Globe, Save, RefreshCw, Webhook, 
-    ExternalLink, Bell, Lock, AlertTriangle, ChevronDown, Trash2, Bot, Plus, Key
+    ExternalLink, Bell, Lock, AlertTriangle, ChevronDown, Trash2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import AdminGuard from '@/components/AdminGuard';
-import { useSettings, useAlerts, useGeminiKeys, useServices } from '@/hooks/admin';
+import { useSettings, useAlerts } from '@/hooks/admin';
 
 interface GlobalSettings {
     site_name: string;
@@ -436,9 +436,6 @@ function SettingsContent() {
                     </SettingsCard>
                 </div>
 
-                {/* Gemini API Keys - Full Width */}
-                <GeminiKeysCard />
-
                 {/* Danger Zone - Full Width, Collapsible */}
                 <SettingsCard icon={Shield} title="Danger Zone" color="text-red-400" collapsible defaultOpen={false}>
                     <p className="text-xs text-[var(--text-muted)]">
@@ -646,224 +643,6 @@ function AdminAlertsCard() {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </div>
-        </motion.div>
-    );
-}
-
-// Gemini API Keys Card Component
-function GeminiKeysCard() {
-    const { keys, stats, loading, saving, addKey, toggleKey, deleteKey } = useGeminiKeys();
-    const { config, updateGlobal } = useServices();
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newKey, setNewKey] = useState('');
-    const [newLabel, setNewLabel] = useState('');
-    const [localRateLimit, setLocalRateLimit] = useState(60);
-    const [localRateWindow, setLocalRateWindow] = useState(1);
-
-    // Sync with config
-    useEffect(() => {
-        if (config) {
-            setLocalRateLimit(config.geminiRateLimit ?? 60);
-            setLocalRateWindow(config.geminiRateWindow ?? 1);
-        }
-    }, [config]);
-
-    const handleAdd = async () => {
-        if (!newKey.trim() || !newLabel.trim()) return;
-        const success = await addKey(newKey.trim(), newLabel.trim());
-        if (success) {
-            setNewKey('');
-            setNewLabel('');
-            setShowAddForm(false);
-        }
-    };
-
-    const handleSaveRateLimit = async () => {
-        await updateGlobal({ geminiRateLimit: localRateLimit, geminiRateWindow: localRateWindow });
-    };
-
-    if (loading) {
-        return (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card overflow-hidden">
-                <div className="flex items-center gap-2 p-4 border-b border-[var(--border-color)]">
-                    <Bot className="w-4 h-4 text-emerald-400" />
-                    <h2 className="font-semibold text-sm">Gemini API Keys</h2>
-                </div>
-                <div className="p-4 h-32 flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 animate-spin text-[var(--accent-primary)]" />
-                </div>
-            </motion.div>
-        );
-    }
-
-    return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
-                <div className="flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-emerald-400" />
-                    <h2 className="font-semibold text-sm">Gemini API Keys</h2>
-                    <span className="text-xs text-[var(--text-muted)]">({stats.enabled}/{stats.total} active)</span>
-                </div>
-                <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--accent-primary)]"
-                >
-                    <Plus className="w-4 h-4" />
-                </button>
-            </div>
-            <div className="p-4 space-y-3">
-                <p className="text-xs text-[var(--text-muted)]">
-                    API keys for AI Chat feature. Keys are rotated automatically with rate limit handling.
-                </p>
-
-                {/* Rate Limit Settings */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] space-y-2">
-                    <p className="text-xs font-medium flex items-center gap-1">
-                        <RefreshCw className="w-3 h-3" /> Rate Limit Settings
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="block text-[10px] text-[var(--text-muted)] mb-1">Requests</label>
-                            <input
-                                type="number"
-                                value={localRateLimit}
-                                onChange={e => setLocalRateLimit(parseInt(e.target.value) || 60)}
-                                min={1}
-                                max={1000}
-                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] text-[var(--text-muted)] mb-1">Per (minutes)</label>
-                            <input
-                                type="number"
-                                value={localRateWindow}
-                                onChange={e => setLocalRateWindow(parseInt(e.target.value) || 1)}
-                                min={1}
-                                max={60}
-                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <p className="text-[10px] text-[var(--text-muted)]">
-                            {localRateLimit} requests per {localRateWindow} min
-                        </p>
-                        <button
-                            onClick={handleSaveRateLimit}
-                            disabled={(config?.geminiRateLimit === localRateLimit && config?.geminiRateWindow === localRateWindow)}
-                            className="px-2 py-1 rounded text-xs bg-[var(--accent-primary)] text-white disabled:opacity-50"
-                        >
-                            Save
-                        </button>
-                    </div>
-                </div>
-
-                {/* Stats */}
-                <div className="flex gap-4 text-xs">
-                    <span className="text-[var(--text-muted)]">Total Uses: <span className="text-[var(--text-primary)] font-medium">{stats.totalUses.toLocaleString()}</span></span>
-                    <span className="text-[var(--text-muted)]">Errors: <span className="text-red-400 font-medium">{stats.totalErrors}</span></span>
-                </div>
-
-                {/* Add Form */}
-                <AnimatePresence>
-                    {showAddForm && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-3 rounded-lg bg-[var(--bg-secondary)] space-y-2">
-                                <input
-                                    type="text"
-                                    value={newLabel}
-                                    onChange={e => setNewLabel(e.target.value)}
-                                    placeholder="Label (e.g. Key 1)"
-                                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
-                                />
-                                <input
-                                    type="password"
-                                    value={newKey}
-                                    onChange={e => setNewKey(e.target.value)}
-                                    placeholder="API Key (AIza...)"
-                                    className="w-full px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm font-mono"
-                                />
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleAdd}
-                                        disabled={!newKey.trim() || !newLabel.trim() || saving === 'add'}
-                                        className="flex-1 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium disabled:opacity-50"
-                                    >
-                                        {saving === 'add' ? 'Adding...' : 'Add Key'}
-                                    </button>
-                                    <button
-                                        onClick={() => { setShowAddForm(false); setNewKey(''); setNewLabel(''); }}
-                                        className="px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Keys List */}
-                {keys.length === 0 ? (
-                    <div className="text-center py-6 text-[var(--text-muted)] text-sm">
-                        <Key className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p>No API keys configured</p>
-                        <p className="text-xs mt-1">Add a Gemini API key to enable AI Chat</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {keys.map(key => {
-                            const isRateLimited = key.rate_limit_reset && new Date(key.rate_limit_reset) > new Date();
-                            const resetTime = key.rate_limit_reset ? new Date(key.rate_limit_reset) : null;
-                            
-                            return (
-                                <div key={key.id} className={`flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] ${isRateLimited ? 'border border-amber-500/30' : ''}`}>
-                                    <button
-                                        onClick={() => toggleKey(key.id, !key.enabled)}
-                                        disabled={saving === key.id}
-                                        className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${key.enabled ? (isRateLimited ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-gray-600'}`}
-                                    >
-                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${key.enabled ? 'left-4' : 'left-0.5'}`} />
-                                    </button>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium truncate">{key.label}</p>
-                                            {isRateLimited && (
-                                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-400 font-medium">
-                                                    RATE LIMITED
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] text-[var(--text-muted)] font-mono">{key.keyPreview}</p>
-                                        {isRateLimited && resetTime && (
-                                            <p className="text-[10px] text-amber-400">
-                                                Resets: {resetTime.toLocaleTimeString()}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="text-right text-[10px] text-[var(--text-muted)] flex-shrink-0">
-                                        <p>{key.use_count} uses</p>
-                                        {key.error_count > 0 && <p className="text-red-400">{key.error_count} errors</p>}
-                                    </div>
-                                    <button
-                                        onClick={() => deleteKey(key.id, key.label)}
-                                        disabled={saving === key.id}
-                                        className="p-1.5 rounded hover:bg-red-500/20 text-red-400 flex-shrink-0"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
             </div>
         </motion.div>
     );
