@@ -293,7 +293,7 @@ export default function AccessPage() {
                                                                         )}
                                                                     </div>
                                                                     <div className="text-[10px] text-[var(--text-muted)]">
-                                                                        {formatDate(apiKey.created)}
+                                                                        {formatDate(apiKey.createdAt)}
                                                                         {apiKey.expiresAt && (
                                                                             <span className={isExpired(apiKey.expiresAt) ? 'text-red-400 ml-1' : 'text-yellow-400 ml-1'}>
                                                                                 • {isExpired(apiKey.expiresAt) ? 'Expired' : `Exp ${formatDate(apiKey.expiresAt)}`}
