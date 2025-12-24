@@ -11,6 +11,7 @@ All notable changes to XTFetch will be documented in this file.
 - **Bridge Secret Key** - Secure server-to-server authentication
 - **Origin Whitelist** - Block unauthorized direct API access
 - **YouTube Merge Queue** - Concurrency control (max 2 concurrent, per-IP rate limit)
+- **YouTube Preview Info** - "Preview tanpa suara, Suara akan digabung saat anda mulai mendownload!"
 
 ### 🔧 What's Improved
 - **Error Handling** - Proper error codes (`PRIVATE_CONTENT`, `COOKIE_REQUIRED`, etc.) instead of generic messages

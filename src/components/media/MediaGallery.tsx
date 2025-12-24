@@ -452,9 +452,9 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
                   </div>
                 )}
               </div>
-              {/* Audio Element - YouTube direct, others proxied */}
+              {/* Audio Element - All platforms proxied */}
               <audio
-                src={platform === 'youtube' ? selectedFormat.url : getProxyUrl(selectedFormat.url, { platform, inline: true })}
+                src={getProxyUrl(selectedFormat.url, { platform, inline: true })}
                 className="w-full"
                 controls
                 autoPlay

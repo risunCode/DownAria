@@ -64,6 +64,7 @@ function ChangelogSection() {
                             <li>• <strong>Bridge Secret Key</strong> - Secure server-to-server authentication</li>
                             <li>• <strong>Origin Whitelist</strong> - Block unauthorized direct API access</li>
                             <li>• <strong>YouTube Merge Queue</strong> - Concurrency control for HD merging</li>
+                            <li>• <strong>YouTube Preview</strong> - Info &quot;Preview tanpa suara, suara digabung saat download&quot;</li>
                         </ul>
                     </div>
 
