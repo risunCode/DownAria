@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import { ApiOverviewPage } from '@/app/docs/api/ApiOverviewPage';
 
 export const metadata: Metadata = {
-    title: 'API Overview - XTFetch Docs',
-    description: 'XTFetch API overview. Learn how to integrate video downloading into your applications with our simple REST API.',
-    keywords: ['XTFetch API', 'video download API', 'social media API', 'REST API'],
+    title: 'API Overview - DownAria Docs',
+    description: 'DownAria API overview. Learn how to integrate video downloading into your applications with our simple REST API.',
+    keywords: ['DownAria API', 'video download API', 'social media API', 'REST API'],
     openGraph: {
-        title: 'API Overview - XTFetch',
-        description: 'Integrate video downloading into your apps with XTFetch API',
+        title: 'API Overview - DownAria',
+        description: 'Integrate video downloading into your apps with DownAria API',
     },
 };
 
