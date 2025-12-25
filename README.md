@@ -1,4 +1,4 @@
-# 🚀 XTFetch
+# 🎵 DownAria
 
 **Social Media Video Downloader** — Free, fast, and easy-to-use tool for downloading videos from social media. No registration, no limits, no BS.
 
@@ -103,8 +103,8 @@
 
 ```bash
 # Clone
-git clone https://github.com/niceplugin/xt-fetch.git
-cd xt-fetch
+git clone https://github.com/risunCode/DownAria.git
+cd DownAria
 
 # Install
 npm install
@@ -141,7 +141,7 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 ## ⚡ Performance Optimizations
 
-XTFetch is optimized for minimal API calls and fast response times.
+DownAria is optimized for minimal API calls and fast response times.
 
 ### Client-Side Caching (SWR)
 All data fetching uses [SWR](https://swr.vercel.app/) with smart caching:
@@ -188,13 +188,13 @@ API routes include `Cache-Control` headers for CDN/browser caching:
 | 🛡️ **Admin Auth** | JWT-based authentication for admin panel |
 | ⏱️ **Rate Limiting** | Per-endpoint and per-key limits |
 | 🔍 **Input Validation** | XSS/SQLi pattern detection |
-| � **SaSRF Protection** | Proxy whitelist for allowed domains |
+| 🛡️ **SSRF Protection** | Proxy whitelist for allowed domains |
 | 📝 **Audit Logging** | Track admin actions |
 | 🔒 **RLS** | Row Level Security on all tables |
 
 ---
 
-## �️ Andmin Panel
+## 🛠️ Admin Panel
 
 Access admin panel at `/auth` (requires login).
 
@@ -237,7 +237,7 @@ Run these SQL files in Supabase SQL Editor:
 
 ---
 
-## � Thtemes
+## 🎨 Themes
 
 | Theme | Description |
 |-------|-------------|
@@ -246,7 +246,6 @@ Run these SQL files in Supabase SQL Editor:
 | 🌅 **Solarized** | Warm cream (default) |
 
 ---
- 
 
 **How to get cookies:**
 1. Install "Cookie Editor" browser extension
@@ -259,7 +258,7 @@ Run these SQL files in Supabase SQL Editor:
 ## 🌐 Deployment
 
 ### Vercel (Recommended)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/niceplugin/xt-fetch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/risunCode/DownAria)
 
 ### Manual
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.

@@ -3,9 +3,9 @@ export function StructuredData() {
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
-        name: 'XTFetch',
+        name: 'DownAria',
         description: 'Free social media video downloader for Facebook, Instagram, TikTok, Twitter/X, and Weibo. No watermark, no registration required.',
-        url: process.env.NEXT_PUBLIC_BASE_URL || 'https://xtfetch.vercel.app',
+        url: process.env.NEXT_PUBLIC_BASE_URL || 'https://downaria.vercel.app',
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
         offers: {
@@ -54,18 +54,18 @@ export function FAQStructuredData() {
         mainEntity: [
             {
                 '@type': 'Question',
-                name: 'Is XTFetch free to use?',
+                name: 'Is DownAria free to use?',
                 acceptedAnswer: {
                     '@type': 'Answer',
-                    text: 'Yes, XTFetch is completely free to use. No registration or payment required.',
+                    text: 'Yes, DownAria is completely free to use. No registration or payment required.',
                 },
             },
             {
                 '@type': 'Question',
-                name: 'Which platforms does XTFetch support?',
+                name: 'Which platforms does DownAria support?',
                 acceptedAnswer: {
                     '@type': 'Answer',
-                    text: 'XTFetch supports Facebook, Instagram, TikTok, Twitter/X, and Weibo video downloads.',
+                    text: 'DownAria supports Facebook, Instagram, TikTok, Twitter/X, and Weibo video downloads.',
                 },
             },
             {
@@ -73,7 +73,7 @@ export function FAQStructuredData() {
                 name: 'Can I download videos without watermark?',
                 acceptedAnswer: {
                     '@type': 'Answer',
-                    text: 'Yes, XTFetch provides watermark-free downloads when available from the source platform.',
+                    text: 'Yes, DownAria provides watermark-free downloads when available from the source platform.',
                 },
             },
             {
@@ -81,7 +81,7 @@ export function FAQStructuredData() {
                 name: 'Do I need to install anything?',
                 acceptedAnswer: {
                     '@type': 'Answer',
-                    text: 'No installation required. XTFetch works directly in your browser. You can also install it as a PWA for offline access.',
+                    text: 'No installation required. DownAria works directly in your browser. You can also install it as a PWA for offline access.',
                 },
             },
         ],

@@ -2,7 +2,7 @@
 
 export { useAdminFetch, ADMIN_SWR_CONFIG, getAuthToken, buildAdminUrl, getAdminHeaders, AdminApiError } from './useAdminFetch';
 export { useServices } from './useServices';
-export { useCookies, useCookieStats, type CookiePoolStats, type PooledCookie } from './useCookies';
+export { useCookies, useCookieStats, type CookiePoolStats, type PooledCookie, type CookieTier } from './useCookies';
 export { useUserAgents, useUserAgentStats, type UserAgentPoolStats, type PooledUserAgent } from './useUserAgents';
 export { useBrowserProfiles, PLATFORM_OPTIONS, BROWSER_OPTIONS, DEVICE_OPTIONS, OS_OPTIONS, type BrowserProfile, type BrowserProfileStats, type BrowserProfileTotals, type CreateProfileInput } from './useBrowserProfiles';
 export { useApiKeys, type ApiKey, type CreateKeyOptions } from './useApiKeys';

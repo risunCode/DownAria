@@ -227,6 +227,7 @@ export default function AdminOverviewPage() {
                                                     web: { label: '🌐 Guest (Home)', color: 'text-blue-400' },
                                                     api: { label: '🔑 API Key', color: 'text-amber-400' },
                                                     playground: { label: '🧪 Playground', color: 'text-purple-400' },
+                                                    telegram: { label: '🤖 Telegram Bot', color: 'text-cyan-400' },
                                                 };
                                                 const info = sourceLabels[source] || { label: source, color: 'text-gray-400' };
                                                 return (

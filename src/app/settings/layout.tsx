@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Settings | XTFetch - Customize Your Experience",
-    description: "Configure XTFetch settings - themes, cookies, storage, and integrations. Personalize your social media downloader experience.",
+    title: "Settings | DownAria - Customize Your Experience",
+    description: "Configure DownAria settings - themes, cookies, storage, and integrations. Personalize your social media downloader experience.",
     openGraph: {
-        title: "Settings | XTFetch",
-        description: "Configure your XTFetch settings and preferences.",
+        title: "Settings | DownAria",
+        description: "Configure your DownAria settings and preferences.",
     },
 };
 

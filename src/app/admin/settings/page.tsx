@@ -29,7 +29,7 @@ interface GlobalSettings {
 }
 
 const DEFAULT_SETTINGS: GlobalSettings = {
-    site_name: 'XTFetch',
+    site_name: 'DownAria',
     site_description: 'Social Media Video Downloader',
     discord_invite: '',
     telegram_channel: '',

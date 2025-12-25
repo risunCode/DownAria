@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Code, Loader2, Cloud, AlertTriangle, Play, Bot } from 'lucide-react';
+import { Code, Loader2, AlertTriangle, Play, Bot } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { SidebarLayout } from '@/components/Sidebar';
@@ -11,11 +11,10 @@ import { useTranslations } from 'next-intl';
 // Tab Components
 import { ApiPlaygroundTab } from './components/ApiPlaygroundTab';
 import { FacebookHtmlTab } from './components/FacebookHtmlTab';
-import { DirectProxyTab } from './components/DirectProxyTab';
 import { AIChatTab } from './components/AIChatTab';
 import { YouTubeSandboxTab } from './components/YouTubeSandboxTab';
 
-type TabType = 'playground' | 'facebook-html' | 'proxy' | 'ai-chat' | 'youtube-sandbox';
+type TabType = 'playground' | 'facebook-html' | 'ai-chat' | 'youtube-sandbox';
 
 export default function AdvancedPage() {
     const [activeTab, setActiveTab] = useState<TabType>('playground');
@@ -70,12 +69,6 @@ export default function AdvancedPage() {
                             label={t('tabs.fbHtml')} 
                         />
                         <TabButton 
-                            active={activeTab === 'proxy'} 
-                            onClick={() => setActiveTab('proxy')} 
-                            icon={<Cloud className="w-4 h-4" />} 
-                            label={t('tabs.proxy')} 
-                        />
-                        <TabButton 
                             active={activeTab === 'youtube-sandbox'} 
                             onClick={() => setActiveTab('youtube-sandbox')} 
                             icon={<FontAwesomeIcon icon={faYoutube} className="w-4 h-4" />} 
@@ -97,7 +90,6 @@ export default function AdvancedPage() {
                                     <FacebookHtmlTab />
                                 </Suspense>
                             )}
-                            {activeTab === 'proxy' && <DirectProxyTab />}
                             {activeTab === 'ai-chat' && <AIChatTab />}
                             {activeTab === 'youtube-sandbox' && <YouTubeSandboxTab />}
                         </motion.div>

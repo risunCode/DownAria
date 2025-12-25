@@ -12,7 +12,7 @@ import { CardSkeleton } from '@/components/ui/Card';
 import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
 import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
-import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
+import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -56,7 +56,7 @@ function ShareContent() {
 
     if (extractedUrl) {
       setSharedUrl(extractedUrl);
-      const detected = detectPlatform(extractedUrl);
+      const detected = platformDetect(extractedUrl);
       if (detected) {
         setPlatform(detected);
       }
@@ -76,7 +76,7 @@ function ShareContent() {
     setMediaData(null);
 
     const sanitizedUrl = sanitizeUrl(url);
-    const detectedPlatform = detectPlatform(sanitizedUrl) || platform;
+    const detectedPlatform = platformDetect(sanitizedUrl) || platform;
 
     if (detectedPlatform !== platform) {
       setPlatform(detectedPlatform);

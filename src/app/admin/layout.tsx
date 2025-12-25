@@ -252,7 +252,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </button>
                         <Link href="/admin" className="flex items-center gap-2">
                             <Shield className="w-5 h-5 text-[var(--accent-primary)]" />
-                            <span className="font-bold text-sm">XTFetch Admin</span>
+                            <span className="font-bold text-sm">DownAria Admin</span>
                         </Link>
                     </div>
 
@@ -397,7 +397,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--border-color)]">
                                     <div className="flex items-center gap-2">
                                         <Shield className="w-5 h-5 text-[var(--accent-primary)]" />
-                                        <span className="font-bold">XTFetch Admin</span>
+                                        <span className="font-bold">DownAria Admin</span>
                                     </div>
                                     <button
                                         onClick={() => setMobileMenuOpen(false)}

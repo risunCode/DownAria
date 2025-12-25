@@ -159,11 +159,6 @@
       "description": "Dapatkan notifikasi download di server Discord Anda",
       "configure": "Konfigurasi"
     },
-    "hideDocs": {
-      "title": "Sidebar",
-      "label": "Sembunyikan Dokumentasi",
-      "desc": "Hapus link Docs dari navigasi sidebar"
-    },
     "pwa": {
       "title": "Install Aplikasi",
       "installed": "Terinstall ✓",
@@ -252,7 +247,7 @@
       "p1": "Dulu, aku sering banget pake bot Telegram buat download video dari sosmed. Praktis sih, tinggal kirim link, tunggu bentar, selesai.",
       "p2": "Tapi lama-lama mulai kesel... 😤",
       "p3": "Akhirnya kepikiran: \"Kenapa gak bikin sendiri aja?\"",
-      "p4": "Dan lahirlah XTFetch — downloader yang sama fungsinya, tapi tanpa limit, tanpa antri, dan 100% gratis. 🚀"
+      "p4": "Dan lahirlah DownAria — downloader yang sama fungsinya, tapi tanpa limit, tanpa antri, dan ramah privasi. 🚀"
     },
     "painPoints": {
       "title": "Kenapa aku bikin ini",
@@ -287,17 +282,17 @@
 
   "maintenance": {
     "title": "Sedang Maintenance",
-    "defaultMessage": "🔧 XTFetch sedang dalam maintenance. Silakan coba lagi nanti.",
+    "defaultMessage": "🔧 DownAria sedang dalam maintenance. Silakan coba lagi nanti.",
     "checkStatus": "Cek Status",
     "adminPanel": "Panel Admin",
     "footer": "Kami sedang bekerja keras untuk meningkatkan pengalaman Anda. Terima kasih atas kesabarannya!"
   },
 
   "install": {
-    "title": "Install XTFetch",
+    "title": "Install DownAria",
     "subtitle": "Dapatkan pengalaman aplikasi lengkap di perangkat Anda",
     "alreadyInstalled": "Sudah Terinstall!",
-    "readyToUse": "XTFetch siap digunakan di perangkat Anda",
+    "readyToUse": "DownAria siap digunakan di perangkat Anda",
     "openApp": "Buka Aplikasi",
     "installNow": "Install Sekarang",
     "howToInstall": "Cara Install",
@@ -339,7 +334,7 @@
       }
     },
     "gotIt": "Mengerti!",
-    "backToApp": "← Kembali ke XTFetch"
+    "backToApp": "← Kembali ke DownAria"
   },
 
   "notFound": {
@@ -428,15 +423,14 @@
 
   "advanced": {
     "title": "Alat Lanjutan",
-    "subtitle": "Fitur untuk pengguna tingkat lanjut - ekstraktor dan proxy",
+    "subtitle": "Fitur untuk pengguna tingkat lanjut - ekstraktor dan alat",
     "warning": {
       "title": "Eksperimental:",
       "message": "Alat ini untuk pengguna tingkat lanjut. Gunakan dengan bijak."
     },
     "tabs": {
       "playground": "API Playground",
-      "fbHtml": "FB HTML Extractor",
-      "proxy": "Direct Proxy"
+      "fbHtml": "FB HTML Extractor"
     },
     "playground": {
       "title": "API Playground",
@@ -487,15 +481,6 @@
       "noMediaFound": "Media tidak ditemukan",
       "parseError": "Error parsing",
       "htmlPlaceholder": "Tempel seluruh kode HTML source di sini (Ctrl+V)...",
-      "pasteFailed": "Gagal menempel"
-    },
-    "proxy": {
-      "title": "Direct Link Proxy",
-      "description": "Download dari Google Drive, Dropbox, Mediafire",
-      "paste": "Tempel",
-      "clear": "Hapus",
-      "download": "Download",
-      "open": "Buka",
       "pasteFailed": "Gagal menempel"
     }
   }

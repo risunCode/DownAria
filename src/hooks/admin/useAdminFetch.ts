@@ -3,6 +3,7 @@
 import useSWR, { SWRConfiguration } from 'swr';
 import { useCallback } from 'react';
 import { API_URL } from '@/lib/config';
+import { supabase } from '@/lib/supabase';
 
 // ============================================================================
 // ERROR HANDLING
@@ -96,17 +97,63 @@ function transformError(error: unknown): AdminApiError {
 // ============================================================================
 
 // Get auth token from Supabase session
+export async function getAuthTokenAsync(): Promise<string | null> {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+        // Best method: Use Supabase client directly
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            return session.access_token;
+        }
+    } catch {
+        // Fallback to localStorage
+    }
+    
+    // Fallback: Try localStorage patterns
+    return getAuthToken();
+}
+
+// Sync version for headers (fallback to localStorage)
 export function getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
-    const supabaseKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
-    if (supabaseKey) {
-        try {
-            const session = JSON.parse(localStorage.getItem(supabaseKey) || '{}');
-            return session?.access_token || null;
-        } catch {
+    
+    // Try multiple Supabase storage key patterns
+    // Pattern 1: sb-{project-ref}-auth-token (Supabase v2+)
+    // Pattern 2: supabase.auth.token (older versions)
+    const patterns = [
+        // Supabase v2+ pattern
+        () => {
+            const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+            if (key) {
+                const data = JSON.parse(localStorage.getItem(key) || '{}');
+                return data?.access_token || null;
+            }
             return null;
+        },
+        // Alternative: check for session object directly
+        () => {
+            const key = Object.keys(localStorage).find(k => k.includes('supabase') && k.includes('auth'));
+            if (key) {
+                const data = JSON.parse(localStorage.getItem(key) || '{}');
+                // Handle nested session structure
+                if (data?.currentSession?.access_token) return data.currentSession.access_token;
+                if (data?.session?.access_token) return data.session.access_token;
+                if (data?.access_token) return data.access_token;
+            }
+            return null;
+        },
+    ];
+
+    for (const pattern of patterns) {
+        try {
+            const token = pattern();
+            if (token) return token;
+        } catch {
+            continue;
         }
     }
+    
     return null;
 }
 
@@ -116,7 +163,15 @@ export function buildAdminUrl(url: string): string {
     return `${API_URL}${url}`;
 }
 
-// Get auth headers for admin requests
+// Get auth headers for admin requests (async version - preferred)
+export async function getAdminHeadersAsync(): Promise<Record<string, string>> {
+    const token = await getAuthTokenAsync();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+}
+
+// Get auth headers for admin requests (sync version - fallback)
 export function getAdminHeaders(): Record<string, string> {
     const token = getAuthToken();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -127,8 +182,48 @@ export function getAdminHeaders(): Record<string, string> {
 // Admin fetcher with auth header and improved error handling
 const adminFetcher = async <T>(url: string): Promise<T> => {
     try {
-        const res = await fetch(url, { headers: getAdminHeaders() });
-        const json = await res.json();
+        const headers = await getAdminHeadersAsync();
+        const res = await fetch(url, { headers });
+        
+        // Handle non-OK responses
+        if (!res.ok) {
+            // Try to parse error response
+            let errorMessage = `Server error: ${res.status}`;
+            try {
+                const errorJson = await res.json();
+                errorMessage = errorJson.error || errorMessage;
+            } catch {
+                // Response body might be empty or not JSON
+                if (res.status === 500) {
+                    errorMessage = 'Internal server error - check backend logs';
+                } else if (res.status === 401) {
+                    errorMessage = 'Unauthorized - please login again';
+                } else if (res.status === 503) {
+                    errorMessage = 'Service unavailable - database not configured';
+                }
+            }
+            throw new AdminApiError(errorMessage, {
+                userMessage: errorMessage,
+            });
+        }
+        
+        // Parse successful response
+        const text = await res.text();
+        if (!text) {
+            throw new AdminApiError('Empty response from server', {
+                userMessage: 'Server returned empty response',
+            });
+        }
+        
+        let json;
+        try {
+            json = JSON.parse(text);
+        } catch {
+            throw new AdminApiError('Invalid JSON response', {
+                userMessage: 'Server returned invalid response format',
+            });
+        }
+        
         if (!json.success) {
             throw new AdminApiError(json.error || 'Request failed', {
                 userMessage: json.error || 'Permintaan gagal',
@@ -225,13 +320,37 @@ export function useAdminFetch<T>(
         if (!targetUrl) return { success: false, error: 'No URL' };
         
         try {
+            const headers = await getAdminHeadersAsync();
             const res = await fetch(buildAdminUrl(targetUrl), {
                 method,
-                headers: getAdminHeaders(),
+                headers,
                 body: body ? JSON.stringify(body) : undefined,
             });
-            const json = await res.json();
-            return json;
+            
+            // Handle non-OK responses
+            if (!res.ok) {
+                let errorMessage = `Server error: ${res.status}`;
+                try {
+                    const errorJson = await res.json();
+                    errorMessage = errorJson.error || errorMessage;
+                } catch {
+                    // Response body might be empty
+                }
+                return { success: false, error: errorMessage };
+            }
+            
+            // Parse response
+            const text = await res.text();
+            if (!text) {
+                return { success: false, error: 'Empty response from server' };
+            }
+            
+            try {
+                const json = JSON.parse(text);
+                return json;
+            } catch {
+                return { success: false, error: 'Invalid JSON response' };
+            }
         } catch (err) {
             const transformed = transformError(err);
             return { success: false, error: transformed.userMessage };

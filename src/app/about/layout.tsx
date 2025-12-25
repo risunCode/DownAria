@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "About | XTFetch - Free Social Media Downloader Story",
-    description: "Learn about XTFetch, the free social media video downloader. Built with love by risunCode. No limits, no watermarks, 100% free. View changelog and supported platforms.",
+    title: "About | DownAria - Social Media Downloader Story",
+    description: "Learn about DownAria, the privacy-friendly social media video downloader. Built with love by risunCode. No limits, no watermarks. View changelog and supported platforms.",
     openGraph: {
-        title: "About XTFetch | Free Social Media Downloader",
-        description: "The story behind XTFetch. Download videos from Facebook, Instagram, TikTok, Twitter without limits.",
+        title: "About DownAria | Social Media Downloader",
+        description: "The story behind DownAria. Download videos from Facebook, Instagram, TikTok, Twitter, YouTube without limits.",
     },
 };
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Play, Trash2, CheckCircle, XCircle, Loader2, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
+import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 
 // Queue types (inline - batch-queue.ts was removed)
 export type QueueItemStatus = 'pending' | 'processing' | 'completed' | 'failed';
@@ -40,7 +40,7 @@ export function BatchQueue({ items, isProcessing, onAdd, onRemove, onClear, onSt
 
     const handleAdd = () => {
         const clean = sanitizeUrl(inputUrl);
-        if (clean && detectPlatform(clean)) {
+        if (clean && platformDetect(clean)) {
             onAdd(clean);
             setInputUrl('');
         }
@@ -111,7 +111,7 @@ export function BatchQueue({ items, isProcessing, onAdd, onRemove, onClear, onSt
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                     <AnimatePresence mode="popLayout">
                         {items.map((item) => {
-                            const platform = detectPlatform(item.url);
+                            const platform = platformDetect(item.url);
                             return (
                                 <motion.div
                                     key={item.id}

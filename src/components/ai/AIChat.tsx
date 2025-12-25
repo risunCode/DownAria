@@ -10,7 +10,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const STORAGE_KEY = 'xtfetch_ai_chat_sessions';
+const STORAGE_KEY = 'downaria_ai_chat_sessions';
 
 type AIModel = 'gemini-2.5-flash' | 'gemini-flash-latest' | 'gpt5' | 'copilot-smart';
 
@@ -155,7 +155,7 @@ export function AIChat({ className = '' }: AIChatProps) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `xtfetch-ai-sessions-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `downaria-ai-sessions-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }, [savedSessions]);

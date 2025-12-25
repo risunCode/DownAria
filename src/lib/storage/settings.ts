@@ -58,7 +58,6 @@ export interface AppSettings {
   autoDownload: boolean;
   preferredQuality: 'highest' | 'hd' | 'sd';
   showEngagement: boolean;
-  hideDocs: boolean;
 }
 
 const SETTINGS_KEY = 'xtf_settings';
@@ -68,7 +67,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoDownload: false,
   preferredQuality: 'highest',
   showEngagement: true,
-  hideDocs: false,
 };
 
 export function getSettings(): AppSettings {
@@ -107,7 +105,7 @@ import { getEncrypted, setEncrypted, removeEncrypted, migrateToEncrypted } from 
 export type CookiePlatform = 'facebook' | 'instagram' | 'twitter' | 'weibo';
 
 // Simple cookie parser for frontend (no validation, just format)
-function parseCookie(input: unknown): string | null {
+function cookieParse(input: unknown): string | null {
   if (!input) return null;
   if (typeof input === 'string') return input.trim();
   if (Array.isArray(input)) {
@@ -150,7 +148,7 @@ export function getPlatformCookie(platform: CookiePlatform): string | null {
 
 export function savePlatformCookie(platform: CookiePlatform, cookie: string): void {
   if (typeof window === 'undefined') return;
-  const parsed = parseCookie(cookie);
+  const parsed = cookieParse(cookie);
   setEncrypted(COOKIE_KEY_PREFIX + platform, parsed || cookie);
 }
 

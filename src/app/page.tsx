@@ -16,7 +16,7 @@ import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
 import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
 import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
-import { detectPlatform, sanitizeUrl } from '@/lib/utils/format';
+import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 import Swal from 'sweetalert2';
 import { api } from '@/lib/api';
 import { analyzeNetworkError, isOnline } from '@/lib/utils/network';
@@ -164,7 +164,7 @@ export default function Home() {
     setMediaData(null);
 
     const sanitizedUrl = sanitizeUrl(url);
-    const detectedPlatform = detectPlatform(sanitizedUrl) || platform;
+    const detectedPlatform = platformDetect(sanitizedUrl) || platform;
 
     if (detectedPlatform !== platform) {
       setPlatform(detectedPlatform);

@@ -286,7 +286,7 @@ body {
   color: var(--accent-primary);
 }
 
-/* Accent button - solid color */
+/* Accent button - solid color, subtle style */
 .btn-gradient {
   background: var(--accent-primary);
   color: white;
@@ -295,34 +295,27 @@ body {
   border-radius: 12px;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  transition: opacity 0.2s ease;
 }
 
 .btn-gradient:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+  opacity: 0.9;
 }
 
-/* Reduce button shadow on mobile */
+/* Mobile - same behavior */
 @media (max-width: 768px) {
-  .btn-gradient {
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
-  }
   .btn-gradient:hover {
-    transform: none;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    opacity: 0.9;
   }
 }
 
 .btn-gradient:active {
-  transform: translateY(0);
+  opacity: 0.8;
 }
 
 .btn-gradient:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
 }
 
 /* Platform tabs */

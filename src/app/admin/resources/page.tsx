@@ -16,7 +16,7 @@ import {
     useBrowserProfiles,
     useAiKeys,
     PLATFORM_OPTIONS, BROWSER_OPTIONS, DEVICE_OPTIONS, OS_OPTIONS,
-    type CookiePoolStats, type PooledCookie,
+    type CookiePoolStats, type PooledCookie, type CookieTier,
     type BrowserProfile, type CreateProfileInput,
     type AiApiKey, type AiProvider,
 } from '@/hooks/admin';
@@ -235,17 +235,35 @@ function ResourcesContent() {
 // COOKIES TAB
 // ============================================
 interface CookiesTabProps {
-    getStats: (platform: string) => CookiePoolStats;
+    getStats: (platform: string, tier?: CookieTier) => CookiePoolStats;
     onSelectPlatform: (platform: CookiePlatform) => void;
 }
 
 function CookiesTab({ getStats, onSelectPlatform }: CookiesTabProps) {
+    // Helper to aggregate stats from both tiers
+    const getAggregatedStats = (platform: string) => {
+        const publicStats = getStats(platform, 'public');
+        const privateStats = getStats(platform, 'private');
+        return {
+            platform,
+            total: publicStats.total + privateStats.total,
+            healthy_count: publicStats.healthy_count + privateStats.healthy_count,
+            cooldown_count: publicStats.cooldown_count + privateStats.cooldown_count,
+            expired_count: publicStats.expired_count + privateStats.expired_count,
+            total_uses: publicStats.total_uses + privateStats.total_uses,
+            total_success: publicStats.total_success + privateStats.total_success,
+            total_errors: publicStats.total_errors + privateStats.total_errors,
+            public_count: publicStats.total,
+            private_count: privateStats.total,
+        };
+    };
+
     return (
         <div className="space-y-6">
             {/* Cookie Platform Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {COOKIE_PLATFORMS.map((platform, idx) => {
-                    const s = getStats(platform.id);
+                    const s = getAggregatedStats(platform.id);
                     const successRate = s.total_success + s.total_errors > 0 
                         ? Math.round((s.total_success / (s.total_success + s.total_errors)) * 100) 
                         : 0;
@@ -264,8 +282,14 @@ function CookiesTab({ getStats, onSelectPlatform }: CookiesTabProps) {
                                     <PlatformIcon platform={platform.id as PlatformId} size="lg" />
                                     <div>
                                         <span className="font-semibold text-lg">{platform.name}</span>
-                                        <div className="text-xs text-[var(--text-muted)]">
-                                            {s.total} cookie{s.total !== 1 ? 's' : ''}
+                                        <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
+                                            <span>{s.total} cookie{s.total !== 1 ? 's' : ''}</span>
+                                            {s.total > 0 && (
+                                                <span className="flex items-center gap-1">
+                                                    <span className="text-blue-400">🌐{s.public_count}</span>
+                                                    <span className="text-amber-400">🔒{s.private_count}</span>
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -330,6 +354,8 @@ function CookiesTab({ getStats, onSelectPlatform }: CookiesTabProps) {
                     <div className="text-sm flex-1">
                         <p className="font-medium text-[var(--text-secondary)] mb-2">Cookie Pool System</p>
                         <ul className="space-y-1 text-xs text-[var(--text-muted)]">
+                            <li>• <span className="text-blue-400">🌐 Public</span> - Used by free tier (publicservices, playground)</li>
+                            <li>• <span className="text-amber-400">🔒 Private</span> - Reserved for premium API users only</li>
                             <li>• <span className="text-green-400">Rotation</span> - Cookies are rotated automatically to avoid rate limits</li>
                             <li>• <span className="text-yellow-400">Cooldown</span> - Rate-limited cookies rest for 30 min before reuse</li>
                             <li>• <span className="text-red-400">Expired</span> - Session expired, needs re-login</li>
@@ -1044,7 +1070,7 @@ interface CookiePoolModalProps {
 }
 
 function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalProps) {
-    const { cookies, loading, saving, addCookie, updateCookie, deleteCookie, testCookie, refetch } = useCookies(platform);
+    const { cookies, loading, saving, addCookie, updateCookie, deleteCookie, testCookie, refetch, tierFilter, setTierFilter } = useCookies(platform);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingCookie, setEditingCookie] = useState<PooledCookie | null>(null);
     const [formData, setFormData] = useState({
@@ -1052,10 +1078,11 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
         label: '',
         note: '',
         max_uses_per_hour: 60,
+        tier: 'public' as 'public' | 'private',
     });
 
     const resetForm = () => {
-        setFormData({ cookie: '', label: '', note: '', max_uses_per_hour: 60 });
+        setFormData({ cookie: '', label: '', note: '', max_uses_per_hour: 60, tier: 'public' });
         setShowAddForm(false);
         setEditingCookie(null);
     };
@@ -1078,6 +1105,7 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
                 label: formData.label || null,
                 note: formData.note || null,
                 max_uses_per_hour: formData.max_uses_per_hour,
+                tier: formData.tier,
             });
             if (success) resetForm();
         } else {
@@ -1086,7 +1114,7 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
                 label: formData.label || undefined,
                 note: formData.note || undefined,
                 max_uses_per_hour: formData.max_uses_per_hour,
-            });
+            }, formData.tier);
             if (success) resetForm();
         }
     };
@@ -1097,6 +1125,7 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
             label: cookie.label || '',
             note: cookie.note || '',
             max_uses_per_hour: cookie.max_uses_per_hour,
+            tier: cookie.tier || 'public',
         });
         setEditingCookie(cookie);
         setShowAddForm(true);
@@ -1141,6 +1170,16 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Tier Filter */}
+                        <select
+                            value={tierFilter}
+                            onChange={(e) => setTierFilter(e.target.value as 'all' | 'public' | 'private')}
+                            className="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
+                        >
+                            <option value="all">All Tiers</option>
+                            <option value="public">🌐 Public</option>
+                            <option value="private">🔒 Private</option>
+                        </select>
                         <button onClick={refetch} className="p-2 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors" title="Refresh">
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         </button>
@@ -1160,10 +1199,39 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
                                     <h4 className="font-medium">{editingCookie ? 'Edit Cookie' : 'Add New Cookie'}</h4>
                                     <button onClick={resetForm} className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">Cancel</button>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     <div>
                                         <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Label</label>
                                         <input type="text" value={formData.label} onChange={(e) => setFormData(f => ({ ...f, label: e.target.value }))} className="w-full px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm" placeholder="Account name or identifier" disabled={saving} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Tier</label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(f => ({ ...f, tier: 'public' }))}
+                                                disabled={saving}
+                                                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    formData.tier === 'public'
+                                                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                                                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                                }`}
+                                            >
+                                                🌐 Public
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(f => ({ ...f, tier: 'private' }))}
+                                                disabled={saving}
+                                                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    formData.tier === 'private'
+                                                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                                                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                                                }`}
+                                            >
+                                                🔒 Private
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Max Uses/Hour</label>
@@ -1223,6 +1291,9 @@ function CookiePoolModal({ platform, platformInfo, onClose }: CookiePoolModalPro
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-semibold text-[var(--text-primary)]">{cookie.label || 'Unnamed'}</span>
                                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(cookie.status)}`}>{cookie.status}</span>
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${cookie.tier === 'private' ? 'text-amber-400 bg-amber-500/20' : 'text-blue-400 bg-blue-500/20'}`}>
+                                                        {cookie.tier === 'private' ? '🔒 Private' : '🌐 Public'}
+                                                    </span>
                                                 </div>
                                                 {/* Parsed Cookie Info */}
                                                 <div className="flex flex-wrap items-center gap-3 text-xs mb-2">

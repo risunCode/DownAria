@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { LightbulbIcon, PlatformIcon } from '@/components/ui/Icons';
 import { PlatformId, PLATFORMS } from '@/lib/types';
-import { validateUrl, detectPlatform, sanitizeUrl } from '@/lib/utils/format';
+import { validateUrl, platformDetect, sanitizeUrl } from '@/lib/utils/format';
 
 interface DownloadFormProps {
     platform: PlatformId;
@@ -122,7 +122,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
     // Auto-submit when valid URL detected
     useEffect(() => {
         if (url.length > 15 && !isLoading) {
-            const detected = detectPlatform(url);
+            const detected = platformDetect(url);
             if (detected) {
                 if (detected !== platform) onPlatformChange(detected);
                 if (validateUrl(url, detected) && 
@@ -142,7 +142,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
         setError('');
         if (!url.trim()) { setError(tErrors('enterUrl')); return; }
         
-        const detected = detectPlatform(url);
+        const detected = platformDetect(url);
         if (detected && detected !== platform) onPlatformChange(detected);
         
         const target = detected || platform;
@@ -158,7 +158,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
         setUrl(value);
         setError('');
         if (value.length > 10) {
-            const detected = detectPlatform(value);
+            const detected = platformDetect(value);
             if (detected && detected !== platform) onPlatformChange(detected);
         }
     };
@@ -174,7 +174,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             setError('');
             // Reset lastSubmission to allow re-submit
             lastSubmission.current = null;
-            const detected = detectPlatform(cleanUrl);
+            const detected = platformDetect(cleanUrl);
             if (detected && detected !== platform) onPlatformChange(detected);
             return true;
         }
@@ -197,7 +197,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                     setError('');
                     // Reset lastSubmission to allow re-submit of same URL
                     lastSubmission.current = null;
-                    const detected = detectPlatform(cleanUrl);
+                    const detected = platformDetect(cleanUrl);
                     if (detected && detected !== platform) onPlatformChange(detected);
                     return;
                 }
@@ -238,7 +238,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             if (text) {
                 const cleanUrl = sanitizeUrl(text);
                 if (cleanUrl && cleanUrl !== url) {
-                    const detected = detectPlatform(cleanUrl);
+                    const detected = platformDetect(cleanUrl);
                     if (detected) {
                         setUrl(cleanUrl);
                         setError('');

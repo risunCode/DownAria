@@ -97,7 +97,7 @@ export function formatNumber(num: number): string {
 /**
  * Detect platform from URL
  */
-export function detectPlatform(url: string): PlatformId | null {
+export function platformDetect(url: string): PlatformId | null {
     for (const platform of PLATFORMS) {
         for (const pattern of platform.patterns) {
             if (pattern.test(url)) {

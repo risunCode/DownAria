@@ -1,6 +1,98 @@
 # Changelog
 
-All notable changes to XTFetch will be documented in this file.
+All notable changes to DownAria will be documented in this file.
+
+## [1.7.0] - 2024-12-25
+
+### 🤖 Telegram Bot Integration
+- **New Bot** - @downariaxt_bot for downloading videos via Telegram
+  - Send any supported URL → get video/image directly in chat
+  - Supports: Instagram, TikTok, Twitter/X, Facebook, YouTube, Weibo
+- **User Features:**
+  - `/start` - Start the bot
+  - `/help` - Usage guide
+  - `/mystatus` - Check your download stats & premium status
+  - `/history` - View recent downloads
+  - `/premium` - Premium subscription info
+- **Admin Commands:**
+  - `/stats` - Bot statistics (users, downloads, platforms)
+  - `/broadcast <message>` - Send message to all users
+  - `/ban <user_id>` / `/unban <user_id>` - User management
+  - `/givepremium <user_id>` - Grant premium access
+  - `/maintenance on/off` - Broadcast maintenance notifications
+- **Rate Limiting** - Free: 10 downloads/6 hours, 5s cooldown | Premium: Unlimited (auto-queue)
+- **Maintenance Mode** - Bot auto-blocks during full maintenance with notification
+
+### 🔧 Backend Improvements
+- **grammY Integration** - Telegram bot framework with webhook support
+- **Webhook Handler** - `/api/bot/webhook` with secret token verification
+- **Bot Setup API** - `/api/bot/setup` for easy webhook configuration
+- **Timeout Handling** - 25s timeout with graceful return (prevents Telegram retry spam)
+- **Global Error Handler** - `bot.catch()` prevents crashes from middleware errors
+
+---
+
+## [1.6.0] - 2024-12-25
+
+### 🎵 Rebranding: XTFetch → DownAria
+- **New Name** - Rebranded from XTFetch to DownAria (Down + Aria = "Melodious Downloads")
+- **New Repository** - https://github.com/risunCode/DownAria
+- **Updated Metadata** - All SEO, OpenGraph, Twitter cards updated
+- **Updated PWA** - manifest.json with new branding
+- **Updated i18n** - Both English and Indonesian translations
+- **Updated Components** - Sidebar, StructuredData, DiscordWebhookSettings
+- **Updated Storage Keys** - All localStorage/IndexedDB keys renamed to `downaria_*`
+
+### 🍪 Cookie Pool Tiering System
+- **Public Tier** - Cookies for free tier (publicservices, playground)
+- **Private Tier** - Reserved cookies for premium API users
+- **Smart Fallback** - Private tier falls back to public if all private cookies burned
+- **Admin UI** - Tier filter dropdown and selector in cookie management
+- **Stats per Tier** - Platform cards show public/private cookie counts
+
+### 🔒 Security Improvements
+- **CORS Hardening** - Strict origin whitelist (no more `*` fallback)
+- **Security Audit** - Full audit of frontend and backend, no critical issues found
+- **Logger Fix** - Fixed `logger.info is not a function` error in auth
+- **RLS Fix** - Fixed row-level security violation in AI keys API
+
+### �️ Remoived Features
+- **Direct Proxy** - Removed from Advanced Tools (unsupported, maintenance discontinued)
+
+### 🐛 Bug Fixes
+- Fixed admin panel 500 errors (logger, try-catch, RLS issues)
+- Fixed `useAdminFetch` handling empty/invalid JSON responses
+- Created public endpoint for update prompt settings (no auth required)
+- Updated CORS to allow `downaria.vercel.app`
+
+### 📁 Files Changed (Frontend)
+- `package.json` - name: "downaria"
+- `README.md` - Full rewrite with new branding
+- `CHANGELOG.md` - Updated header and entries
+- `.env.example` - Updated example URLs
+- `public/manifest.json` - New PWA name
+- `src/app/layout.tsx` - All metadata
+- `src/app/*/layout.tsx` - Page metadata
+- `src/components/Sidebar.tsx` - Logo text
+- `src/components/StructuredData.tsx` - Schema.org data
+- `src/components/DiscordWebhookSettings.tsx` - Webhook branding
+- `src/components/ai/AIChat.tsx` - Storage key
+- `src/lib/storage/indexed-db.ts` - DB name
+- `src/i18n/messages/*.json` - Translations
+- `.kiro/steering/*.md` - Project docs
+
+### 📁 Files Changed (Backend)
+- `src/middleware.ts` - CORS allowed origins
+- `src/lib/cookies/pool.ts` - Tier support + fallback logic
+- `src/lib/auth/session.ts` - Logger fix
+- `src/app/api/admin/cookies/pool/route.ts` - Tier CRUD
+- `src/app/api/admin/ai-keys/route.ts` - RLS fix
+- `src/app/api/v1/route.ts` - Private tier
+- `src/app/api/v1/publicservices/route.ts` - Public tier
+- `src/app/api/v1/playground/route.ts` - Public tier
+- `src/app/api/v1/settings/route.ts` - New public endpoint
+
+---
 
 ## [1.5.0] - December 25, 2025
 
@@ -234,7 +326,7 @@ All notable changes to XTFetch will be documented in this file.
 
 ### 🔧 What's Improved
 - **Skip Cache Setting** - Now works for all platforms
-- **Filename Format** - Fixed `[XTFetch]` position (before extension, not after)
+- **Filename Format** - Fixed `[DownAria]` position (before extension, not after)
 - **Memory Optimization** - Fixed multiple memory leaks:
   - Rate limit store cleanup in middleware (every 5 min)
   - Discord webhook cache with proper TTL

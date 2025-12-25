@@ -457,7 +457,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
             {isMultiItem ? (
                 <div className="space-y-4">
                     {/* Thumbnail grid */}
-                    <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1">
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5 overflow-hidden">
                         {itemIds.map((itemId, index) => {
                             const thumbnail = itemThumbnails[itemId] || data.thumbnail;
                             const isSelected = selectedItemId === itemId;
@@ -508,9 +508,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     </div>
 
                     {/* Selected item preview */}
-                    <div className="flex flex-col sm:flex-row gap-3 p-3 rounded-lg bg-[var(--bg-secondary)]">
+                    <div className="flex flex-col sm:flex-row gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] min-w-0 overflow-hidden">
                         <div 
-                            className="relative w-full sm:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-primary)] cursor-pointer group"
+                            className="relative w-full sm:w-32 md:w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-primary)] cursor-pointer group"
                             onClick={() => {
                                 setGalleryInitialIndex(itemIds.indexOf(selectedItemId));
                                 setShowGallery(true);
@@ -526,9 +526,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                 <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                         </div>
-                        <div className="flex-1 min-w-0 flex flex-col">
+                        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                             {groupedItems[selectedItemId].length > 1 && renderFormatButtons(groupedItems[selectedItemId], selectedItemId)}
-                            <div className="mt-3 flex flex-wrap gap-1.5">
+                            <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
                                 {/* Preview button */}
                                 <Button size="xs" variant="secondary" onClick={() => {
                                     setGalleryInitialIndex(itemIds.indexOf(selectedItemId));
@@ -586,9 +586,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 </div>
             ) : (
                 /* Single item */
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-w-0 overflow-hidden">
                     <div 
-                        className="relative w-full sm:w-48 md:w-64 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer group"
+                        className="relative w-full sm:w-40 md:w-48 lg:w-64 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer group"
                         onClick={() => setShowGallery(true)}
                     >
                         {(itemThumbnails[itemIds[0]] || data.thumbnail) ? (
@@ -604,9 +604,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                         {renderFormatButtons(groupedItems[itemIds[0]], itemIds[0])}
-                        <div className="mt-4 flex flex-wrap gap-1.5">
+                        <div className="mt-4 flex flex-wrap gap-1.5 sm:gap-2">
                             {/* Preview button */}
                             <Button size="xs" variant="secondary" onClick={() => {
                                 setGalleryInitialIndex(0);

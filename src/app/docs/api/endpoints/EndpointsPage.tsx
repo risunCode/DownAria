@@ -6,7 +6,7 @@ import { Copy, Check, Code } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const BASE_URL = 'https://xtfetch-api-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api-xtfetch.vercel.app';
 const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
@@ -20,24 +20,24 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
 
     return (
         <div className="relative rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] overflow-hidden my-4">
-            <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+            <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
                 <span className="text-xs text-[var(--text-muted)]">{language}</span>
                 <button
                     onClick={handleCopy}
                     className="flex items-center gap-1 px-2 py-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded transition-colors"
                 >
                     {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? 'Copied!' : 'Copy'}
+                    <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
                 </button>
             </div>
-            <pre className="p-4 text-xs overflow-x-auto">
-                <code className="text-[var(--text-secondary)]">{code}</code>
+            <pre className="p-3 sm:p-4 text-[10px] sm:text-xs overflow-x-auto">
+                <code className="text-[var(--text-secondary)] whitespace-pre-wrap break-words sm:whitespace-pre sm:break-normal">{code}</code>
             </pre>
         </div>
     );
 }
 
-function EndpointCard({ method, path, description, auth }: { method: string; path: string; description: string; auth?: string }) {
+function EndpointCard({ method, path, auth }: { method: string; path: string; description?: string; auth?: string }) {
     const methodColors: Record<string, string> = {
         GET: 'bg-green-500/20 text-green-400',
         POST: 'bg-blue-500/20 text-blue-400',
@@ -46,11 +46,11 @@ function EndpointCard({ method, path, description, auth }: { method: string; pat
     };
 
     return (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-4">
-            <span className={`px-2 py-1 text-xs font-bold rounded ${methodColors[method]}`}>{method}</span>
-            <code className="text-sm font-mono text-[var(--text-primary)]">{path}</code>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-4">
+            <span className={`px-2 py-1 text-xs font-bold rounded flex-shrink-0 ${methodColors[method]}`}>{method}</span>
+            <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all">{path}</code>
             {auth && (
-                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded ${
+                <span className={`text-[10px] px-2 py-0.5 rounded flex-shrink-0 sm:ml-auto ${
                     auth === 'required' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
                 }`}>
                     Auth {auth}
@@ -99,30 +99,30 @@ export function EndpointsPage() {
                                 <strong className="text-green-400">🌐 Test in Browser:</strong>
                             </p>
                             <code className="text-xs text-[var(--text-primary)] break-all">
-                                {BASE_URL}/api/playground?url=https://www.facebook.com/share/p/1G8yBgJaPa/
+                                {API_URL}/api/playground?url=https://www.facebook.com/share/p/1G8yBgJaPa/
                             </code>
                         </div>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Method</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Param</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Method</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Param</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">GET</td>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">?url=...</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">URL as query parameter</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">GET</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">?url=...</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">URL as query parameter</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">POST</td>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">{`{"url": "..."}`}</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">URL in JSON body</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">POST</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">{`{"url": "..."}`}</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">URL in JSON body</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -131,7 +131,7 @@ export function EndpointsPage() {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example (POST)</h3>
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${BASE_URL}${PLAYGROUND_ENDPOINT}', {
+                            code={`const response = await fetch('${API_URL}${PLAYGROUND_ENDPOINT}', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 
@@ -181,59 +181,59 @@ if (success) {
                         </p>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Headers</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Header</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Required</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Header</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Required</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">X-API-Key</td>
-                                        <td className="py-2 px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Your API key (format: xtf_sk_xxxxx)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">X-API-Key</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Your API key (format: xtf_sk_xxxxx)</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">Content-Type</td>
-                                        <td className="py-2 px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">application/json</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">Content-Type</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">application/json</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request Body</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[450px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Field</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Type</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Required</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Field</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Type</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Required</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">url</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Social media URL</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">url</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Social media URL</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">cookie</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-3"><span className="text-[var(--text-muted)]">No</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Platform cookie for private content</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">cookie</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-[var(--text-muted)]">No</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Platform cookie for private content</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">skipCache</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">boolean</td>
-                                        <td className="py-2 px-3"><span className="text-[var(--text-muted)]">No</span></td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Skip cached results</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">skipCache</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">boolean</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-[var(--text-muted)]">No</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Skip cached results</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -242,7 +242,7 @@ if (success) {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${BASE_URL}/api/v1', {
+                            code={`const response = await fetch('${API_URL}/api/v1', {
   method: 'POST',
   headers: { 
     'Content-Type': 'application/json',
@@ -333,25 +333,25 @@ if (success) {
                         </p>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Query Parameters</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Param</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Type</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Param</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Type</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">url</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">URL-encoded media URL</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">url</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">URL-encoded media URL</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">inline</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">1 | 0</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Display inline (1) or download (0)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">inline</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">1 | 0</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Display inline (1) or download (0)</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -377,75 +377,75 @@ if (success) {
                         </p>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Available Models</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[350px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Model</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Features</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Session</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Model</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Features</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Session</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gemini-2.5-flash</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Image, Web Search</td>
-                                        <td className="py-2 px-3"><span className="text-green-400">✓</span></td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)] text-[9px] sm:text-xs">gemini-2.5-flash</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Image, Web Search</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-green-400">✓</span></td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gemini-flash-latest</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Image, Web Search</td>
-                                        <td className="py-2 px-3"><span className="text-green-400">✓</span></td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)] text-[9px] sm:text-xs">gemini-flash-latest</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Image, Web Search</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-green-400">✓</span></td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">gpt5</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Text only</td>
-                                        <td className="py-2 px-3"><span className="text-red-400">✗</span></td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">gpt5</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Text only</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">✗</span></td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">copilot-smart</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Text only</td>
-                                        <td className="py-2 px-3"><span className="text-red-400">✗</span></td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)] text-[9px] sm:text-xs">copilot-smart</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Text only</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">✗</span></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request Body</h3>
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-xs">
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
+                            <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Field</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Type</th>
-                                        <th className="text-left py-2 px-3 text-[var(--text-muted)] font-medium">Description</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Field</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Type</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">message</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Chat message (max 4000 chars)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">message</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Chat message (max 4000 chars)</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">model</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Model name (see table above)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">model</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Model name (see table above)</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">sessionKey</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">string?</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Session key for conversation history (Gemini only)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">sessionKey</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string?</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Session key (Gemini only)</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">image</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">object?</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">{`{mimeType, data}`} base64 (Gemini only)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">image</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">object?</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">{`{mimeType, data}`} base64</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-3 font-mono text-[var(--accent-primary)]">webSearch</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">boolean?</td>
-                                        <td className="py-2 px-3 text-[var(--text-muted)]">Enable web search (Gemini only)</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">webSearch</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">boolean?</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Enable web search</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -454,7 +454,7 @@ if (success) {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${BASE_URL}/api/v1/chat', {
+                            code={`const response = await fetch('${API_URL}/api/v1/chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 

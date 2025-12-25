@@ -57,8 +57,8 @@ export function DiscordWebhookSettings() {
 
         try {
             const payload: Record<string, unknown> = {
-                username: 'XTFetch',
-                avatar_url: 'https://xtfetch.vercel.app/icon.png',
+                username: 'DownAria',
+                avatar_url: 'https://downaria.vercel.app/icon.png',
             };
 
             if (testMessage.trim()) {
@@ -68,15 +68,15 @@ export function DiscordWebhookSettings() {
             if (settings.embedEnabled) {
                 payload.embeds = [{
                     title: '🎬 Test Download Notification',
-                    description: testMessage.trim() || 'This is a test message from XTFetch!',
+                    description: testMessage.trim() || 'This is a test message from DownAria!',
                     color: parseInt(settings.embedColor.replace('#', ''), 16),
                     fields: [
                         { name: 'Platform', value: 'Instagram', inline: true },
                         { name: 'Quality', value: 'HD 1080p', inline: true },
                     ],
                     footer: {
-                        text: settings.footerText || 'via XTFetch',
-                        icon_url: 'https://xtfetch.vercel.app/icon.png',
+                        text: settings.footerText || 'via DownAria',
+                        icon_url: 'https://downaria.vercel.app/icon.png',
                     },
                     timestamp: new Date().toISOString(),
                 }];
@@ -227,7 +227,7 @@ export function DiscordWebhookSettings() {
                                 type="text"
                                 value={settings.footerText}
                                 onChange={e => updateSetting('footerText', e.target.value)}
-                                placeholder="via XTFetch"
+                                placeholder="via DownAria"
                                 className="w-full px-2 py-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm"
                             />
                         </div>
@@ -339,7 +339,7 @@ export function DiscordWebhookSettings() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-white text-sm">XTFetch</span>
+                                    <span className="font-semibold text-white text-sm">DownAria</span>
                                     <span className="px-1 py-0.5 text-[10px] bg-[#5865F2] text-white rounded">BOT</span>
                                 </div>
                                 <div className="rounded overflow-hidden max-w-md" style={{ borderLeft: `4px solid ${settings.embedColor}`, backgroundColor: '#2B2D31' }}>
@@ -357,7 +357,7 @@ export function DiscordWebhookSettings() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mt-3 pt-2 border-t border-[#3F4147]">
-                                            <span className="text-[#949BA4] text-xs">{settings.footerText || 'via XTFetch'}</span>
+                                            <span className="text-[#949BA4] text-xs">{settings.footerText || 'via DownAria'}</span>
                                         </div>
                                     </div>
                                 </div>

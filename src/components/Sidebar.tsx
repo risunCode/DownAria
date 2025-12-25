@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen } from 'lucide-react';
+import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen, Plus, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -10,10 +10,9 @@ import {
     InstagramIcon,
     XTwitterIcon,
     TiktokIcon,
-    WeiboIcon,
     YoutubeIcon,
 } from '@/components/ui/Icons';
-import { ThemeType, saveTheme, initTheme, getSettings } from '@/lib/storage';
+import { ThemeType, saveTheme, initTheme } from '@/lib/storage';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useStatus } from '@/hooks/useStatus';
@@ -24,14 +23,13 @@ const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
     { id: 'solarized', label: 'Solarized', icon: Sparkles },
 ];
 
-// Memoized outside component - static config
+// Memoized outside component - static config (Top 5 platforms)
 const PLATFORMS_CONFIG = [
+    { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
     { id: 'facebook', icon: FacebookIcon, label: 'Facebook', color: 'text-blue-500' },
     { id: 'instagram', icon: InstagramIcon, label: 'Instagram', color: 'text-pink-500' },
-    { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
     { id: 'tiktok', icon: TiktokIcon, label: 'TikTok', color: 'text-cyan-400' },
-    { id: 'youtube', icon: YoutubeIcon, label: 'YouTube', color: 'text-red-500' },
-    { id: 'weibo', icon: WeiboIcon, label: 'Weibo', color: 'text-orange-500' },
+    { id: 'twitter', icon: XTwitterIcon, label: 'Twitter/X', color: 'text-[var(--text-primary)]' },
 ] as const;
 
 interface SidebarProps {
@@ -42,21 +40,16 @@ export function SidebarLayout({ children }: SidebarProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [themeOpen, setThemeOpen] = useState(false);
     const [currentTheme, setCurrentTheme] = useState<ThemeType>('dark');
-    const [hideDocs, setHideDocs] = useState<boolean | null>(null); // null = loading
     const themeRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
     const router = useRouter();
-    
+
     // Use SWR for platform status (auto-cached, deduplicated)
     const { platforms: platformStatus } = useStatus();
 
     useEffect(() => {
         const theme = initTheme();
         setCurrentTheme(theme);
-        
-        // Load hide docs setting
-        const settings = getSettings();
-        setHideDocs(settings.hideDocs || false);
     }, []);
 
     // Close sidebar on route change (for back/forward navigation)
@@ -87,10 +80,10 @@ export function SidebarLayout({ children }: SidebarProps) {
             setSidebarOpen(false);
             return;
         }
-        
+
         // Close sidebar first, then navigate after animation
         setSidebarOpen(false);
-        
+
         // Wait for exit animation to complete before navigating
         setTimeout(() => {
             router.push(href);
@@ -99,19 +92,18 @@ export function SidebarLayout({ children }: SidebarProps) {
 
     const CurrentThemeIcon = THEMES.find(t => t.id === currentTheme)?.icon || Palette;
 
-    // Memoize navLinks - only changes when hideDocs changes
+    // Static navLinks
     const navLinks = useMemo(() => [
         { href: '/', labelKey: 'home', icon: Home },
         { href: '/history', labelKey: 'history', icon: History },
         { href: '/advanced', labelKey: 'advanced', icon: Wrench },
-        // Only show docs link after settings loaded AND hideDocs is false
-        ...(hideDocs === false ? [{ href: '/docs', labelKey: 'docs', icon: BookOpen }] : []),
+        { href: '/docs', labelKey: 'docs', icon: BookOpen },
         { href: '/settings', labelKey: 'settings', icon: Settings },
         { href: '/about', labelKey: 'about', icon: Info },
-    ], [hideDocs]);
+    ], []);
 
     // Memoize platforms with status - only changes when platformStatus changes
-    const platforms = useMemo(() => 
+    const platforms = useMemo(() =>
         PLATFORMS_CONFIG.map(p => {
             const apiStatus = platformStatus.find(s => s.id === p.id);
             return {
@@ -137,9 +129,9 @@ export function SidebarLayout({ children }: SidebarProps) {
                             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
                         <Link href="/" className="flex items-center gap-2">
-                            <img src="/icon.png" alt="XTFetch" className="w-8 h-8 rounded-lg" />
+                            <img src="/icon.png" alt="DownAria" className="w-8 h-8 rounded-lg" />
                             <div>
-                                <h1 className="text-sm font-bold gradient-text">XTFetch</h1>
+                                <h1 className="text-sm font-bold gradient-text">DownAria</h1>
                                 <p className="text-[9px] text-[var(--text-muted)] -mt-0.5">Social Media Downloader</p>
                             </div>
                         </Link>
@@ -149,7 +141,7 @@ export function SidebarLayout({ children }: SidebarProps) {
                     <div className="flex items-center gap-1">
                         {/* Language Switcher */}
                         <LanguageSwitcher showLabel={false} />
-                        
+
                         {/* Theme Dropdown */}
                         <div ref={themeRef} className="relative">
                             <button
@@ -172,8 +164,8 @@ export function SidebarLayout({ children }: SidebarProps) {
                                                 key={theme.id}
                                                 onClick={() => handleThemeChange(theme.id)}
                                                 className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${currentTheme === theme.id
-                                                        ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                                                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
                                                     }`}
                                             >
                                                 <theme.icon className="w-4 h-4" />
@@ -190,8 +182,8 @@ export function SidebarLayout({ children }: SidebarProps) {
                         <Link
                             href="/settings"
                             className={`p-2 rounded-lg transition-colors ${pathname === '/settings'
-                                    ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
+                                ? 'text-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
                                 }`}
                         >
                             <Settings className="w-5 h-5" />
@@ -271,23 +263,23 @@ function SidebarContent({ navLinks, platforms, isActive, onNavigate }: SidebarCo
             onNavigate(href);
         }
     };
-    
+
     return (
         <div className="flex flex-col h-full">
             {/* Logo */}
             <div className="p-5 border-b border-[var(--border-color)]">
-                <Link 
-                    href="/" 
-                    onClick={(e) => handleLinkClick(e, '/')} 
+                <Link
+                    href="/"
+                    onClick={(e) => handleLinkClick(e, '/')}
                     className="flex items-center gap-3 group"
                 >
                     <img
                         src="/icon.png"
-                        alt="XTFetch"
+                        alt="DownAria"
                         className="w-11 h-11 rounded-xl shadow-lg shadow-[var(--accent-primary)]/20"
                     />
                     <div>
-                        <h1 className="text-lg font-bold gradient-text">XTFetch</h1>
+                        <h1 className="text-lg font-bold gradient-text">DownAria</h1>
                         <p className="text-xs text-[var(--text-muted)] -mt-0.5">Social Media Downloader</p>
                     </div>
                 </Link>
@@ -320,23 +312,34 @@ function SidebarContent({ navLinks, platforms, isActive, onNavigate }: SidebarCo
                     </p>
                     <div className="space-y-1">
                         {platforms.map((platform, index) => (
-                                <div
-                                    key={index}
-                                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${platform.status === 'offline' ? 'opacity-50' : ''
-                                        }`}
-                                >
-                                    <platform.icon className={`w-5 h-5 ${platform.color}`} />
-                                    <span className="text-sm text-[var(--text-secondary)] flex-1">{tPlatforms(platform.id)}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${platform.status === 'active'
-                                            ? 'bg-green-500/20 text-green-400'
-                                            : platform.status === 'maintenance'
-                                                ? 'bg-yellow-500/20 text-yellow-400'
-                                                : 'bg-red-500/20 text-red-400'
-                                        }`}>
-                                        {tPlatforms(`status.${platform.status}`)}
-                                    </span>
-                                </div>
-                            ))}
+                            <div
+                                key={index}
+                                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${platform.status === 'offline' ? 'opacity-50' : ''
+                                    }`}
+                            >
+                                <platform.icon className={`w-5 h-5 ${platform.color}`} />
+                                <span className="text-sm text-[var(--text-secondary)] flex-1">{tPlatforms(platform.id)}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${platform.status === 'active'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : platform.status === 'maintenance'
+                                        ? 'bg-yellow-500/20 text-yellow-400'
+                                        : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                    {tPlatforms(`status.${platform.status}`)}
+                                </span>
+                            </div>
+                        ))}
+
+                        {/* And More 5+ link */}
+                        <Link
+                            href="/about"
+                            onClick={(e) => handleLinkClick(e, '/about')}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-card)] transition-colors group"
+                        >
+                            <Plus className="w-5 h-5 text-[var(--accent-primary)]" />
+                            <span className="text-sm flex-1">And More 5+</span>
+                            <ChevronRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                        </Link>
                     </div>
                 </div>
             </nav>

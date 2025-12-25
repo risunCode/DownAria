@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, BookOpen, EyeOff } from 'lucide-react';
+import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
 import { ThemeType, getTheme, saveTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getSettings, saveSettings, type LanguagePreference } from '@/lib/storage';
@@ -15,6 +15,7 @@ import { locales, localeNames, localeFlags } from '@/i18n/config';
 import { useLocaleRefresh } from '@/components/IntlProvider';
 import { useTranslations } from 'next-intl';
 import { useCookieStatus } from '@/hooks';
+import { getUserDiscordSettings } from '@/lib/utils/discord-webhook';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS
@@ -83,13 +84,13 @@ export default function SettingsPage() {
     const [currentLanguage, setCurrentLanguage] = useState<LanguagePreference>('auto');
     const refreshLocale = useLocaleRefresh();
     
-    // Hide docs state
-    const [hideDocs, setHideDocs] = useState(false);
-    
     // PWA install state
     const [canInstall, setCanInstall] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isInstalled, setIsInstalled] = useState(false);
+    
+    // Discord webhook state
+    const [discordConfigured, setDiscordConfigured] = useState(false);
     
     // Use SWR for admin cookie status
     const { cookieStatus: adminCookieData } = useCookieStatus();
@@ -112,9 +113,9 @@ export default function SettingsPage() {
         // Load language preference
         setCurrentLanguage(getLanguagePreference());
         
-        // Load hide docs setting
-        const settings = getSettings();
-        setHideDocs(settings.hideDocs || false);
+        // Check discord webhook configuration
+        const discordSettings = getUserDiscordSettings();
+        setDiscordConfigured(!!discordSettings?.webhookUrl);
         
         // PWA install prompt listener
         const handleBeforeInstall = (e: Event) => {
@@ -214,7 +215,7 @@ export default function SettingsPage() {
         if (result.isConfirmed) {
             setIsClearing('cookies');
             try {
-                const cookieKeys = ['xtfetch_fb_cookie', 'xtfetch_ig_cookie', 'xtfetch_weibo_cookie', 'xtfetch_cookies'];
+                const cookieKeys = ['downaria_fb_cookie', 'downaria_ig_cookie', 'downaria_weibo_cookie', 'downaria_cookies'];
                 cookieKeys.forEach(key => localStorage.removeItem(key));
                 setUserCookies({ facebook: false, instagram: false, weibo: false, twitter: false });
                 await Swal.fire({ icon: 'success', title: 'Cookies Cleared', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
@@ -389,7 +390,105 @@ export default function SettingsPage() {
                         <h1 className="text-2xl font-bold gradient-text mb-1">{t('title')}</h1>
                         <p className="text-sm text-[var(--text-muted)]">{t('subtitle')}</p>
                     </motion.div>
-
+                    
+                    {/* Settings Overview Card */}
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: 0.02 }}
+                        className="glass-card p-4 mb-6"
+                    >
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {/* Theme */}
+                            <div className="flex items-center gap-2">
+                                <Palette className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{t('theme.title')}</p>
+                                    <p className="text-sm font-medium truncate">{t(`theme.${currentTheme}`)}</p>
+                                </div>
+                            </div>
+                            
+                            {/* Language */}
+                            <div className="flex items-center gap-2">
+                                <GlobeIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{t('language.title')}</p>
+                                    <p className="text-sm font-medium truncate">
+                                        {currentLanguage === 'auto' ? 'Auto' : localeNames[currentLanguage as keyof typeof localeNames] || currentLanguage}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* Push Notifications */}
+                            <div className="flex items-center gap-2">
+                                {pushSubscribed ? (
+                                    <Bell className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                ) : (
+                                    <BellOff className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Push</p>
+                                    <p className={`text-sm font-medium truncate ${pushSubscribed ? 'text-green-400' : 'text-[var(--text-muted)]'}`}>
+                                        {pushSubscribed ? 'On' : 'Off'}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* PWA Status */}
+                            <div className="flex items-center gap-2">
+                                <Smartphone className={`w-4 h-4 flex-shrink-0 ${isInstalled ? 'text-green-400' : 'text-[var(--text-muted)]'}`} />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">PWA</p>
+                                    <p className={`text-sm font-medium truncate ${isInstalled ? 'text-green-400' : 'text-[var(--text-muted)]'}`}>
+                                        {isInstalled ? 'Installed' : 'Not installed'}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* Cookies */}
+                            <div className="flex items-center gap-2">
+                                <Cookie className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{t('tabs.cookies')}</p>
+                                    <p className="text-sm font-medium truncate">
+                                        {Object.values(userCookies).filter(Boolean).length}/4 configured
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* History */}
+                            <div className="flex items-center gap-2">
+                                <History className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">History</p>
+                                    <p className="text-sm font-medium truncate">{historyCount} items</p>
+                                </div>
+                            </div>
+                            
+                            {/* Skip Cache */}
+                            <div className="flex items-center gap-2">
+                                <Zap className={`w-4 h-4 flex-shrink-0 ${skipCache ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`} />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Skip Cache</p>
+                                    <p className={`text-sm font-medium truncate ${skipCache ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`}>
+                                        {skipCache ? 'On' : 'Off'}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {/* Discord */}
+                            <div className="flex items-center gap-2">
+                                <MessageSquare className={`w-4 h-4 flex-shrink-0 ${discordConfigured ? 'text-[#5865F2]' : 'text-[var(--text-muted)]'}`} />
+                                <div className="min-w-0">
+                                    <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Discord</p>
+                                    <p className={`text-sm font-medium truncate ${discordConfigured ? 'text-[#5865F2]' : 'text-[var(--text-muted)]'}`}>
+                                        {discordConfigured ? 'Configured' : 'Not configured'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                    
                     {/* Tab Navigation */}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="mb-6">
                         <div className="flex gap-1 p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
@@ -499,7 +598,7 @@ export default function SettingsPage() {
                                             {/* Install PWA */}
                                             <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
                                                 <div className="flex items-center gap-3">
-                                                    <img src="/icon.png" alt="XTFetch" className="w-8 h-8 rounded-lg" />
+                                                    <img src="/icon.png" alt="DownAria" className="w-8 h-8 rounded-lg" />
                                                     <div>
                                                         <p className="text-sm font-medium">{t('pwa.title')}</p>
                                                         <p className="text-xs text-[var(--text-muted)]">
@@ -583,27 +682,6 @@ export default function SettingsPage() {
                                                 </div>
                                                 <button onClick={() => setActiveTab('integrations')} className="text-xs text-[#5865F2] hover:underline font-medium">
                                                     Configure →
-                                                </button>
-                                            </div>
-
-                                            {/* Hide Documentation */}
-                                            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
-                                                <div className="flex items-center gap-3">
-                                                    <BookOpen className={`w-5 h-5 ${hideDocs ? 'text-[var(--text-muted)]' : 'text-emerald-400'}`} />
-                                                    <div>
-                                                        <p className="text-sm font-medium">{t('hideDocs.label')}</p>
-                                                        <p className="text-xs text-[var(--text-muted)]">{t('hideDocs.desc')}</p>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        const newValue = !hideDocs;
-                                                        saveSettings({ hideDocs: newValue });
-                                                        window.location.reload();
-                                                    }}
-                                                    className={`relative w-11 h-6 rounded-full transition-colors ${hideDocs ? 'bg-emerald-500' : 'bg-[var(--bg-card)]'}`}
-                                                >
-                                                    <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${hideDocs ? 'translate-x-5' : ''}`} />
                                                 </button>
                                             </div>
                                         </div>

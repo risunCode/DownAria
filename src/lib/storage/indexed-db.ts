@@ -45,7 +45,7 @@ export interface ExportData {
 // DATABASE SETUP
 // ═══════════════════════════════════════════════════════════════
 
-const DB_NAME = 'xtfetch_db';
+const DB_NAME = 'downaria_db';
 const DB_VERSION = 2; // Bumped version to remove cache store
 const HISTORY_STORE = 'history';
 

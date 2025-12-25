@@ -7,6 +7,15 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.6.0',
+        date: 'December 25, 2025',
+        changes: [
+            { type: 'new', items: ['🎵 Rebranding - XTFetch is now DownAria (Down + Aria = "Melodious Downloads")', 'Cookie Pool Tiers - Public tier for free users, Private tier for premium API', 'Smart Fallback - Private tier falls back to public if all cookies exhausted', 'Tier Management UI - Filter and manage cookies by tier in admin panel'] },
+            { type: 'improved', items: ['Security Hardening - Strict CORS origin whitelist (no more wildcard)', 'Admin Panel Stability - Fixed various 500 errors in admin endpoints', 'Error Handling - Better handling of empty/invalid API responses'] },
+            { type: 'fixed', items: ['Admin panel connection issues resolved', 'AI keys API permission errors fixed', 'Update prompt settings now accessible', 'Removed Direct Proxy feature (discontinued)'] },
+        ],
+    },
+    {
         version: '1.5.0',
         date: 'December 25, 2025',
         changes: [
@@ -96,7 +105,7 @@ export function ChangelogPage() {
                             <span className="gradient-text">Changelog</span>
                         </h1>
                         <p className="text-[var(--text-muted)]">
-                            Version history and updates for XTFetch.
+                            Version history and updates for DownAria.
                         </p>
                     </motion.div>
 

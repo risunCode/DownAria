@@ -1,5 +1,7 @@
 /**
  * useUpdatePrompt Hook - Service Worker update settings
+ * 
+ * Fetches public settings from /api/v1/settings (no auth required)
  */
 'use client';
 
@@ -8,29 +10,30 @@ import { fetcher, SWR_CONFIG } from '@/lib/swr';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-interface GlobalSettings {
+interface PublicSettings {
     update_prompt_mode?: string;
-    [key: string]: string | undefined;
+    maintenance_mode?: boolean;
+    maintenance_message?: string;
 }
 
-interface UpdatePromptResponse {
+interface SettingsResponse {
     success: boolean;
-    data: GlobalSettings;
+    data: PublicSettings;
 }
 
 export function useUpdatePrompt() {
-    const { data, error, isLoading } = useSWR<UpdatePromptResponse>(
-        `${API_URL}/api/admin/system-config`,
+    const { data, error, isLoading } = useSWR<SettingsResponse>(
+        `${API_URL}/api/v1/settings`,
         fetcher,
         {
             ...SWR_CONFIG.static,
-            dedupingInterval: 300000, // Cache for 5 minutes (rarely changes)
+            dedupingInterval: 300000, // Cache for 5 minutes
             revalidateOnFocus: false,
             revalidateOnReconnect: false,
         }
     );
 
-    // Extract update_prompt_mode from global settings
+    // Extract update_prompt_mode, default to 'prompt'
     const behavior = data?.data?.update_prompt_mode || 'prompt';
 
     return {

@@ -7,7 +7,7 @@ import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 import { useState } from 'react';
 
-const BASE_URL = 'https://xtfetch-api-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
@@ -90,12 +90,12 @@ export function ApiOverviewPage() {
                         transition={{ delay: 0.2 }}
                         className="glass-card p-5"
                     >
-                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Base URL</h2>
+                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">API Bridge</h2>
                         <div className="px-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-sm text-[var(--accent-primary)]">
-                            {BASE_URL}{PLAYGROUND_ENDPOINT}
+                            {API_URL}{PLAYGROUND_ENDPOINT}
                         </div>
                         <p className="text-xs text-[var(--text-muted)] mt-3">
-                            Use the playground endpoint for testing. For production with higher limits, get an API key.
+                            Use the API bridge for stable access. Visit <a href={API_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] hover:underline">{API_URL}</a> to check backend latency.
                         </p>
                     </motion.div>
 
@@ -123,14 +123,14 @@ export function ApiOverviewPage() {
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${BASE_URL}${PLAYGROUND_ENDPOINT} \\
+                            code={`curl -X POST ${API_URL}${PLAYGROUND_ENDPOINT} \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://www.tiktok.com/@user/video/123"}'`}
                         />
 
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${BASE_URL}${PLAYGROUND_ENDPOINT}', {
+                            code={`const response = await fetch('${API_URL}${PLAYGROUND_ENDPOINT}', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 
@@ -158,7 +158,7 @@ console.log(data.rateLimit);    // { remaining: 4, limit: 5 }`}
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${BASE_URL}/api/v1 \\
+                            code={`curl -X POST ${API_URL}/api/v1 \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: xtf_sk_your_api_key" \\
   -d '{"url": "..."}'`}

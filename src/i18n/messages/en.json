@@ -159,11 +159,6 @@
       "description": "Get download notifications in your Discord server",
       "configure": "Configure"
     },
-    "hideDocs": {
-      "title": "Sidebar",
-      "label": "Hide Documentation",
-      "desc": "Remove Docs link from sidebar navigation"
-    },
     "pwa": {
       "title": "Install App",
       "installed": "Installed ✓",
@@ -252,7 +247,7 @@
       "p1": "I used to use Telegram bots to download videos from social media. Convenient - just send a link, wait a bit, done.",
       "p2": "But over time, I got frustrated... 😤",
       "p3": "So I thought: \"Why not build my own?\"",
-      "p4": "And XTFetch was born — same functionality, but no limits, no queue, and 100% free. 🚀"
+      "p4": "And DownAria was born — same functionality, but no limits, no queue, and privacy-friendly. 🚀"
     },
     "painPoints": {
       "title": "Why I built this",
@@ -287,17 +282,17 @@
 
   "maintenance": {
     "title": "Under Maintenance",
-    "defaultMessage": "🔧 XTFetch is under maintenance. Please try again later.",
+    "defaultMessage": "🔧 DownAria is under maintenance. Please try again later.",
     "checkStatus": "Check Status",
     "adminPanel": "Admin Panel",
     "footer": "We're working hard to improve your experience. Thanks for your patience!"
   },
 
   "install": {
-    "title": "Install XTFetch",
+    "title": "Install DownAria",
     "subtitle": "Get the full app experience on your device",
     "alreadyInstalled": "Already Installed!",
-    "readyToUse": "XTFetch is ready to use on your device",
+    "readyToUse": "DownAria is ready to use on your device",
     "openApp": "Open App",
     "installNow": "Install Now",
     "howToInstall": "How to Install",
@@ -339,7 +334,7 @@
       }
     },
     "gotIt": "Got it!",
-    "backToApp": "← Back to XTFetch"
+    "backToApp": "← Back to DownAria"
   },
 
   "notFound": {
@@ -428,15 +423,14 @@
 
   "advanced": {
     "title": "Advanced Tools",
-    "subtitle": "Power user features - extractors and proxies",
+    "subtitle": "Power user features - extractors and tools",
     "warning": {
       "title": "Experimental:",
       "message": "These tools are for advanced users. Use responsibly."
     },
     "tabs": {
       "playground": "API Playground",
-      "fbHtml": "FB HTML Extractor",
-      "proxy": "Direct Proxy"
+      "fbHtml": "FB HTML Extractor"
     },
     "playground": {
       "title": "API Playground",
@@ -487,15 +481,6 @@
       "noMediaFound": "No media found",
       "parseError": "Parse error",
       "htmlPlaceholder": "Paste the entire HTML source code here (Ctrl+V)...",
-      "pasteFailed": "Paste failed"
-    },
-    "proxy": {
-      "title": "Direct Link Proxy",
-      "description": "Download from Google Drive, Dropbox, Mediafire",
-      "paste": "Paste",
-      "clear": "Clear",
-      "download": "Download",
-      "open": "Open",
       "pasteFailed": "Paste failed"
     }
   }

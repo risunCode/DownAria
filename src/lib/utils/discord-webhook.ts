@@ -428,7 +428,7 @@ export async function sendDiscordNotification(data: {
                 const blob = await res.blob();
 
                 const fileExt = data.mediaType === 'video' ? 'mp4' : 'jpg';
-                const filename = `XTFetch_${data.platform}_${Date.now()}.${fileExt}`;
+                const filename = `DownAria_${data.platform}_${Date.now()}.${fileExt}`;
 
                 // Send File + Embed in ONE message
                 const result = await sendFileToDiscord(settings.webhookUrl, blob, filename, {
