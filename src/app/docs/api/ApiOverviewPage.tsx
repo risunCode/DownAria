@@ -90,12 +90,12 @@ export function ApiOverviewPage() {
                         transition={{ delay: 0.2 }}
                         className="glass-card p-5"
                     >
-                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">API Bridge</h2>
+                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">API Base URL</h2>
                         <div className="px-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-sm text-[var(--accent-primary)]">
                             {API_URL}{PLAYGROUND_ENDPOINT}
                         </div>
                         <p className="text-xs text-[var(--text-muted)] mt-3">
-                            Use the API bridge for stable access. Visit <a href={API_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] hover:underline">{API_URL}</a> to check backend latency.
+                            Direct connection to the backend API. Visit <a href={API_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] hover:underline">{API_URL}</a> to check backend status.
                         </p>
                     </motion.div>
 

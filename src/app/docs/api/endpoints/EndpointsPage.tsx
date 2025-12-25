@@ -6,7 +6,7 @@ import { Copy, Check, Code } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api-xtfetch.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtfetch-api-production.up.railway.app';
 const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {

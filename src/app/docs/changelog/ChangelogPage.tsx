@@ -19,8 +19,8 @@ const changelog = [
         version: '1.5.0',
         date: 'December 25, 2025',
         changes: [
-            { type: 'new', items: ['API Bridge Architecture - Fixed hostname via Vercel proxy', 'Bridge Secret Key - Secure server-to-server authentication', 'Origin Whitelist - Block unauthorized API access', 'YouTube Merge Queue - Concurrency control for HD merging', 'YouTube Preview Notice - "Preview tanpa suara, suara digabung saat download"'] },
-            { type: 'improved', items: ['Error Handling - Proper error codes instead of generic messages', 'YouTube Filesize - Accurate size from yt-dlp (not estimation)', 'Stories/Groups URL - Cookie used from first try for auth-required URLs', 'Proxy Query Params - Now properly forwarded through bridge'] },
+            { type: 'new', items: ['Direct Backend Connection - Frontend connects directly to Railway backend', 'Origin Whitelist - Block unauthorized API access', 'YouTube Merge Queue - Concurrency control for HD merging', 'YouTube Preview Notice - "Preview tanpa suara, suara digabung saat download"'] },
+            { type: 'improved', items: ['Error Handling - Proper error codes instead of generic messages', 'YouTube Filesize - Accurate size from yt-dlp (not estimation)', 'Stories/Groups URL - Cookie used from first try for auth-required URLs', 'CORS Configuration - Proper headers for cross-origin requests'] },
             { type: 'fixed', items: ['Thumbnail proxy returning "URL required" error', 'Facebook Stories redirect to login even with cookie', 'Error messages concatenating multiple errors'] },
         ],
     },

@@ -107,12 +107,34 @@ pm2 save
 
 ## 🔧 Environment Variables
 
-No required environment variables. Optional:
+### Required for Production
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_API_URL` | Backend API URL | `https://xtfetch-api-production.up.railway.app` |
+| `NEXT_PUBLIC_BASE_URL` | Frontend URL | `https://downaria.vercel.app` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | `eyJhbGci...` |
+
+### Optional
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `3000` |
 | `NODE_ENV` | Environment | `production` |
+| `LOG_LEVEL` | Logging level | `info` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Push notification key | - |
+
+### Vercel Environment Setup
+
+1. Go to your Vercel project dashboard
+2. Navigate to **Settings** → **Environment Variables**
+3. Add the required variables:
+   - `NEXT_PUBLIC_API_URL` = `https://xtfetch-api-production.up.railway.app`
+   - `NEXT_PUBLIC_BASE_URL` = `https://downaria.vercel.app`
+   - `NEXT_PUBLIC_SUPABASE_URL` = Your Supabase URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = Your Supabase anon key
+4. Redeploy for changes to take effect
 
 ## 🛡️ Reverse Proxy (Nginx)
 
