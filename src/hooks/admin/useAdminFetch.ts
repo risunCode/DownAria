@@ -100,18 +100,23 @@ function transformError(error: unknown): AdminApiError {
 export async function getAuthTokenAsync(): Promise<string | null> {
     if (typeof window === 'undefined') return null;
     
+    // Priority 1: Try localStorage first (most reliable)
+    const localToken = getAuthToken();
+    if (localToken) {
+        return localToken;
+    }
+    
+    // Priority 2: Fallback to Supabase client
     try {
-        // Best method: Use Supabase client directly
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
             return session.access_token;
         }
     } catch {
-        // Fallback to localStorage
+        // Ignore errors
     }
     
-    // Fallback: Try localStorage patterns
-    return getAuthToken();
+    return null;
 }
 
 // Sync version for headers (fallback to localStorage)
