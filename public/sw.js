@@ -1,10 +1,10 @@
-// XTFetch Service Worker - Offline First PWA
+// DownAria Service Worker - Offline First PWA
 // Cache version - update this on each deploy or use build timestamp
-const BUILD_TIME = '20251225145659'; // YYYYMMDD format - UPDATE ON DEPLOY
-const CACHE_VERSION = `v5-${BUILD_TIME}`;
-const STATIC_CACHE = `xtfetch-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `xtfetch-dynamic-${CACHE_VERSION}`;
-const API_CACHE = `xtfetch-api-${CACHE_VERSION}`;
+const BUILD_TIME = '20251225165900'; // YYYYMMDD format - UPDATE ON DEPLOY
+const CACHE_VERSION = `v6-${BUILD_TIME}`;
+const STATIC_CACHE = `downaria-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `downaria-dynamic-${CACHE_VERSION}`;
+const API_CACHE = `downaria-api-${CACHE_VERSION}`;
 
 // App shell - core files needed for offline
 const APP_SHELL = [
@@ -47,7 +47,10 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames
             .filter((name) => {
-              return name.startsWith('xtfetch-') && 
+              // Delete old xtfetch caches (migration)
+              if (name.startsWith('xtfetch-')) return true;
+              // Delete old downaria caches
+              return name.startsWith('downaria-') && 
                      name !== STATIC_CACHE && 
                      name !== DYNAMIC_CACHE &&
                      name !== API_CACHE;
@@ -187,7 +190,7 @@ self.addEventListener('message', (event) => {
   if (event.data === 'clearCache') {
     caches.keys().then((names) => {
       names.forEach((name) => {
-        if (name.startsWith('xtfetch-')) {
+        if (name.startsWith('downaria-') || name.startsWith('xtfetch-')) {
           caches.delete(name);
         }
       });
@@ -212,11 +215,11 @@ self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
   
   let data = {
-    title: 'XTFetch',
+    title: 'DownAria',
     body: 'New notification',
     icon: '/icon.png',
     badge: '/icon.png',
-    tag: 'xtfetch-notification',
+    tag: 'downaria-notification',
     data: { url: '/' }
   };
   
@@ -235,7 +238,7 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/icon.png',
     badge: data.badge || '/icon.png',
-    tag: data.tag || 'xtfetch-notification',
+    tag: data.tag || 'downaria-notification',
     data: data.data || { url: '/' },
     vibrate: [100, 50, 100],
     actions: data.actions || [
