@@ -307,7 +307,7 @@ export async function downloadHistoryExport(filename?: string): Promise<void> {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || `xtfetch-history-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = filename || `downaria-history-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -432,10 +432,10 @@ export interface FullBackupData {
 
 // Keys that use encrypted storage and need special handling
 const ENCRYPTED_KEYS = [
-    'xtf_cookie_facebook',
-    'xtf_cookie_instagram', 
-    'xtf_cookie_weibo',
-    'xtf_cookie_twitter',
+    'downaria_cookie_facebook',
+    'downaria_cookie_instagram', 
+    'downaria_cookie_weibo',
+    'downaria_cookie_twitter',
 ];
 
 export async function createFullBackup(): Promise<FullBackupData> {
@@ -506,7 +506,7 @@ export async function downloadFullBackupAsZip(filename?: string): Promise<void> 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || `xtfetch-backup-${new Date().toISOString().split('T')[0]}.zip`;
+    a.download = filename || `downaria-backup-${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -13,7 +13,7 @@
 
 export type ThemeType = 'light' | 'solarized' | 'dark';
 
-const THEME_KEY = 'xtf_theme';
+const THEME_KEY = 'downaria_theme';
 const DEFAULT_THEME: ThemeType = 'solarized';
 
 export function getTheme(): ThemeType {
@@ -60,7 +60,7 @@ export interface AppSettings {
   showEngagement: boolean;
 }
 
-const SETTINGS_KEY = 'xtf_settings';
+const SETTINGS_KEY = 'downaria_settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
   pushNotifications: false,
@@ -116,7 +116,7 @@ function cookieParse(input: unknown): string | null {
   return null;
 }
 
-const COOKIE_KEY_PREFIX = 'xtf_cookie_';
+const COOKIE_KEY_PREFIX = 'downaria_cookie_';
 
 export function getPlatformCookie(platform: CookiePlatform): string | null {
   if (typeof window === 'undefined') return null;
@@ -181,7 +181,7 @@ export const hasValidWeiboCookie = () => hasPlatformCookie('weibo');
 // SKIP CACHE SETTING
 // ═══════════════════════════════════════════════════════════════
 
-const SKIP_CACHE_KEY = 'xtf_skip_cache';
+const SKIP_CACHE_KEY = 'downaria_skip_cache';
 
 /**
  * Get Skip Cache setting (default: false)
@@ -214,7 +214,7 @@ import { type Locale, locales, defaultLocale } from '@/i18n/config';
 
 export type LanguagePreference = 'auto' | Locale;
 
-const LANGUAGE_KEY = 'xtf_language';
+const LANGUAGE_KEY = 'downaria_language';
 
 /**
  * Get language preference

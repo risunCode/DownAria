@@ -5,8 +5,8 @@
  * Enforces strict limits to prevent quota issues.
  * 
  * Storage Keys:
- * - xt_history_v2: Download history array (max 50)
- * - xt_cache_v2: Media cache object (max 20)
+ * - downaria_history: Download history array (max 50)
+ * - downaria_cache: Media cache object (max 20)
  */
 
 import { PlatformId, MediaFormat } from '@/lib/types';
@@ -15,8 +15,8 @@ import { PlatformId, MediaFormat } from '@/lib/types';
 // CONSTANTS & TYPES
 // ═══════════════════════════════════════════════════════════════
 
-const HISTORY_KEY = 'xtf_history';
-const CACHE_KEY = 'xtf_cache';
+const HISTORY_KEY = 'downaria_history';
+const CACHE_KEY = 'downaria_cache';
 
 const MAX_HISTORY_ITEMS = 50;
 const MAX_CACHE_ITEMS = 20;
