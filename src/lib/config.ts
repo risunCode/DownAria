@@ -11,8 +11,8 @@ export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // App Constants
-export const APP_NAME = 'XTFetch';
-export const APP_VERSION = '1.0.0';
+export const APP_NAME = 'DownAria';
+export const APP_VERSION = '1.2.0';
 
 // Feature Flags
 export const FEATURES = {
