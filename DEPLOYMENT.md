@@ -2,11 +2,11 @@
 
 ## 🚀 Vercel (Recommended)
 
-The easiest way to deploy XTFetch.
+The easiest way to deploy DownAria.
 
 ### One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/risunCode/XTFetch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/risunCode/DownAria)
 
 ### Manual Deploy
 
@@ -23,10 +23,10 @@ No environment variables needed!
 
 ```bash
 # Build image
-docker build -t xtfetch .
+docker build -t downaria .
 
 # Run container
-docker run -p 3000:3000 xtfetch
+docker run -p 3000:3000 downaria
 ```
 
 ### Docker Compose
@@ -56,8 +56,8 @@ docker-compose up -d
 
 ```bash
 # Clone repository
-git clone https://github.com/risunCode/XTFetch.git
-cd XTFetch
+git clone https://github.com/risunCode/DownAria.git
+cd DownAria
 
 # Install dependencies
 npm install
@@ -76,7 +76,7 @@ npm start
 npm install -g pm2
 
 # Start with PM2
-pm2 start npm --name "xt-social" -- start
+pm2 start npm --name "downaria" -- start
 
 # Auto-restart on reboot
 pm2 startup
@@ -150,7 +150,7 @@ The app responds at `/` - use this for health checks.
 
 ```bash
 # PM2 logs
-pm2 logs xt-social
+pm2 logs downaria
 
 # Docker logs
 docker logs -f container_name
@@ -197,4 +197,4 @@ NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 ---
 
-Need help? Open an issue on [GitHub](https://github.com/risunCode/XTFetch/issues).
+Need help? Open an issue on [GitHub](https://github.com/risunCode/DownAria/issues).

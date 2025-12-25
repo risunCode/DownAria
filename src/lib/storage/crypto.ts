@@ -44,7 +44,7 @@ function getCanvasFingerprint(): string {
     
     ctx.textBaseline = 'top';
     ctx.font = '14px Arial';
-    ctx.fillText('XTFetch', 2, 2);
+    ctx.fillText('DownAria', 2, 2);
     
     return canvas.toDataURL().slice(-50);
   } catch {

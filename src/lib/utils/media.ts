@@ -65,10 +65,10 @@ function sanitizeForFilename(text: string, maxLength: number = 50): string {
 
 /**
  * Generate standardized filename for downloaded media
- * Format: Author_Caption_(Quality)_[XTFETCH].ext
+ * Format: Author_Caption_(Quality)_[DownAria].ext
  * 
- * YouTube: Author_Title_(Quality)_[XTFETCH].ext
- * Others: Author_Caption_(Quality)_[XTFETCH].ext
+ * YouTube: Author_Title_(Quality)_[DownAria].ext
+ * Others: Author_Caption_(Quality)_[DownAria].ext
  */
 export function generateFilename(
     data: MediaData,
@@ -96,11 +96,11 @@ export function generateFilename(
     // Carousel suffix for multi-item posts
     const carouselSuffix = carouselIndex ? `_${carouselIndex}` : '';
     
-    // Build filename: Author_Caption_(Quality)_[XTFETCH].ext
+    // Build filename: Author_Caption_(Quality)_[DownAria].ext
     const parts = [author];
     if (caption && caption !== 'untitled') parts.push(caption);
     
-    return `${parts.join('_')}${carouselSuffix}_(${quality})_[XTFETCH].${ext}`;
+    return `${parts.join('_')}${carouselSuffix}_(${quality})_[DownAria].${ext}`;
 }
 
 /**

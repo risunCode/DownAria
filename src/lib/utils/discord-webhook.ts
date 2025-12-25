@@ -14,7 +14,7 @@
 import Swal from 'sweetalert2';
 import { formatNumber, formatBytes } from './format';
 
-const APP_NAME = 'XTFetch';
+const APP_NAME = 'DownAria';
 const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB - Discord stops auto-embedding above this
 
 const getAppIcon = () => {
@@ -42,7 +42,7 @@ export const DEFAULT_USER_DISCORD: UserDiscordSettings = {
     autoSend: false,
     embedEnabled: true,
     embedColor: '#5865F2',
-    footerText: 'via XTFetch',
+    footerText: 'via DownAria',
     sendMethod: 'smart', // Default: auto-detect based on file size
     mention: '', // Default: no mention
 };
@@ -318,7 +318,7 @@ export async function sendDiscordNotification(data: {
             author: { name: `${data.platform} Downloader` },
             color: parseInt(settings.embedColor.replace('#', ''), 16),
             fields,
-            footer: { text: settings.footerText || 'via XTFetch', icon_url: appIcon },
+            footer: { text: settings.footerText || 'via DownAria', icon_url: appIcon },
             timestamp: new Date().toISOString(),
         };
 
