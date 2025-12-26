@@ -8,7 +8,6 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 import { useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -83,16 +82,16 @@ export function ApiOverviewPage() {
                         </div>
                     </motion.div>
 
-                    {/* Base URL */}
+                    {/* API Base URL */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
                         className="glass-card p-5"
                     >
-                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">API Base URL</h2>
+                        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">API Endpoint</h2>
                         <div className="px-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-sm text-[var(--accent-primary)]">
-                            {API_URL}{PLAYGROUND_ENDPOINT}
+                            GET {API_URL}/api/v1?key=YOUR_API_KEY&url=MEDIA_URL
                         </div>
                         <p className="text-xs text-[var(--text-muted)] mt-3">
                             Direct connection to the backend API. Visit <a href={API_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] hover:underline">{API_URL}</a> to check backend status.
@@ -104,11 +103,11 @@ export function ApiOverviewPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25 }}
-                        className="glass-card p-4 border-l-4 border-l-yellow-500"
+                        className="glass-card p-4 border-l-4 border-l-blue-500"
                     >
                         <p className="text-sm text-[var(--text-secondary)]">
-                            <strong className="text-yellow-400">⚠️ Note:</strong> The main <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api/v1</code> endpoint is protected and only accessible from our website or with a valid API key. 
-                            Use <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">/api/v1/playground</code> for testing.
+                            <strong className="text-blue-400">ℹ️ Note:</strong> The API requires a valid API key for all requests. 
+                            Create an account and generate your API key from Settings → API Keys.
                         </p>
                     </motion.div>
 
@@ -123,24 +122,20 @@ export function ApiOverviewPage() {
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${API_URL}${PLAYGROUND_ENDPOINT} \\
-  -H "Content-Type: application/json" \\
-  -d '{"url": "https://www.tiktok.com/@user/video/123"}'`}
+                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://www.tiktok.com/@user/video/123"`}
                         />
 
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${API_URL}${PLAYGROUND_ENDPOINT}', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ 
-    url: 'https://www.tiktok.com/@user/video/123' 
-  })
-});
+                            code={`const API_KEY = 'xtf_live_xxxxx';
+const videoUrl = 'https://www.tiktok.com/@user/video/123';
+
+const response = await fetch(
+  \`${API_URL}/api/v1?key=\${API_KEY}&url=\${encodeURIComponent(videoUrl)}\`
+);
 
 const data = await response.json();
-console.log(data.data.formats); // Array of download URLs
-console.log(data.rateLimit);    // { remaining: 4, limit: 5 }`}
+console.log(data.data.formats); // Array of download URLs`}
                         />
                     </motion.div>
 
@@ -153,15 +148,12 @@ console.log(data.rateLimit);    // { remaining: 4, limit: 5 }`}
                     >
                         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Authentication</h2>
                         <p className="text-sm text-[var(--text-muted)] mb-4">
-                            API key is optional but recommended for higher rate limits.
+                            API key is required for all requests. Pass it as a query parameter:
                         </p>
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${API_URL}/api/v1 \\
-  -H "Content-Type: application/json" \\
-  -H "X-API-Key: xtf_sk_your_api_key" \\
-  -d '{"url": "..."}'`}
+                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://instagram.com/p/xxxxx"`}
                         />
 
                         <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mt-4">
@@ -190,16 +182,12 @@ console.log(data.rateLimit);    // { remaining: 4, limit: 5 }`}
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">Without API Key</td>
-                                        <td className="py-3 px-3 text-[var(--text-muted)] text-xs">15 requests/minute per IP</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">With API Key</td>
+                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">Standard API Key</td>
                                         <td className="py-3 px-3 text-[var(--text-muted)] text-xs">100 requests/minute</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">Playground (Guest)</td>
-                                        <td className="py-3 px-3 text-[var(--text-muted)] text-xs">5 requests/2 minutes</td>
+                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">Premium API Key</td>
+                                        <td className="py-3 px-3 text-[var(--text-muted)] text-xs">Unlimited</td>
                                     </tr>
                                 </tbody>
                             </table>

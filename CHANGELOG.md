@@ -2,6 +2,41 @@
 
 All notable changes to DownAria will be documented in this file.
 
+## [1.8.1] - 2024-12-26
+
+### 🚀 Performance Improvements
+- **Faster Offline Detection** - Reduced from 3s to instant detection
+  - Added `CONNECTION_TIMEOUT = 5s` for fast first attempt
+  - Added `OFFLINE_CACHE_TTL = 10s` to cache offline status
+  - Skip retries when backend recently offline
+- **New OfflineError Class** - Better error handling for backend connectivity
+
+### 🔧 API Client Optimization
+- `isRecentlyOffline()` - Check if backend was recently offline
+- `resetOfflineStatus()` - Manual reset for offline cache
+- `checkBackendStatus()` - Explicit backend health check
+
+### 📁 Files Changed
+- `src/lib/api/client.ts` - Offline detection optimization
+
+---
+
+## [1.8.0] - 2024-12-26
+
+### 🤖 Telegram Bot Enhancements
+- **Smart Quality Logic** - Non-YouTube videos auto-send HD if ≤40MB, fallback to SD with HD link if >40MB
+- **YouTube Flow Improved** - Preview deleted after quality selection, cleaner UX with single Original button
+- **Maintenance Sync** - Bot now respects frontend's global maintenance mode via Redis
+- **Keyboard Reorganization** - Simplified into grouped exports (MENU, DOWNLOAD, PREMIUM, NAV, STATUS, ADMIN)
+
+### 🔧 Backend Improvements
+- **Input Validation** - Enhanced validation for YouTube format strings
+- **URL Validation** - Stricter proxy URL validation
+- **Admin Auth** - Improved playground endpoint security
+- **Log Safety** - User inputs sanitized before logging
+
+---
+
 ## [1.7.0] - 2024-12-25
 
 ### 🤖 Telegram Bot Integration

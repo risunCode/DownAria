@@ -7,6 +7,22 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.8.0',
+        date: 'December 26, 2025',
+        changes: [
+            { type: 'new', items: ['🤖 Bot Smart Quality - Auto HD if ≤40MB, fallback SD with HD link if >40MB', '🎬 YouTube Flow - Preview deleted after selection, cleaner single-button UX', '🔄 Maintenance Sync - Bot respects frontend global maintenance via Redis', '🎹 Keyboard Groups - Simplified into MENU, DOWNLOAD, PREMIUM, NAV, STATUS, ADMIN'] },
+            { type: 'improved', items: ['Input Validation - Enhanced YouTube format string validation', 'URL Validation - Stricter proxy URL checks', 'Admin Auth - Improved playground endpoint security', 'Log Safety - User inputs sanitized before logging'] },
+        ],
+    },
+    {
+        version: '1.7.0',
+        date: 'December 25, 2025',
+        changes: [
+            { type: 'new', items: ['🤖 Telegram Bot - @downariaxt_bot for video downloads via Telegram', 'User Commands - /start, /help, /mystatus, /history, /premium', 'Admin Commands - /stats, /broadcast, /ban, /unban, /givepremium, /maintenance', 'Rate Limiting - Free: 10/6hrs, Premium: Unlimited'] },
+            { type: 'improved', items: ['grammY Integration - Webhook support with 25s timeout', 'Global Error Handler - Prevents crashes from middleware errors'] },
+        ],
+    },
+    {
         version: '1.6.0',
         date: 'December 25, 2025',
         changes: [

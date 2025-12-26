@@ -6,8 +6,8 @@ import { Key, Shield, Zap, Trash2, Copy, Check } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const BASE_URL = 'https://xt-fetch.vercel.app';
-const MAIN_API = '/api'; // Requires API key for external access
+const BASE_URL = 'https://api-xtfetch.up.railway.app';
+const API_ENDPOINT = '/api/v1';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -126,35 +126,31 @@ export function ApiKeysGuidePage() {
                     >
                         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Using Your API Key</h2>
                         <p className="text-sm text-[var(--text-muted)] mb-4">
-                            Pass your API key in the <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-xs">X-API-Key</code> header:
+                            Pass your API key as a query parameter:
                         </p>
 
                         <CodeBlock 
                             language="bash"
-                            code={`curl -X POST ${BASE_URL}${MAIN_API} \\
-  -H "Content-Type: application/json" \\
-  -H "X-API-Key: xtf_sk_your_api_key_here" \\
-  -d '{"url": "https://www.instagram.com/reel/ABC123/"}'`}
+                            code={`curl "${BASE_URL}${API_ENDPOINT}?key=xtf_live_xxxxx&url=https://www.instagram.com/reel/ABC123/"`}
                         />
 
                         <CodeBlock 
                             language="javascript"
                             code={`const API_KEY = process.env.XTFETCH_API_KEY; // Use env variable!
+const videoUrl = 'https://www.instagram.com/reel/ABC123/';
 
-const response = await fetch('${BASE_URL}${MAIN_API}', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': API_KEY // Required for /api endpoint
-  },
-  body: JSON.stringify({ url: 'https://...' })
-});`}
+const response = await fetch(
+  \`${BASE_URL}${API_ENDPOINT}?key=\${API_KEY}&url=\${encodeURIComponent(videoUrl)}\`
+);
+
+const { success, data } = await response.json();
+console.log(data.formats); // Array of download URLs`}
                         />
 
                         <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 mt-4">
                             <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-blue-400">ℹ️ Note:</strong> The <code className="px-1 py-0.5 rounded bg-[var(--bg-secondary)]">/api</code> endpoint requires an API key for external access. 
-                                For testing without API key, use <code className="px-1 py-0.5 rounded bg-[var(--bg-secondary)]">/api/playground</code> instead.
+                                <strong className="text-blue-400">ℹ️ Note:</strong> The API requires a valid API key for all requests. 
+                                Generate your key from Settings → API Keys.
                             </p>
                         </div>
                     </motion.div>

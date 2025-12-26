@@ -7,7 +7,6 @@ import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtfetch-api-production.up.railway.app';
-const PLAYGROUND_ENDPOINT = '/api/v1/playground';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -81,68 +80,61 @@ export function EndpointsPage() {
                         </p>
                     </motion.div>
 
-                    {/* POST /api/playground - PUBLIC */}
+                    {/* GET /api/v1 - Main API */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
                         className="glass-card p-5"
                     >
-                        <EndpointCard method="POST" path="/api/playground" description="Public API (Rate Limited)" />
+                        <EndpointCard method="GET" path="/api/v1" auth="required" />
                         <p className="text-sm text-[var(--text-muted)] mb-4">
-                            Public API for downloading videos. No authentication required. Rate limited to 5 requests per 2 minutes.
+                            Main download endpoint. Requires API key as query parameter.
                         </p>
 
-                        {/* Browser Test URL */}
-                        <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 mb-4">
-                            <p className="text-xs text-[var(--text-secondary)] mb-2">
-                                <strong className="text-green-400">🌐 Test in Browser:</strong>
-                            </p>
-                            <code className="text-xs text-[var(--text-primary)] break-all">
-                                {API_URL}/api/playground?url=https://www.facebook.com/share/p/1G8yBgJaPa/
-                            </code>
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request</h3>
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Query Parameters</h3>
                         <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
                             <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
                                 <thead>
                                     <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Method</th>
                                         <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Param</th>
+                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Required</th>
                                         <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--border-color)]">
                                     <tr>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">GET</td>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">?url=...</td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">URL as query parameter</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">key</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Your API key (format: xtf_live_xxxxx)</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">POST</td>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">{`{"url": "..."}`}</td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">URL in JSON body</td>
+                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">url</td>
+                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Social media URL to download</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
 
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example (POST)</h3>
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
+                        <CodeBlock 
+                            language="bash"
+                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://www.facebook.com/share/p/1G8yBgJaPa/"`}
+                        />
+
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${API_URL}${PLAYGROUND_ENDPOINT}', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ 
-    url: 'https://www.facebook.com/share/p/1G8yBgJaPa/'
-  })
-});
+                            code={`const API_KEY = 'xtf_live_xxxxx';
+const videoUrl = 'https://www.facebook.com/share/p/1G8yBgJaPa/';
 
-const { success, data, rateLimit } = await response.json();
+const response = await fetch(
+  \`${API_URL}/api/v1?key=\${API_KEY}&url=\${encodeURIComponent(videoUrl)}\`
+);
+
+const { success, data } = await response.json();
 
 if (success) {
-  console.log('Remaining requests:', rateLimit.remaining);
   console.log('Download URLs:', data.formats);
 }`}
                         />
@@ -162,132 +154,13 @@ if (success) {
       { "url": "https://...", "quality": "SD", "type": "video" }
     ],
     "responseTime": 1234
-  },
-  "rateLimit": { "remaining": 4, "limit": 5 }
-}`}
-                        />
-                    </motion.div>
-
-                    {/* POST /api - API Key Required */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="glass-card p-5"
-                    >
-                        <EndpointCard method="POST" path="/api/v1" description="Main API (Higher Limits)" auth="required" />
-                        <p className="text-sm text-[var(--text-muted)] mb-4">
-                            Main download endpoint with higher rate limits. Requires API key in header.
-                        </p>
-
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Headers</h3>
-                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
-                            <table className="w-full text-[10px] sm:text-xs min-w-[400px]">
-                                <thead>
-                                    <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Header</th>
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Required</th>
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--border-color)]">
-                                    <tr>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">X-API-Key</td>
-                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Your API key (format: xtf_sk_xxxxx)</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">Content-Type</td>
-                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">application/json</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Request Body</h3>
-                        <div className="overflow-x-auto -mx-3 sm:mx-0 mb-4">
-                            <table className="w-full text-[10px] sm:text-xs min-w-[450px]">
-                                <thead>
-                                    <tr className="border-b border-[var(--border-color)]">
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Field</th>
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Type</th>
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Required</th>
-                                        <th className="text-left py-2 px-2 sm:px-3 text-[var(--text-muted)] font-medium">Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--border-color)]">
-                                    <tr>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">url</td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Social media URL</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">cookie</td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">string</td>
-                                        <td className="py-2 px-2 sm:px-3"><span className="text-[var(--text-muted)]">No</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Platform cookie for private content</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">skipCache</td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">boolean</td>
-                                        <td className="py-2 px-2 sm:px-3"><span className="text-[var(--text-muted)]">No</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Skip cached results</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
-                        <CodeBlock 
-                            language="javascript"
-                            code={`const response = await fetch('${API_URL}/api/v1', {
-  method: 'POST',
-  headers: { 
-    'Content-Type': 'application/json',
-    'X-API-Key': 'demo_caf079daf479ceb1'
-  },
-  body: JSON.stringify({ 
-    url: 'https://www.facebook.com/share/p/1G8yBgJaPa/'
-  })
-});
-
-const { success, data } = await response.json();
-
-if (success) {
-  console.log('Download URLs:', data.formats);
-}`}
-                        />
-
-                        <div className="mt-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                            <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-blue-400">🧪 Demo Key:</strong> Use <code className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)]">demo_caf079daf479ceb1</code> for testing (limited to 3 requests/minute).
-                            </p>
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 mt-4">Response</h3>
-                        <CodeBlock 
-                            language="json"
-                            code={`{
-  "success": true,
-  "platform": "facebook",
-  "data": {
-    "title": "Video title",
-    "author": "Author name", 
-    "thumbnail": "https://...",
-    "formats": [
-      { "url": "https://...", "quality": "HD", "type": "video" },
-      { "url": "https://...", "quality": "SD", "type": "video" }
-    ],
-    "responseTime": 856
   }
 }`}
                         />
 
                         <div className="mt-4 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                             <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-purple-400">💡 Get Your Own Key:</strong> Create an account and generate your API key from Settings → API Keys for higher limits.
+                                <strong className="text-purple-400">💡 Get Your API Key:</strong> Create an account and generate your API key from Settings → API Keys.
                             </p>
                         </div>
                     </motion.div>
