@@ -20,16 +20,17 @@ import {
     type BrowserProfile, type CreateProfileInput,
     type AiApiKey, type AiProvider,
 } from '@/hooks/admin';
-import { faFacebook, faInstagram, faWeibo, faTwitter } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faInstagram, faWeibo, faTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
-type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter';
+type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter' | 'youtube';
 type TabType = 'cookies' | 'browserprofiles' | 'aikeys';
 
 const COOKIE_PLATFORMS: { id: CookiePlatform; name: string; icon: IconDefinition; color: string; bgColor: string; required: string }[] = [
     { id: 'facebook', name: 'Facebook', icon: faFacebook, color: 'text-blue-500', bgColor: 'bg-blue-500/10', required: 'c_user, xs' },
     { id: 'instagram', name: 'Instagram', icon: faInstagram, color: 'text-pink-500', bgColor: 'bg-pink-500/10', required: 'sessionid' },
     { id: 'twitter', name: 'Twitter', icon: faTwitter, color: 'text-sky-400', bgColor: 'bg-sky-400/10', required: 'auth_token, ct0' },
+    { id: 'youtube', name: 'YouTube', icon: faYoutube, color: 'text-red-500', bgColor: 'bg-red-500/10', required: 'LOGIN_INFO, SID' },
     { id: 'weibo', name: 'Weibo', icon: faWeibo, color: 'text-orange-500', bgColor: 'bg-orange-500/10', required: 'SUB' },
 ];
 
@@ -82,6 +83,13 @@ function parseCookieInfo(cookieStr: string, platform: CookiePlatform): ParsedCoo
             // Weibo: SUB (session), _T_WM
             if (cookies['SUB']) info.sessionId = cookies['SUB'].substring(0, 12) + '...';
             if (cookies['_T_WM']) info.csrfToken = cookies['_T_WM'].substring(0, 8) + '...';
+            break;
+            
+        case 'youtube':
+            // YouTube: LOGIN_INFO, SID, HSID
+            if (cookies['LOGIN_INFO']) info.sessionId = cookies['LOGIN_INFO'].substring(0, 12) + '...';
+            if (cookies['SID']) info.userId = cookies['SID'].substring(0, 8) + '...';
+            if (cookies['HSID']) info.csrfToken = cookies['HSID'].substring(0, 8) + '...';
             break;
     }
 
