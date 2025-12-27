@@ -6,7 +6,7 @@ import { Key, Shield, Zap, Trash2, Copy, Check } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const BASE_URL = 'https://api-xtfetch.up.railway.app';
+const BASE_URL = 'https://api-DownAria.up.railway.app';
 const API_ENDPOINT = '/api/v1';
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
@@ -93,7 +93,7 @@ export function ApiKeysGuidePage() {
                         
                         <div className="space-y-3">
                             {[
-                                { step: 1, title: 'Create an Account', desc: 'Sign up at XTFetch. Email or social login.' },
+                                { step: 1, title: 'Create an Account', desc: 'Sign up at DownAria. Email or social login.' },
                                 { step: 2, title: 'Go to Settings', desc: 'Navigate to Settings → API Keys section.' },
                                 { step: 3, title: 'Create New Key', desc: 'Click "Create API Key", give it a name.' },
                                 { step: 4, title: 'Copy & Store', desc: 'Copy immediately. Won\'t be shown again!' },
@@ -131,12 +131,12 @@ export function ApiKeysGuidePage() {
 
                         <CodeBlock 
                             language="bash"
-                            code={`curl "${BASE_URL}${API_ENDPOINT}?key=xtf_live_xxxxx&url=https://www.instagram.com/reel/ABC123/"`}
+                            code={`curl "${BASE_URL}${API_ENDPOINT}?key=dwa_live_xxxxx&url=https://www.instagram.com/reel/ABC123/"`}
                         />
 
                         <CodeBlock 
                             language="javascript"
-                            code={`const API_KEY = process.env.XTFETCH_API_KEY; // Use env variable!
+                            code={`const API_KEY = process.env.DownAria_API_KEY; // Use env variable!
 const videoUrl = 'https://www.instagram.com/reel/ABC123/';
 
 const response = await fetch(

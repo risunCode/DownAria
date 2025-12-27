@@ -6,7 +6,7 @@ import { Copy, Check, Code } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://xtfetch-api-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://DownAria-api-production.up.railway.app';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -106,7 +106,7 @@ export function EndpointsPage() {
                                     <tr>
                                         <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">key</td>
                                         <td className="py-2 px-2 sm:px-3"><span className="text-red-400">Yes</span></td>
-                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Your API key (format: xtf_live_xxxxx)</td>
+                                        <td className="py-2 px-2 sm:px-3 text-[var(--text-muted)]">Your API key (format: dwa_live_xxxxx)</td>
                                     </tr>
                                     <tr>
                                         <td className="py-2 px-2 sm:px-3 font-mono text-[var(--accent-primary)]">url</td>
@@ -120,12 +120,12 @@ export function EndpointsPage() {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="bash"
-                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://www.facebook.com/share/p/1G8yBgJaPa/"`}
+                            code={`curl "${API_URL}/api/v1?key=dwa_live_xxxxx&url=https://www.facebook.com/share/p/1G8yBgJaPa/"`}
                         />
 
                         <CodeBlock 
                             language="javascript"
-                            code={`const API_KEY = 'xtf_live_xxxxx';
+                            code={`const API_KEY = 'dwa_live_xxxxx';
 const videoUrl = 'https://www.facebook.com/share/p/1G8yBgJaPa/';
 
 const response = await fetch(

@@ -122,12 +122,12 @@ export function ApiOverviewPage() {
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://www.tiktok.com/@user/video/123"`}
+                            code={`curl "${API_URL}/api/v1?key=dwa_live_xxxxx&url=https://www.tiktok.com/@user/video/123"`}
                         />
 
                         <CodeBlock 
                             language="javascript"
-                            code={`const API_KEY = 'xtf_live_xxxxx';
+                            code={`const API_KEY = 'dwa_live_xxxxx';
 const videoUrl = 'https://www.tiktok.com/@user/video/123';
 
 const response = await fetch(
@@ -153,7 +153,7 @@ console.log(data.data.formats); // Array of download URLs`}
                         
                         <CodeBlock 
                             language="bash"
-                            code={`curl "${API_URL}/api/v1?key=xtf_live_xxxxx&url=https://instagram.com/p/xxxxx"`}
+                            code={`curl "${API_URL}/api/v1?key=dwa_live_xxxxx&url=https://instagram.com/p/xxxxx"`}
                         />
 
                         <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mt-4">

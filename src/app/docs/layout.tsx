@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Documentation - XTFetch',
-    description: 'Learn how to use XTFetch API to download videos from social media platforms.',
+    title: 'Documentation - DownAria',
+    description: 'Learn how to use DownAria API to download videos from social media platforms.',
 };
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

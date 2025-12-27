@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { TroubleshootingPage } from '@/app/docs/guides/troubleshooting/TroubleshootingPage';
 
 export const metadata: Metadata = {
-    title: 'Troubleshooting - XTFetch Docs',
-    description: 'Common issues and solutions when using XTFetch. Fix download errors, cookie problems, and more.',
-    keywords: ['troubleshooting', 'fix errors', 'common issues', 'XTFetch help'],
+    title: 'Troubleshooting - DownAria Docs',
+    description: 'Common issues and solutions when using DownAria. Fix download errors, cookie problems, and more.',
+    keywords: ['troubleshooting', 'fix errors', 'common issues', 'DownAria help'],
     openGraph: {
-        title: 'Troubleshooting - XTFetch',
+        title: 'Troubleshooting - DownAria',
         description: 'Solutions for common issues',
     },
 };

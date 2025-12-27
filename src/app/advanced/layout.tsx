@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Advanced Tools | XTFetch - Social Media Downloader',
+    title: 'Advanced Tools | DownAria - Social Media Downloader',
     description: 'Advanced media extraction tools and proxies for power users. Extract content from Facebook HTML and direct media URLs.',
 };
 

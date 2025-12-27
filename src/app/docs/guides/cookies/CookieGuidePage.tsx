@@ -81,7 +81,7 @@ export function CookieGuidePage() {
                                 { step: 2, title: 'Log in to the platform', desc: 'Open Facebook/Instagram/Weibo and log in to your account' },
                                 { step: 3, title: 'Open Cookie Editor', desc: 'Click the extension icon in your browser toolbar' },
                                 { step: 4, title: 'Export as JSON', desc: 'Click "Export" or "Export All" button to copy cookies' },
-                                { step: 5, title: 'Paste in XTFetch', desc: 'Go to Settings → Cookies → Paste the JSON' },
+                                { step: 5, title: 'Paste in DownAria', desc: 'Go to Settings → Cookies → Paste the JSON' },
                             ].map((item) => (
                                 <div key={item.step} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] transition-colors">
                                     <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
@@ -108,7 +108,7 @@ export function CookieGuidePage() {
 
                         <div className="mt-4 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
                             <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-green-400">✨ Tip:</strong> XTFetch automatically parses JSON format and extracts the required cookies!
+                                <strong className="text-green-400">✨ Tip:</strong> DownAria automatically parses JSON format and extracts the required cookies!
                             </p>
                         </div>
                     </motion.div>
@@ -192,7 +192,7 @@ export function CookieGuidePage() {
                         >
                             <p className="text-sm text-[var(--text-secondary)]">
                                 <strong className="text-green-400">🔒 Encrypted storage</strong><br />
-                                <span className="text-xs">XTFetch encrypts your cookies with AES-256 before storing them locally.</span>
+                                <span className="text-xs">DownAria encrypts your cookies with AES-256 before storing them locally.</span>
                             </p>
                         </motion.div>
                     </div>

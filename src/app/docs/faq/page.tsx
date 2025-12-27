@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import { FAQPage } from '@/app/docs/faq/FAQPage';
 
 export const metadata: Metadata = {
-    title: 'FAQ - XTFetch Docs',
-    description: 'Frequently asked questions about XTFetch. Is it free? Is it legal? What platforms are supported?',
-    keywords: ['FAQ', 'frequently asked questions', 'XTFetch help', 'video downloader FAQ'],
+    title: 'FAQ - DownAria Docs',
+    description: 'Frequently asked questions about DownAria. Is it free? Is it legal? What platforms are supported?',
+    keywords: ['FAQ', 'frequently asked questions', 'DownAria help', 'video downloader FAQ'],
     openGraph: {
-        title: 'FAQ - XTFetch',
+        title: 'FAQ - DownAria',
         description: 'Answers to common questions',
     },
 };

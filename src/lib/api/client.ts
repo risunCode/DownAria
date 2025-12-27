@@ -9,7 +9,7 @@
  */
 
 // Backend API URL - defaults to localhost for development
-// Production should set NEXT_PUBLIC_API_URL to Railway backend: https://xtfetch-api-production.up.railway.app
+// Production should set NEXT_PUBLIC_API_URL to Railway backend: https://DownAria-api-production.up.railway.app
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 // Default configuration

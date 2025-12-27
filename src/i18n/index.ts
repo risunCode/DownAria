@@ -1,7 +1,7 @@
 /**
  * i18n Module
  * ===========
- * Internationalization support for XTFetch.
+ * Internationalization support for DownAria.
  * 
  * Usage:
  *   import { useTranslations } from '@/i18n';

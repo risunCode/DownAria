@@ -49,10 +49,10 @@ export function DocsHomePage() {
                             Documentation
                         </div>
                         <h1 className="text-3xl font-bold mb-3">
-                            <span className="gradient-text">XTFetch</span> Documentation
+                            <span className="gradient-text">DownAria</span> Documentation
                         </h1>
                         <p className="text-[var(--text-muted)] max-w-xl mx-auto">
-                            Learn how to use XTFetch to download videos from social media platforms. 
+                            Learn how to use DownAria to download videos from social media platforms. 
                             No watermark, no registration, completely free.
                         </p>
                     </motion.div>
@@ -88,7 +88,7 @@ export function DocsHomePage() {
                         <div className="space-y-3">
                             {[
                                 { step: 1, title: 'Copy URL', desc: 'Copy the video URL from Facebook, Instagram, Twitter, TikTok, YouTube, or Weibo' },
-                                { step: 2, title: 'Paste & Download', desc: 'Paste the URL in XTFetch. Platform is auto-detected. Choose quality and download!' },
+                                { step: 2, title: 'Paste & Download', desc: 'Paste the URL in DownAria. Platform is auto-detected. Choose quality and download!' },
                                 { step: 3, title: 'Enjoy!', desc: 'Video is saved to your device without watermark. Check your Downloads folder.' },
                             ].map((item) => (
                                 <div key={item.step} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] transition-colors">

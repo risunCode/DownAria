@@ -16,8 +16,8 @@ const faqs: { category: string; items: FAQItem[] }[] = [
     {
         category: 'General',
         items: [
-            { question: 'What is XTFetch?', answer: 'XTFetch is a free social media video downloader for Facebook, Instagram, Twitter/X, TikTok, YouTube, and Weibo. No watermarks!' },
-            { question: 'Is XTFetch free?', answer: 'Yes! Completely free. No registration required for basic usage.' },
+            { question: 'What is DownAria?', answer: 'DownAria is a free social media video downloader for Facebook, Instagram, Twitter/X, TikTok, YouTube, and Weibo. No watermarks!' },
+            { question: 'Is DownAria free?', answer: 'Yes! Completely free. No registration required for basic usage.' },
             { question: 'Do I need to register?', answer: 'No registration needed. Just paste the URL and download!' },
         ],
     },
@@ -95,7 +95,7 @@ export function FAQPage() {
                             Frequently Asked <span className="gradient-text">Questions</span>
                         </h1>
                         <p className="text-[var(--text-muted)]">
-                            Find answers to common questions about XTFetch.
+                            Find answers to common questions about DownAria.
                         </p>
                     </motion.div>
 

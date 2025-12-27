@@ -8,7 +8,7 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 const errorCodes = [
     { code: 'INVALID_URL', status: 400, description: 'URL not valid or unsupported platform', solution: 'Check URL format' },
     { code: 'PLATFORM_DISABLED', status: 503, description: 'Platform temporarily disabled', solution: 'Check status page' },
-    { code: 'MAINTENANCE_MODE', status: 503, description: 'XTFetch under maintenance', solution: 'Wait and retry' },
+    { code: 'MAINTENANCE_MODE', status: 503, description: 'DownAria under maintenance', solution: 'Wait and retry' },
     { code: 'RATE_LIMIT_EXCEEDED', status: 429, description: 'Too many requests', solution: 'Wait 60 seconds' },
     { code: 'PRIVATE_CONTENT', status: 403, description: 'Content is private', solution: 'Add cookie in Settings' },
     { code: 'COOKIE_REQUIRED', status: 401, description: 'Platform requires cookie', solution: 'Add platform cookie' },
