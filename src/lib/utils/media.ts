@@ -175,7 +175,7 @@ export function getYouTubePreviewNotice(format: MediaFormat | null, platform: Pl
     
     // Video-only formats need notice
     if (format.type === 'video' && format.needsMerge) {
-        return '🔇 Preview tanpa suara - audio akan digabung saat download';
+        return '🔇 Preview tanpa suara - dapat diputar setelah download';
     }
     
     return null;
