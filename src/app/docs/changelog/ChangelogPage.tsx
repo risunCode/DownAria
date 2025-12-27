@@ -7,6 +7,14 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.8.3',
+        date: 'December 27, 2025',
+        changes: [
+            { type: 'new', items: ['Security Headers - X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy'] },
+            { type: 'improved', items: ['Full Penetration Testing - Wapiti scanner audit completed', 'Frontend Input Audit - All inputs verified for proper sanitization', 'npm audit - Zero vulnerabilities in both frontend and backend'] },
+        ],
+    },
+    {
         version: '1.8.0',
         date: 'December 26, 2025',
         changes: [

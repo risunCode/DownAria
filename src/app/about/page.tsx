@@ -105,12 +105,12 @@ export default function AboutPage() {
                             <div className="flex items-center gap-2 mb-3">
                                 <Clock className="w-5 h-5 text-[var(--accent-primary)]" />
                                 <h3 className="font-semibold text-[var(--text-primary)]">Changelog</h3>
-                                <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.8.0</span>
+                                <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.8.3</span>
                             </div>
                             <ul className="text-xs text-[var(--text-muted)] space-y-1 mb-4 flex-1">
-                                <li>• 🤖 Bot Smart Quality (40MB threshold)</li>
-                                <li>• 🎬 YouTube Flow Improved</li>
-                                <li>• 🔧 Backend Security Hardening</li>
+                                <li>- Security Headers Hardening</li>
+                                <li>- Full Penetration Testing (Wapiti)</li>
+                                <li>- Frontend Input Audit Complete</li>
                             </ul>
                             <Link
                                 href="/docs/changelog"

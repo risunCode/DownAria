@@ -2,6 +2,25 @@
 
 All notable changes to DownAria will be documented in this file.
 
+## [1.8.3] - 2024-12-27
+
+### Security Hardening
+- **Security Headers** - Added missing HTTP security headers via next.config.ts
+  - X-Frame-Options: DENY (clickjacking protection)
+  - X-Content-Type-Options: nosniff (MIME sniffing prevention)
+  - X-XSS-Protection: 1; mode=block
+  - Referrer-Policy: strict-origin-when-cross-origin
+  - Permissions-Policy: camera=(), microphone=(), geolocation=()
+- **Security Audit** - Full penetration testing with Wapiti scanner
+  - npm audit: 0 vulnerabilities (both frontend and backend)
+  - Dynamic scan: No SQL injection, XSS, SSRF, or CRLF vulnerabilities found
+  - Frontend input review: All inputs properly sanitized
+
+### Files Changed
+- `next.config.ts` - Added async headers() configuration
+
+---
+
 ## [1.8.2] - 2024-12-27
 
 ### 📝 Documentation Updates
