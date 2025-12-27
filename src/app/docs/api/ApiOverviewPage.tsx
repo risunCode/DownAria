@@ -106,8 +106,8 @@ export function ApiOverviewPage() {
                         className="glass-card p-4 border-l-4 border-l-blue-500"
                     >
                         <p className="text-sm text-[var(--text-secondary)]">
-                            <strong className="text-blue-400">ℹ️ Note:</strong> The API requires a valid API key for all requests. 
-                            Create an account and generate your API key from Settings → API Keys.
+                            <strong className="text-blue-400">ℹ️ Note:</strong> API memerlukan API key yang valid untuk semua request. 
+                            Hubungi admin via Telegram <a href="https://t.me/suntaw" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">@suntaw</a> untuk mendapatkan API key.
                         </p>
                     </motion.div>
 
@@ -158,8 +158,8 @@ console.log(data.data.formats); // Array of download URLs`}
 
                         <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 mt-4">
                             <p className="text-sm text-[var(--text-secondary)]">
-                                <strong className="text-purple-400">💡 Tip:</strong> Create an account and generate API keys from Settings → API Keys. 
-                                See the <Link href="/docs/guides/api-keys" className="text-[var(--accent-primary)] hover:underline">API Keys Guide</Link>.
+                                <strong className="text-purple-400">💡 Tip:</strong> Hubungi admin via Telegram <a href="https://t.me/suntaw" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">@suntaw</a> untuk mendapatkan API key. 
+                                Lihat <Link href="/docs/guides/api-keys" className="text-[var(--accent-primary)] hover:underline">API Keys Guide</Link> untuk info lebih lanjut.
                             </p>
                         </div>
                     </motion.div>
@@ -186,7 +186,7 @@ console.log(data.data.formats); // Array of download URLs`}
                                         <td className="py-3 px-3 text-[var(--text-muted)] text-xs">100 requests/minute</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">Premium API Key</td>
+                                        <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">VIP API Key</td>
                                         <td className="py-3 px-3 text-[var(--text-muted)] text-xs">Unlimited</td>
                                     </tr>
                                 </tbody>

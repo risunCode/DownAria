@@ -732,14 +732,13 @@ export async function downloadMergedYouTube(
         // Phase 1: Start request
         onProgress({ status: 'preparing', message: 'Preparing...', percent: 0, loaded: 0, total: 0 });
 
-        // Simulate realistic download progress based on estimated size @ 10 Mbps
-        // 10 Mbps = 1.25 MB/s = 1,250,000 bytes/s
-        const SIMULATED_SPEED = 1.25 * 1024 * 1024; // 10 Mbps in bytes/s
+        // Simulate realistic download progress based on estimated size @ 2 Mbps
+        // 2 Mbps = 250 KB/s = 256,000 bytes/s (realistic for converting animation)
+        const SIMULATED_SPEED = 2 * 1024 * 1024 / 8; // 2 Mbps in bytes/s = 256 KB/s
         const estimatedTotal = estimatedSize || 30 * 1024 * 1024; // Default 30MB if unknown
-        const estimatedDuration = (estimatedTotal / SIMULATED_SPEED) * 1000; // ms to "download"
         
         // Converting phase: 0-80% with realistic timing
-        // We simulate downloading at 10 Mbps, progress updates every 200ms
+        // We simulate downloading at 2 Mbps, progress updates every 200ms
         const UPDATE_INTERVAL = 200; // ms
         const bytesPerUpdate = SIMULATED_SPEED * (UPDATE_INTERVAL / 1000);
         let fakeLoaded = 0;

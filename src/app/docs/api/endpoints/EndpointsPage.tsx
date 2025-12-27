@@ -160,7 +160,7 @@ if (success) {
 
                         <div className="mt-4 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                             <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-purple-400">💡 Get Your API Key:</strong> Create an account and generate your API key from Settings → API Keys.
+                                <strong className="text-purple-400">💡 Get Your API Key:</strong> Contact admin via Telegram <a href="https://t.me/suntaw" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">@suntaw</a> to get your API key.
                             </p>
                         </div>
                     </motion.div>

@@ -2,6 +2,28 @@
 
 All notable changes to DownAria will be documented in this file.
 
+## [1.8.2] - 2024-12-27
+
+### 📝 Documentation Updates
+- **API Key Instructions** - Semua referensi "Create an account and generate your API key from Settings → API Keys" diganti ke "Contact admin via Telegram @suntaw"
+- **API Overview Page** - Updated API key instructions ke contact admin
+- **API Endpoints Page** - Updated "Get Your API Key" section
+- **API Keys Guide** - Updated step-by-step guide untuk mendapatkan API key via admin
+- **Rate Limits Table** - Changed "Premium API Key" → "VIP API Key"
+
+### 🤖 Bot Message Updates (Backend)
+- **VIP Branding** - Semua "Premium" diganti ke "VIP" atau "Donator"
+- **Help Command** - Updated commands list: `/mystatus`, `/donate` (bukan `/premium`)
+- **API Key Format** - Updated example dari `xtf_*` ke `dwa_live_*`
+- **Indonesian Messages** - Bot messages sekarang dalam Bahasa Indonesia
+
+### 📁 Files Changed
+- `src/app/docs/api/ApiOverviewPage.tsx`
+- `src/app/docs/api/endpoints/EndpointsPage.tsx`
+- `src/app/docs/guides/api-keys/ApiKeysGuidePage.tsx`
+
+---
+
 ## [1.8.1] - 2024-12-26
 
 ### 🚀 Performance Improvements

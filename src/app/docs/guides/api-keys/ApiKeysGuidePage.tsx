@@ -93,10 +93,10 @@ export function ApiKeysGuidePage() {
                         
                         <div className="space-y-3">
                             {[
-                                { step: 1, title: 'Create an Account', desc: 'Sign up at DownAria. Email or social login.' },
-                                { step: 2, title: 'Go to Settings', desc: 'Navigate to Settings → API Keys section.' },
-                                { step: 3, title: 'Create New Key', desc: 'Click "Create API Key", give it a name.' },
-                                { step: 4, title: 'Copy & Store', desc: 'Copy immediately. Won\'t be shown again!' },
+                                { step: 1, title: 'Hubungi Admin', desc: 'Contact @suntaw via Telegram untuk mendapatkan API key.' },
+                                { step: 2, title: 'Pilih Paket', desc: 'Pilih paket donasi sesuai kebutuhan kamu.' },
+                                { step: 3, title: 'Terima API Key', desc: 'Admin akan mengirimkan API key kamu.' },
+                                { step: 4, title: 'Copy & Store', desc: 'Simpan dengan aman. Jangan share ke orang lain!' },
                             ].map((item) => (
                                 <div key={item.step} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--bg-secondary)]">
                                     <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
@@ -149,8 +149,7 @@ console.log(data.formats); // Array of download URLs`}
 
                         <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 mt-4">
                             <p className="text-xs text-[var(--text-secondary)]">
-                                <strong className="text-blue-400">ℹ️ Note:</strong> The API requires a valid API key for all requests. 
-                                Generate your key from Settings → API Keys.
+                                <strong className="text-blue-400">ℹ️ Note:</strong> Hubungi admin via Telegram <a href="https://t.me/suntaw" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">@suntaw</a> untuk mendapatkan API key.
                             </p>
                         </div>
                     </motion.div>
@@ -202,25 +201,25 @@ console.log(data.formats); // Array of download URLs`}
                         </h2>
                         
                         <p className="text-sm text-[var(--text-muted)] mb-4">
-                            Manage your API keys from Settings → API Keys:
+                            Kelola API key kamu dengan menghubungi admin:
                         </p>
                         
                         <ul className="space-y-2 text-xs text-[var(--text-muted)]">
                             <li className="flex items-start gap-2">
                                 <span className="text-[var(--accent-primary)]">•</span>
-                                <span><strong className="text-[var(--text-primary)]">View usage</strong> - See total requests, success rate, last used</span>
+                                <span><strong className="text-[var(--text-primary)]">Cek status</strong> - Tanyakan status API key kamu ke admin</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-[var(--accent-primary)]">•</span>
-                                <span><strong className="text-[var(--text-primary)]">Disable key</strong> - Temporarily disable without deleting</span>
+                                <span><strong className="text-[var(--text-primary)]">Disable key</strong> - Minta admin untuk menonaktifkan sementara</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-[var(--accent-primary)]">•</span>
-                                <span><strong className="text-[var(--text-primary)]">Delete key</strong> - Permanently remove (cannot undo)</span>
+                                <span><strong className="text-[var(--text-primary)]">Ganti key</strong> - Jika key bocor, minta key baru ke admin</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-[var(--accent-primary)]">•</span>
-                                <span><strong className="text-[var(--text-primary)]">Create new key</strong> - Generate additional keys for different apps</span>
+                                <span><strong className="text-[var(--text-primary)]">Perpanjang</strong> - Hubungi admin untuk perpanjang masa aktif</span>
                             </li>
                         </ul>
                     </motion.div>
