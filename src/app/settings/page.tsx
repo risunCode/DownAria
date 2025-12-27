@@ -362,17 +362,41 @@ export default function SettingsPage() {
 
     const clearAllData = async () => {
         const result = await Swal.fire({
-            icon: 'warning', title: 'Reset Everything?', html: 'All cookies, settings, and cache will be deleted.',
+            icon: 'warning', title: 'Reset Everything?', html: 'All cookies, settings, history, and cache will be deleted.',
             showCancelButton: true, confirmButtonText: 'Reset All', confirmButtonColor: '#ef4444', background: 'var(--bg-card)', color: 'var(--text-primary)'
         });
         if (result.isConfirmed) {
             setIsClearing('all');
+            
+            // Clear localStorage
             localStorage.clear();
             sessionStorage.clear();
+            
+            // Clear Service Worker caches
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
             }
+            
+            // Clear IndexedDB (history)
+            if ('indexedDB' in window) {
+                try {
+                    const databases = await window.indexedDB.databases();
+                    await Promise.all(
+                        databases.map(db => {
+                            if (db.name) {
+                                return new Promise<void>((resolve, reject) => {
+                                    const req = window.indexedDB.deleteDatabase(db.name!);
+                                    req.onsuccess = () => resolve();
+                                    req.onerror = () => reject(req.error);
+                                });
+                            }
+                            return Promise.resolve();
+                        })
+                    );
+                } catch { /* ignore */ }
+            }
+            
             await Swal.fire({ icon: 'success', title: 'All Data Cleared', timer: 1000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
             window.location.reload();
         }
@@ -878,10 +902,10 @@ export default function SettingsPage() {
                                         <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)] transition-all">
                                             <Database className="w-4 h-4 text-cyan-400" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium">IndexedDB</p>
-                                                <p className="text-[10px] text-[var(--text-muted)]">History & cache</p>
+                                                <p className="text-sm font-medium">Download History</p>
+                                                <p className="text-[10px] text-[var(--text-muted)]">IndexedDB storage</p>
                                             </div>
-                                            <button onClick={clearIndexedDB} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear IndexedDB">
+                                            <button onClick={clearIndexedDB} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear history">
                                                 {isClearing === 'indexeddb' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                             </button>
                                         </div>
@@ -889,10 +913,10 @@ export default function SettingsPage() {
                                         <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)] transition-all">
                                             <Package className="w-4 h-4 text-blue-400" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium">History & Cache</p>
-                                                <p className="text-[10px] text-[var(--text-muted)]">Via app functions</p>
+                                                <p className="text-sm font-medium">Service Worker</p>
+                                                <p className="text-[10px] text-[var(--text-muted)]">Offline cache</p>
                                             </div>
-                                            <button onClick={clearCacheAndHistory} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear cache">
+                                            <button onClick={clearCacheAndHistory} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear SW cache">
                                                 {isClearing === 'history_cache' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                             </button>
                                         </div>
