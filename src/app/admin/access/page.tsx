@@ -102,6 +102,12 @@ export default function AccessPage() {
         setSettingsSaving(false);
     };
 
+    const handleUpdateGeminiRateLimit = async (rateLimit: number, window?: number) => {
+        setSettingsSaving(true);
+        await updateGlobal({ geminiRateLimit: rateLimit, geminiRateWindow: window });
+        setSettingsSaving(false);
+    };
+
     // Playground handler
     const handlePlaygroundTest = async () => {
         if (!playgroundUrl.trim()) return;
@@ -488,13 +494,84 @@ export default function AccessPage() {
                                 </div>
                             </AdminCard>
 
+                            {/* Gemini AI Section */}
+                            <AdminCard>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 rounded-lg bg-cyan-500/10">
+                                        <Zap className="w-5 h-5 text-cyan-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-sm">Gemini AI Chat</h3>
+                                        <p className="text-xs text-[var(--text-muted)]">/api/v1/chat - AI chat endpoint rate limiting</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Gemini Rate Limit */}
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                                        <div>
+                                            <p className="text-sm font-medium">Rate Limit</p>
+                                            <p className="text-xs text-[var(--text-muted)]">Max requests per window for AI chat</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                value={serviceConfig?.geminiRateLimit ?? 8}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value);
+                                                    if (val > 0 && val <= 1000) {
+                                                        handleUpdateGeminiRateLimit(val, serviceConfig?.geminiRateWindow);
+                                                    }
+                                                }}
+                                                min={1}
+                                                max={1000}
+                                                disabled={settingsSaving}
+                                                className="w-20 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm text-center"
+                                            />
+                                            <span className="text-xs text-[var(--text-muted)]">req</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Gemini Rate Window */}
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                                        <div>
+                                            <p className="text-sm font-medium">Rate Window</p>
+                                            <p className="text-xs text-[var(--text-muted)]">Time window for rate limit (in minutes)</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                value={serviceConfig?.geminiRateWindow ?? 1}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value);
+                                                    if (val > 0 && val <= 60) {
+                                                        handleUpdateGeminiRateLimit(serviceConfig?.geminiRateLimit ?? 8, val);
+                                                    }
+                                                }}
+                                                min={1}
+                                                max={60}
+                                                disabled={settingsSaving}
+                                                className="w-20 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-sm text-center"
+                                            />
+                                            <span className="text-xs text-[var(--text-muted)]">min</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Info Note */}
+                                    <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400 flex items-start gap-2">
+                                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                        <span>AI chat uses Gemini API. Rate limit is per IP address. Current: {serviceConfig?.geminiRateLimit ?? 8} requests per {serviceConfig?.geminiRateWindow ?? 1} minute(s).</span>
+                                    </div>
+                                </div>
+                            </AdminCard>
+
                             {/* Current Status Summary */}
                             <AdminCard>
                                 <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                                     <Zap className="w-4 h-4 text-yellow-400" />
                                     Current Status
                                 </h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                     <div className="p-3 rounded-lg bg-[var(--bg-secondary)] text-center">
                                         <p className="text-lg font-bold text-[var(--text-primary)]">{serviceConfig?.globalRateLimit ?? 15}</p>
                                         <p className="text-xs text-[var(--text-muted)]">Public Rate/min</p>
@@ -502,6 +579,10 @@ export default function AccessPage() {
                                     <div className="p-3 rounded-lg bg-[var(--bg-secondary)] text-center">
                                         <p className="text-lg font-bold text-[var(--text-primary)]">{serviceConfig?.playgroundRateLimit ?? 5}</p>
                                         <p className="text-xs text-[var(--text-muted)]">Playground Rate/min</p>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-[var(--bg-secondary)] text-center">
+                                        <p className="text-lg font-bold text-[var(--text-primary)]">{serviceConfig?.geminiRateLimit ?? 8}/{serviceConfig?.geminiRateWindow ?? 1}m</p>
+                                        <p className="text-xs text-[var(--text-muted)]">Gemini AI Rate</p>
                                     </div>
                                     <div className="p-3 rounded-lg bg-[var(--bg-secondary)] text-center">
                                         <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${serviceConfig?.playgroundEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
