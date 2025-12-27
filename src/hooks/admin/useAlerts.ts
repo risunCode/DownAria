@@ -57,7 +57,7 @@ export interface HealthCheckResult {
 }
 
 export function useAlerts() {
-    const { data: config, loading, error, refetch, mutate } = useAdminFetch<AlertConfig>('/api/admin/alerts');
+    const { data: config, loading, error, refetch, mutate } = useAdminFetch<AlertConfig>('/api/admin/alerts?single=true');
     const [testing, setTesting] = useState(false);
     const [runningHealthCheck, setRunningHealthCheck] = useState(false);
 
