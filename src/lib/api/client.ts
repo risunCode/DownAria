@@ -13,9 +13,9 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 // Default configuration
-const DEFAULT_TIMEOUT = 30000; // 30 seconds for scraping operations
+const DEFAULT_TIMEOUT = 60000; // 60 seconds for scraping operations (some platforms are slow)
 const DEFAULT_RETRIES = 3;
-const CONNECTION_TIMEOUT = 5000; // 5 seconds for initial connection check
+const CONNECTION_TIMEOUT = 15000; // 15 seconds for initial connection check (was 5s, too aggressive)
 const OFFLINE_CACHE_TTL = 10000; // Cache offline status for 10 seconds
 
 // Track backend status to avoid repeated slow failures
