@@ -234,7 +234,7 @@ export default function Home() {
             showError('🔒 Login Required', 'This content is private or requires login. Add your cookie in Settings to access.', { showSettings: true, buttonColor: '#f59e0b' });
             return;
           case 'COOKIE_EXPIRED':
-            showError('⏰ Cookie Expired', 'Your cookie has expired. Please update it in Settings.', { showSettings: true, buttonColor: '#f59e0b' });
+            showError('⏰ Admin Cookie Issue', 'Admin cookie sedang bermasalah (perlu verifikasi). Coba gunakan cookie pribadimu di Settings.', { showSettings: true, buttonColor: '#f59e0b' });
             return;
           case 'COOKIE_BANNED':
           case 'CHECKPOINT_REQUIRED':
