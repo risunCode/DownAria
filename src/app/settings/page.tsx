@@ -270,15 +270,15 @@ export default function SettingsPage() {
                     const databases = await window.indexedDB.databases();
                     await Promise.all(
                         databases.map(db => {
-                            if (db.name) {
-                                return new Promise<void>((resolve, reject) => {
-                                    const req = window.indexedDB.deleteDatabase(db.name!);
-                                    req.onsuccess = () => resolve();
-                                    req.onerror = () => reject(req.error);
-                                    req.onblocked = () => resolve(); // Continue even if blocked
-                                });
-                            }
-                            return Promise.resolve();
+                            if (!db.name) return Promise.resolve();
+                            return new Promise<void>((resolve) => {
+                                const req = window.indexedDB.deleteDatabase(db.name!);
+                                req.onsuccess = () => resolve();
+                                req.onerror = () => resolve(); // Don't block on error
+                                req.onblocked = () => resolve(); // Don't block if DB is in use
+                                // Timeout fallback
+                                setTimeout(resolve, 2000);
+                            });
                         })
                     );
                 }
@@ -368,30 +368,33 @@ export default function SettingsPage() {
         if (result.isConfirmed) {
             setIsClearing('all');
             
-            // Clear localStorage
+            // Clear localStorage & sessionStorage
             localStorage.clear();
             sessionStorage.clear();
             
             // Clear Service Worker caches
             if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                } catch { /* ignore */ }
             }
             
-            // Clear IndexedDB (history)
+            // Clear IndexedDB - with timeout to prevent hanging
             if ('indexedDB' in window) {
                 try {
                     const databases = await window.indexedDB.databases();
                     await Promise.all(
                         databases.map(db => {
-                            if (db.name) {
-                                return new Promise<void>((resolve, reject) => {
-                                    const req = window.indexedDB.deleteDatabase(db.name!);
-                                    req.onsuccess = () => resolve();
-                                    req.onerror = () => reject(req.error);
-                                });
-                            }
-                            return Promise.resolve();
+                            if (!db.name) return Promise.resolve();
+                            return new Promise<void>((resolve) => {
+                                const req = window.indexedDB.deleteDatabase(db.name!);
+                                req.onsuccess = () => resolve();
+                                req.onerror = () => resolve(); // Don't block on error
+                                req.onblocked = () => resolve(); // Don't block if DB is in use
+                                // Timeout fallback - resolve after 2s regardless
+                                setTimeout(resolve, 2000);
+                            });
                         })
                     );
                 } catch { /* ignore */ }
