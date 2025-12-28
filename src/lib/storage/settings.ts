@@ -15,7 +15,7 @@ export type ThemeType = 'auto' | 'light' | 'solarized' | 'dark';
 export type ResolvedTheme = 'light' | 'solarized' | 'dark';
 
 const THEME_KEY = 'downaria_theme';
-const DEFAULT_THEME: ThemeType = 'solarized';
+const DEFAULT_THEME: ThemeType = 'auto';
 
 /**
  * Get theme based on time of day

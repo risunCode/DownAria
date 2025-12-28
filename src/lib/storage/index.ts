@@ -133,6 +133,7 @@ export {
   setCardOpacity,
   setParticleIntensity,
   setParticlesWithBackground,
+  setRandomInterval,
   resetSeasonalSettings,
   
   // IndexedDB Background Storage
@@ -145,11 +146,18 @@ export {
   
   // Helpers
   getCurrentSeason,
+  getRandomSeason,
+  getCurrentRandomSeason,
+  startRandomRotation,
+  stopRandomRotation,
   getSeasonEmoji,
   getSeasonName,
   fileToDataUrl,
   formatFileSize,
   isValidImageUrl,
+  
+  // Constants
+  ACTIVE_SEASONS,
   
   // Types
   type SeasonType,

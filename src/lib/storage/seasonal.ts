@@ -16,6 +16,9 @@
 
 export type SeasonType = 'winter' | 'spring' | 'autumn' | 'off';
 
+// All active seasons (excluding 'off')
+export const ACTIVE_SEASONS: SeasonType[] = ['winter', 'spring', 'autumn'];
+
 export type BackgroundType = 'image' | 'video';
 
 export interface BackgroundPosition {
@@ -33,8 +36,8 @@ export interface CustomBackground {
 }
 
 export interface SeasonalSettings {
-  /** Current season mode: auto, specific season, or off */
-  mode: 'auto' | SeasonType;
+  /** Current season mode: auto, random, specific season, or off */
+  mode: 'auto' | 'random' | SeasonType;
   /** Resolved season (computed from mode) */
   season: SeasonType;
   /** Custom background metadata (actual data in IndexedDB) */
@@ -49,6 +52,8 @@ export interface SeasonalSettings {
   cardOpacity: number;
   /** Background blur: 0-20 */
   backgroundBlur: number;
+  /** Random mode rotation interval in seconds (default: 30) */
+  randomInterval: number;
 }
 
 const SEASONAL_KEY = 'downaria_seasonal';
@@ -67,6 +72,7 @@ const DEFAULT_SETTINGS: SeasonalSettings = {
   backgroundOpacity: 20,
   cardOpacity: 85,
   backgroundBlur: 0,
+  randomInterval: 30, // 30 seconds default
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -186,6 +192,61 @@ export function getCurrentSeason(): SeasonType {
 }
 
 /**
+ * Get a random season from active seasons
+ */
+export function getRandomSeason(): SeasonType {
+  const randomIndex = Math.floor(Math.random() * ACTIVE_SEASONS.length);
+  return ACTIVE_SEASONS[randomIndex];
+}
+
+// Random mode state
+let randomModeInterval: ReturnType<typeof setInterval> | null = null;
+let currentRandomSeason: SeasonType = getRandomSeason();
+
+/**
+ * Start random season rotation
+ */
+export function startRandomRotation(intervalSeconds: number = 30): void {
+  stopRandomRotation();
+  
+  // Set initial random season
+  currentRandomSeason = getRandomSeason();
+  
+  // Start rotation interval
+  randomModeInterval = setInterval(() => {
+    // Get next season (different from current)
+    let nextSeason: SeasonType;
+    do {
+      nextSeason = getRandomSeason();
+    } while (nextSeason === currentRandomSeason && ACTIVE_SEASONS.length > 1);
+    
+    currentRandomSeason = nextSeason;
+    
+    // Dispatch event to update UI
+    window.dispatchEvent(new CustomEvent('seasonal-random-change', { 
+      detail: { season: currentRandomSeason } 
+    }));
+  }, intervalSeconds * 1000);
+}
+
+/**
+ * Stop random season rotation
+ */
+export function stopRandomRotation(): void {
+  if (randomModeInterval) {
+    clearInterval(randomModeInterval);
+    randomModeInterval = null;
+  }
+}
+
+/**
+ * Get current random season (for random mode)
+ */
+export function getCurrentRandomSeason(): SeasonType {
+  return currentRandomSeason;
+}
+
+/**
  * Get season emoji for display
  */
 export function getSeasonEmoji(season: SeasonType): string {
@@ -237,6 +298,8 @@ export function getSeasonalSettings(): SeasonalSettings {
       // Resolve season based on mode
       if (settings.mode === 'auto') {
         settings.season = getCurrentSeason();
+      } else if (settings.mode === 'random') {
+        settings.season = getCurrentRandomSeason();
       } else if (settings.mode === 'off') {
         settings.season = 'off';
       } else {
@@ -262,9 +325,24 @@ export function saveSeasonalSettings(settings: Partial<SeasonalSettings>): void 
   const current = getSeasonalSettings();
   const updated = { ...current, ...settings };
   
+  // Handle mode changes
+  if (settings.mode !== undefined) {
+    // Stop random rotation if switching away from random
+    if (current.mode === 'random' && settings.mode !== 'random') {
+      stopRandomRotation();
+    }
+    
+    // Start random rotation if switching to random
+    if (settings.mode === 'random' && current.mode !== 'random') {
+      startRandomRotation(updated.randomInterval);
+    }
+  }
+  
   // Resolve season based on mode
   if (updated.mode === 'auto') {
     updated.season = getCurrentSeason();
+  } else if (updated.mode === 'random') {
+    updated.season = getCurrentRandomSeason();
   } else if (updated.mode === 'off') {
     updated.season = 'off';
   } else {
@@ -286,8 +364,22 @@ export function saveSeasonalSettings(settings: Partial<SeasonalSettings>): void 
 /**
  * Set seasonal mode
  */
-export function setSeasonalMode(mode: 'auto' | SeasonType): void {
+export function setSeasonalMode(mode: 'auto' | 'random' | SeasonType): void {
   saveSeasonalSettings({ mode });
+}
+
+/**
+ * Set random rotation interval (in seconds)
+ */
+export function setRandomInterval(seconds: number): void {
+  const clamped = Math.max(5, Math.min(300, seconds)); // 5s to 5min
+  saveSeasonalSettings({ randomInterval: clamped });
+  
+  // Restart rotation if in random mode
+  const settings = getSeasonalSettings();
+  if (settings.mode === 'random') {
+    startRandomRotation(clamped);
+  }
 }
 
 /**

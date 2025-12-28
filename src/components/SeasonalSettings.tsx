@@ -14,6 +14,7 @@ import {
   setBackgroundOpacity,
   setBackgroundBlur,
   setParticlesWithBackground,
+  setRandomInterval,
   processBackgroundFile,
   loadBackgroundFromDB,
   clearCustomBackground,
@@ -21,6 +22,8 @@ import {
   getSeasonEmoji,
   getSeasonName,
   formatFileSize,
+  startRandomRotation,
+  stopRandomRotation,
 } from '@/lib/storage';
 import Swal from 'sweetalert2';
 
@@ -28,8 +31,9 @@ import Swal from 'sweetalert2';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════
 
-const SEASON_OPTIONS: { id: SeasonType | 'auto'; label: string; icon: typeof Snowflake; emoji: string }[] = [
+const SEASON_OPTIONS: { id: SeasonType | 'auto' | 'random'; label: string; icon: typeof Snowflake; emoji: string }[] = [
   { id: 'auto', label: 'Auto', icon: Sun, emoji: '🔄' },
+  { id: 'random', label: 'Random', icon: Sun, emoji: '🎲' },
   { id: 'winter', label: 'Winter', icon: Snowflake, emoji: '❄️' },
   { id: 'spring', label: 'Spring', icon: Flower2, emoji: '🌸' },
   { id: 'autumn', label: 'Autumn', icon: Leaf, emoji: '🍂' },
@@ -275,7 +279,7 @@ export function SeasonalSettings() {
     loadSettings();
   }, []);
 
-  const handleModeChange = (mode: 'auto' | SeasonType) => {
+  const handleModeChange = (mode: 'auto' | 'random' | SeasonType) => {
     saveSeasonalSettings({ mode });
     setSettings(getSeasonalSettings());
   };
@@ -388,14 +392,16 @@ export function SeasonalSettings() {
   if (!settings) return null;
 
   const currentSeason = getCurrentSeason();
-  const activeSeason = settings.mode === 'auto' ? currentSeason : settings.mode;
+  const activeSeason = settings.mode === 'auto' ? currentSeason : 
+                       settings.mode === 'random' ? settings.season : 
+                       settings.mode;
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div>
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-          Seasonal Effects {getSeasonEmoji(activeSeason === 'off' ? 'off' : activeSeason)}
+          Seasonal Effects {settings.mode === 'random' ? '🎲' : getSeasonEmoji(activeSeason === 'off' ? 'off' : activeSeason)}
         </h3>
         <p className="text-xs text-[var(--text-muted)]">
           Particle animations & custom backgrounds
@@ -409,7 +415,7 @@ export function SeasonalSettings() {
           return (
             <button
               key={option.id}
-              onClick={() => handleModeChange(option.id === 'auto' ? 'auto' : option.id)}
+              onClick={() => handleModeChange(option.id)}
               className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all ${
                 isActive
                   ? 'bg-[var(--accent-primary)]/20 border-[var(--accent-primary)] text-[var(--accent-primary)]'
@@ -431,15 +437,16 @@ export function SeasonalSettings() {
           className="p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]"
         >
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-2xl">{getSeasonEmoji(activeSeason)}</span>
+            <span className="text-2xl">{settings.mode === 'random' ? '🎲' : getSeasonEmoji(activeSeason)}</span>
             <div>
               <p className="font-medium text-[var(--text-primary)]">
-                {getSeasonName(activeSeason)} Mode Active
+                {settings.mode === 'random' ? 'Random Mode Active' : `${getSeasonName(activeSeason)} Mode Active`}
               </p>
               <p className="text-xs text-[var(--text-muted)]">
-                {activeSeason === 'winter' && 'Snowflakes falling ❄️'}
-                {activeSeason === 'spring' && 'Cherry blossoms floating 🌸'}
-                {activeSeason === 'autumn' && 'Leaves falling 🍂'}
+                {settings.mode === 'random' && `Currently: ${getSeasonName(settings.season)} - rotates every ${settings.randomInterval}s`}
+                {activeSeason === 'winter' && settings.mode !== 'random' && 'Snowflakes falling ❄️'}
+                {activeSeason === 'spring' && settings.mode !== 'random' && 'Cherry blossoms floating 🌸'}
+                {activeSeason === 'autumn' && settings.mode !== 'random' && 'Leaves falling 🍂'}
               </p>
             </div>
           </div>

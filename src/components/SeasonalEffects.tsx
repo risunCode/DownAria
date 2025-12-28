@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { getSeasonalSettings, loadBackgroundFromDB, SeasonType, SeasonalSettings } from '@/lib/storage/seasonal';
+import { getSeasonalSettings, loadBackgroundFromDB, SeasonType, SeasonalSettings, startRandomRotation, stopRandomRotation } from '@/lib/storage/seasonal';
 import { getSettings } from '@/lib/storage/settings';
 
 // ═══════════════════════════════════════════════════════════════
@@ -274,6 +274,11 @@ export function SeasonalEffects() {
       const s = getSeasonalSettings();
       setSettings(s);
       
+      // Start random rotation if in random mode
+      if (s.mode === 'random') {
+        startRandomRotation(s.randomInterval);
+      }
+      
       // Always try to load background from IndexedDB
       if (s.customBackground) {
         try {
@@ -307,8 +312,17 @@ export function SeasonalEffects() {
     const handleSeasonalChange = () => load();
     window.addEventListener('seasonal-settings-changed', handleSeasonalChange);
     
+    // Listen for random season changes
+    const handleRandomChange = (e: CustomEvent<{ season: SeasonType }>) => {
+      setSettings(prev => prev ? { ...prev, season: e.detail.season } : null);
+    };
+    window.addEventListener('seasonal-random-change', handleRandomChange as EventListener);
+    
     return () => {
       window.removeEventListener('seasonal-settings-changed', handleSeasonalChange);
+      window.removeEventListener('seasonal-random-change', handleRandomChange as EventListener);
+      // Stop random rotation on unmount
+      stopRandomRotation();
     };
   }, []);
 
