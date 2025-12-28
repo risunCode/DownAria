@@ -25,6 +25,7 @@ import {
   startRandomRotation,
   stopRandomRotation,
 } from '@/lib/storage';
+import { getSettings } from '@/lib/storage/settings';
 import Swal from 'sweetalert2';
 
 // ═══════════════════════════════════════════════════════════════
@@ -57,6 +58,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
   const [blur, setBlur] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 1920, height: 1080 });
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -129,12 +131,24 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         </div>
       </div>
 
-      {/* Preview Area - Compact preview */}
+      {/* Preview Area - Compact preview, expandable on mobile */}
       <div className="px-4 py-2">
-        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (drag to set focus point)</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-[var(--text-muted)] font-medium">Preview (drag to set focus point)</p>
+          {isMobile && (
+            <button 
+              onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
+              className="text-[10px] text-[var(--accent-primary)] flex items-center gap-1"
+            >
+              {isPreviewExpanded ? '▼ Collapse' : '▶ Expand'}
+            </button>
+          )}
+        </div>
         <div
           ref={containerRef}
-          className="relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)] max-h-32 md:max-h-40"
+          className={`relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)] transition-all duration-200 ${
+            isMobile && !isPreviewExpanded ? 'max-h-24' : 'max-h-32 md:max-h-40'
+          }`}
           style={{ aspectRatio: '16 / 9' }}
           onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}
           onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove}
@@ -304,11 +318,16 @@ export function SeasonalSettings() {
       return;
     }
     
-    if (file.size > 200 * 1024 * 1024) {
+    // Check file size - 400MB if allowLargeBackground enabled, otherwise 200MB
+    const appSettings = getSettings();
+    const maxSize = appSettings.allowLargeBackground ? 400 : 200;
+    const maxSizeBytes = maxSize * 1024 * 1024;
+    
+    if (file.size > maxSizeBytes) {
       Swal.fire({
         icon: 'error',
         title: 'File Too Large',
-        text: 'Maximum file size is 200MB',
+        text: `Maximum file size is ${maxSize}MB${!appSettings.allowLargeBackground ? ' (enable Large Files in settings for 400MB)' : ''}`,
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
       });
@@ -482,19 +501,25 @@ export function SeasonalSettings() {
 
       {/* Custom Background */}
       <div className="pt-2 border-t border-[var(--border-color)]">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h4 className="text-sm font-medium text-[var(--text-primary)]">Custom Background</h4>
-            <p className="text-xs text-[var(--text-muted)]">Image/Video/GIF (max 200MB)* • Silenced</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,.gif,.mp4,.mov,.webm,.avi,.mkv,.m4v"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
+        {(() => {
+          const appSettings = getSettings();
+          const maxSize = appSettings.allowLargeBackground ? 400 : 200;
+          return (
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-medium text-[var(--text-primary)]">Custom Background</h4>
+                <p className="text-xs text-[var(--text-muted)]">Image/Video/GIF (max {maxSize}MB)* • Silenced</p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*,.gif,.mp4,.mov,.webm,.avi,.mkv,.m4v"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+          );
+        })()}
         
         {/* Warning note */}
         <p className="text-[10px] text-amber-500/80 mb-3 flex items-center gap-1">
@@ -538,7 +563,16 @@ export function SeasonalSettings() {
               </Button>
             </div>
           </div>
-        ) : (
+        ) : null}
+        
+        {/* Info text */}
+        {settings.customBackground && (
+          <p className="text-[10px] text-[var(--text-muted)] mt-2">
+            💾 Video is saved on your browser, IndexedDB.
+          </p>
+        )}
+        
+        {!settings.customBackground && (
           <Button
             variant="secondary"
             className="w-full"

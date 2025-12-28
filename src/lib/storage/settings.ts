@@ -139,6 +139,7 @@ export interface AppSettings {
   wallpaperOpacity: number; // 5-20, default 8
   backgroundBlur: number; // 0-20, default 0
   allowVideoSound: boolean; // default false - video background sound
+  allowLargeBackground: boolean; // default false - allow up to 400MB (experimental)
 }
 
 const SETTINGS_KEY = 'downaria_settings';
@@ -153,6 +154,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   wallpaperOpacity: 8,
   backgroundBlur: 0,
   allowVideoSound: false,
+  allowLargeBackground: false,
 };
 
 export function getSettings(): AppSettings {

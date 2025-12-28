@@ -1171,7 +1171,7 @@ function WallpaperSettingsInline() {
                             <VolumeX className="w-4 h-4 text-[var(--text-muted)]" />
                         )}
                         <div>
-                            <p className="text-sm font-medium">Allow Sound</p>
+                            <p className="text-sm font-medium">Allow Sound <span className="text-[10px] text-amber-400">(Experimental)</span></p>
                             <p className="text-[10px] text-[var(--text-muted)]">Play video with audio</p>
                         </div>
                     </div>
@@ -1192,6 +1192,38 @@ function WallpaperSettingsInline() {
             {isVideo && settings.allowVideoSound && (
                 <p className="text-[10px] text-amber-500/80">
                     ⚠️ Sound will play when video background is visible
+                </p>
+            )}
+            
+            {/* Allow Large Files - Experimental */}
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]/50">
+                <div className="flex items-center gap-2">
+                    <HardDrive className={`w-4 h-4 ${settings.allowLargeBackground ? 'text-purple-400' : 'text-[var(--text-muted)]'}`} />
+                    <div>
+                        <p className="text-sm font-medium">Large Files <span className="text-[10px] text-amber-400">(Experimental)</span></p>
+                        <p className="text-[10px] text-[var(--text-muted)]">Allow up to 400MB backgrounds</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => {
+                        const newValue = !settings.allowLargeBackground;
+                        saveSettings({ allowLargeBackground: newValue });
+                        setSettingsState(getSettings());
+                    }}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                        settings.allowLargeBackground 
+                            ? 'bg-purple-500' 
+                            : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
+                    }`}
+                >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        settings.allowLargeBackground ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                </button>
+            </div>
+            {settings.allowLargeBackground && (
+                <p className="text-[10px] text-amber-500/80">
+                    ⚠️ Large files may cause lag on slower devices
                 </p>
             )}
         </div>

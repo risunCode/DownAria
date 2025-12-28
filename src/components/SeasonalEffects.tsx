@@ -136,16 +136,18 @@ function Background({ settings, backgroundUrl, isModalOpen }: { settings: Season
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
   
-  // Handle video play/pause based on visibility
+  // Handle video play/pause based on visibility AND modal state
+  // Pause when tab not visible OR modal is open (saves CPU/GPU)
   useEffect(() => {
     if (videoRef.current) {
-      if (isVisible) {
+      const shouldPlay = isVisible && !isModalOpen;
+      if (shouldPlay) {
         videoRef.current.play().catch(() => {});
       } else {
         videoRef.current.pause();
       }
     }
-  }, [isVisible]);
+  }, [isVisible, isModalOpen]);
   
   // Mute video when modal is open to prevent sound overlap with preview
   useEffect(() => {
