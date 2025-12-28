@@ -60,10 +60,11 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
   const isGif = file.type === 'image/gif';
   const fileExt = file.name.split('.').pop()?.toUpperCase() || 'FILE';
 
-  // Detect mobile and window size
+  // Detect mobile and window size for preview
   useEffect(() => {
     const updateSize = () => {
       setIsMobile(window.innerWidth < 768);
+      // Full viewport - background covers entire screen including sidebar
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     };
     updateSize();
@@ -124,9 +125,9 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         </div>
       </div>
 
-      {/* Preview Area - Simulates actual window view */}
+      {/* Preview Area - Full viewport (background covers entire screen) */}
       <div className="p-4">
-        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (as it will appear)</p>
+        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (full screen)</p>
         <div
           ref={containerRef}
           className="relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)]"
