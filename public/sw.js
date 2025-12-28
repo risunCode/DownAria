@@ -1,6 +1,6 @@
 // DownAria Service Worker - Offline First PWA
 // Cache version - update this on each deploy or use build timestamp
-const BUILD_TIME = '20251227065113'; // YYYYMMDD format - UPDATE ON DEPLOY
+const BUILD_TIME = '20251228152457'; // YYYYMMDD format - UPDATE ON DEPLOY
 const CACHE_VERSION = `v6-${BUILD_TIME}`;
 const STATIC_CACHE = `downaria-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `downaria-dynamic-${CACHE_VERSION}`;

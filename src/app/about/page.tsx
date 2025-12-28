@@ -105,12 +105,13 @@ export default function AboutPage() {
                             <div className="flex items-center gap-2 mb-3">
                                 <Clock className="w-5 h-5 text-[var(--accent-primary)]" />
                                 <h3 className="font-semibold text-[var(--text-primary)]">Changelog</h3>
-                                <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.8.3</span>
+                                <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.9.0</span>
                             </div>
                             <ul className="text-xs text-[var(--text-muted)] space-y-1 mb-4 flex-1">
-                                <li>- Security Headers Hardening</li>
-                                <li>- Full Penetration Testing (Wapiti)</li>
-                                <li>- Frontend Input Audit Complete</li>
+                                <li>🎨 New Themes - Nord, Dracula, Monokai</li>
+                                <li>🤖 Bot v2.0.0 - Reliability Fixes</li>
+                                <li>💾 Redis Sessions</li>
+                                <li>📊 Enhanced Monitoring</li>
                             </ul>
                             <Link
                                 href="/docs/changelog"

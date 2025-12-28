@@ -16,8 +16,8 @@ const features = [
 const quickLinks = [
     { href: '/docs/api', icon: Code, title: 'API Reference', desc: 'Complete API documentation with examples' },
     { href: '/docs/guides/cookies', icon: BookOpen, title: 'Cookie Setup', desc: 'How to get cookies for private content' },
-    { href: '/docs/faq', icon: HelpCircle, title: 'FAQ', desc: 'Frequently asked questions' },
-    { href: '/docs/changelog', icon: FileText, title: 'Changelog', desc: 'Version history and updates' },
+    { href: '/docs/faq', icon: HelpCircle, title: 'FAQ', desc: 'Frequently asked questions + Bot usage' },
+    { href: '/docs/changelog', icon: FileText, title: 'Changelog', desc: 'v1.9.0 - Major bot reliability fixes' },
 ];
 
 const platforms = [
@@ -110,6 +110,19 @@ export function DocsHomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25 }}
                         className="glass-card p-4 border-l-4 border-l-[var(--accent-primary)]"
+                    >
+                        <p className="text-sm text-[var(--text-secondary)]">
+                            <strong className="text-[var(--text-primary)]">🤖 Telegram Bot:</strong> Use <a href="https://t.me/downariaxt_bot" target="_blank" rel="noopener noreferrer" className="text-[var(--accent-primary)] hover:underline">@downariaxt_bot</a> to download directly in Telegram! 
+                            Free: 8/day, VIP: Unlimited. See <Link href="/docs/faq" className="text-[var(--accent-primary)] hover:underline">FAQ</Link> for details.
+                        </p>
+                    </motion.div>
+
+                    {/* Cookie Tip Box */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.27 }}
+                        className="glass-card p-4 border-l-4 border-l-yellow-500"
                     >
                         <p className="text-sm text-[var(--text-secondary)]">
                             <strong className="text-[var(--text-primary)]">💡 Pro Tip:</strong> For private content (stories, private accounts), you may need to add your cookie in Settings. 

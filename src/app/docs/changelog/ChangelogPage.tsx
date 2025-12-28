@@ -7,6 +7,30 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
+        version: '1.9.0',
+        date: 'December 28, 2025',
+        highlight: '🎨 New Themes + Bot Reliability',
+        changes: [
+            { type: 'new', items: [
+                '🎨 New Themes - Solarized Light, Solarized Dark, Nord, Dracula, Monokai',
+                '🤖 Bot v2.0.0 - Major reliability improvements',
+                '💾 Redis Sessions - Better multi-user handling',
+                '📊 Enhanced Monitoring - Error tracking & queue metrics',
+            ] },
+            { type: 'fixed', items: [
+                '🚨 Bot "Processing Stuck" - Now has 60s timeout',
+                '💥 Memory leaks on high traffic',
+                '⚡ Rate limit bypass at midnight',
+                '🔇 Silent error failures now logged',
+            ] },
+            { type: 'improved', items: [
+                '🚫 Request deduplication - No more duplicate downloads',
+                '📈 Queue backpressure handling',
+                '🛑 Graceful shutdown on deploy',
+            ] },
+        ],
+    },
+    {
         version: '1.8.3',
         date: 'December 27, 2025',
         changes: [
@@ -144,7 +168,7 @@ export function ChangelogPage() {
                                 className="glass-card p-5 border-l-4 border-l-[var(--accent-primary)]"
                             >
                                 {/* Header */}
-                                <div className="flex items-center gap-3 mb-4">
+                                <div className="flex flex-wrap items-center gap-3 mb-4">
                                     <h2 className="text-xl font-bold text-[var(--text-primary)]">v{entry.version}</h2>
                                     {idx === 0 && (
                                         <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-500/20 text-green-400 animate-pulse">
@@ -153,6 +177,13 @@ export function ChangelogPage() {
                                     )}
                                     <span className="text-xs text-[var(--text-muted)]">{entry.date}</span>
                                 </div>
+                                
+                                {/* Highlight Banner */}
+                                {'highlight' in entry && entry.highlight && (
+                                    <div className="mb-4 px-3 py-2 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30">
+                                        <span className="text-sm font-medium text-[var(--accent-primary)]">{entry.highlight}</span>
+                                    </div>
+                                )}
 
                                 {/* Changes */}
                                 <div className="space-y-4">

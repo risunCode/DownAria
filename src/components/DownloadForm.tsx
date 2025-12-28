@@ -258,12 +258,14 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
             onSubmit={handleSubmit}
             className="w-full"
         >
-            {/* Animated border wrapper - only spin when loading */}
+            {/* Animated border wrapper - always spinning */}
             <div className="relative rounded-2xl p-[2px]">
-                {/* Spinning gradient border - only visible when loading */}
-                {isLoading && (
-                    <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_var(--border-angle),var(--accent-primary)_0%,transparent_10%,transparent_90%,var(--accent-primary)_100%)] animate-spin-slow opacity-60" />
-                )}
+                {/* Spinning gradient border - always visible, brighter when loading */}
+                <div 
+                    className={`absolute inset-0 rounded-2xl bg-[conic-gradient(from_var(--border-angle),var(--accent-primary)_0%,transparent_10%,transparent_90%,var(--accent-primary)_100%)] animate-spin-slow transition-opacity duration-300 ${
+                        isLoading ? 'opacity-70' : 'opacity-30'
+                    }`} 
+                />
                 {/* Card content - no hover effects */}
                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] p-4 sm:p-6 space-y-4 relative rounded-2xl">
                 {/* Rotating tip or platform indicator */}

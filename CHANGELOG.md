@@ -2,6 +2,27 @@
 
 All notable changes to DownAria will be documented in this file.
 
+## [1.9.0] - 2024-12-28
+
+### 🔄 Backend Sync
+- **Backend v2.0.0** - Major bot reliability and multi-user fixes
+- **Bot Stability** - Fixed "Processing Stuck" bug that made bot unusable
+- **Session Management** - Redis-backed sessions (no more memory leaks)
+- **Rate Limiting** - Atomic operations prevent bypass at midnight
+- **Request Deduplication** - Prevents duplicate downloads on spam
+
+### 📊 Monitoring
+- Enhanced error tracking by type
+- Queue depth history and peak tracking
+- Proper error logging (no more silent failures)
+
+### 🔧 Infrastructure
+- Queue backpressure handling (max 100 jobs)
+- Graceful shutdown on deploy
+- Dependency injection for queue worker
+
+---
+
 ## [1.8.3] - 2024-12-27
 
 ### Security Hardening

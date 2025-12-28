@@ -77,10 +77,14 @@ export {
 export {
   // Theme
   getTheme,
+  getResolvedTheme,
+  getTimeBasedTheme,
   saveTheme,
   applyTheme,
   initTheme,
+  cleanupAutoTheme,
   type ThemeType,
+  type ResolvedTheme,
 
   // App Settings
   getSettings,
@@ -112,3 +116,45 @@ export {
   getResolvedLocale,
   type LanguagePreference,
 } from './settings';
+
+// ═══════════════════════════════════════════════════════════════
+// SEASONAL EFFECTS
+// ═══════════════════════════════════════════════════════════════
+
+export {
+  // Settings
+  getSeasonalSettings,
+  saveSeasonalSettings,
+  setSeasonalMode,
+  setCustomBackground,
+  setBackgroundPosition,
+  setBackgroundOpacity,
+  setBackgroundBlur,
+  setCardOpacity,
+  setParticleIntensity,
+  setParticlesWithBackground,
+  resetSeasonalSettings,
+  
+  // IndexedDB Background Storage
+  saveBackgroundBlob,
+  getBackgroundBlob,
+  deleteBackgroundBlob,
+  processBackgroundFile,
+  loadBackgroundFromDB,
+  clearCustomBackground,
+  
+  // Helpers
+  getCurrentSeason,
+  getSeasonEmoji,
+  getSeasonName,
+  fileToDataUrl,
+  formatFileSize,
+  isValidImageUrl,
+  
+  // Types
+  type SeasonType,
+  type BackgroundType,
+  type BackgroundPosition,
+  type CustomBackground,
+  type SeasonalSettings,
+} from './seasonal';

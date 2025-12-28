@@ -11,17 +11,36 @@
 // THEME
 // ═══════════════════════════════════════════════════════════════
 
-export type ThemeType = 'light' | 'solarized' | 'dark';
+export type ThemeType = 'auto' | 'light' | 'solarized' | 'dark';
+export type ResolvedTheme = 'light' | 'solarized' | 'dark';
 
 const THEME_KEY = 'downaria_theme';
 const DEFAULT_THEME: ThemeType = 'solarized';
 
+/**
+ * Get theme based on time of day
+ * - Night (20:00 - 05:59): Dark
+ * - Day (06:00 - 19:59): Solarized
+ */
+export function getTimeBasedTheme(): ResolvedTheme {
+  const hour = new Date().getHours();
+  
+  // Night: 20:00 - 05:59 → Dark
+  if (hour >= 20 || hour < 6) return 'dark';
+  
+  // Day: 06:00 - 19:59 → Solarized
+  return 'solarized';
+}
+
+/**
+ * Get saved theme preference (may be 'auto')
+ */
 export function getTheme(): ThemeType {
   if (typeof window === 'undefined') return DEFAULT_THEME;
 
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved && ['light', 'solarized', 'dark'].includes(saved)) {
+    if (saved && ['auto', 'light', 'solarized', 'dark'].includes(saved)) {
       return saved as ThemeType;
     }
     return DEFAULT_THEME;
@@ -30,22 +49,79 @@ export function getTheme(): ThemeType {
   }
 }
 
+/**
+ * Get resolved theme (auto → actual theme based on time)
+ */
+export function getResolvedTheme(): ResolvedTheme {
+  const theme = getTheme();
+  if (theme === 'auto') {
+    return getTimeBasedTheme();
+  }
+  return theme;
+}
+
 export function saveTheme(theme: ThemeType): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(THEME_KEY, theme);
-  applyTheme(theme);
+  applyTheme(theme === 'auto' ? getTimeBasedTheme() : theme);
+  
+  // Dispatch event for components to update
+  window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme } }));
 }
 
-export function applyTheme(theme: ThemeType): void {
+export function applyTheme(theme: ResolvedTheme): void {
   if (typeof document === 'undefined') return;
   document.documentElement.classList.remove('theme-light', 'theme-solarized', 'theme-dark');
   document.documentElement.classList.add(`theme-${theme}`);
 }
 
-export function initTheme(): ThemeType {
+export function initTheme(): ResolvedTheme {
   const theme = getTheme();
-  applyTheme(theme);
-  return theme;
+  const resolved = theme === 'auto' ? getTimeBasedTheme() : theme;
+  applyTheme(resolved);
+  
+  // If auto mode, set up interval to check time changes
+  if (theme === 'auto' && typeof window !== 'undefined') {
+    setupAutoThemeInterval();
+  }
+  
+  return resolved;
+}
+
+// Auto theme interval (checks every minute)
+let autoThemeInterval: NodeJS.Timeout | null = null;
+let lastAutoTheme: ResolvedTheme | null = null;
+
+function setupAutoThemeInterval(): void {
+  if (autoThemeInterval) return; // Already running
+  
+  lastAutoTheme = getTimeBasedTheme();
+  
+  autoThemeInterval = setInterval(() => {
+    const theme = getTheme();
+    if (theme !== 'auto') {
+      // User switched away from auto, stop interval
+      if (autoThemeInterval) {
+        clearInterval(autoThemeInterval);
+        autoThemeInterval = null;
+      }
+      return;
+    }
+    
+    const newTheme = getTimeBasedTheme();
+    if (newTheme !== lastAutoTheme) {
+      lastAutoTheme = newTheme;
+      applyTheme(newTheme);
+      window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme: 'auto', resolved: newTheme } }));
+    }
+  }, 60000); // Check every minute
+}
+
+export function cleanupAutoTheme(): void {
+  if (autoThemeInterval) {
+    clearInterval(autoThemeInterval);
+    autoThemeInterval = null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -58,6 +134,7 @@ export interface AppSettings {
   autoDownload: boolean;
   preferredQuality: 'highest' | 'hd' | 'sd';
   showEngagement: boolean;
+  highlightLevel: number; // 0-100, text highlight/glow intensity
 }
 
 const SETTINGS_KEY = 'downaria_settings';
@@ -67,6 +144,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoDownload: false,
   preferredQuality: 'highest',
   showEngagement: true,
+  highlightLevel: 0,
 };
 
 export function getSettings(): AppSettings {

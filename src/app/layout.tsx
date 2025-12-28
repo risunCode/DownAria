@@ -9,6 +9,8 @@ import { IntlProvider } from "@/components/IntlProvider";
 import { StructuredData, FAQStructuredData } from "@/components/StructuredData";
 import { SkipToContent } from "@/components/ui/Accessibility";
 import { MaintenanceCheck } from "@/components/MaintenanceCheck";
+import { SeasonalEffects } from "@/components/SeasonalEffects";
+import { AdaptText } from "@/components/AdaptText";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -82,6 +84,8 @@ export default function RootLayout({
         className={`${jetbrainsMono.variable} font-mono antialiased bg-[var(--bg-primary)] text-[var(--text-primary)]`}
       >
         <SkipToContent />
+        <SeasonalEffects />
+        <AdaptText />
         <IntlProvider>
           <PendingDownloadProvider>
             <MaintenanceCheck>

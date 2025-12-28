@@ -134,6 +134,8 @@
     },
     "theme": {
       "title": "Theme",
+      "auto": "Auto",
+      "autoDesc": "Based on time",
       "dark": "Dark",
       "darkDesc": "Easy on the eyes",
       "light": "Light",

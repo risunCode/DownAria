@@ -22,11 +22,22 @@ const faqs: { category: string; items: FAQItem[] }[] = [
         ],
     },
     {
+        category: 'Telegram Bot (@downariaxt_bot)',
+        items: [
+            { question: 'How do I use the Telegram bot?', answer: 'Just send any supported URL to @downariaxt_bot. The bot will automatically detect the platform and send you the media.' },
+            { question: 'What are the bot rate limits?', answer: 'Free users: 8 downloads/day with 4s cooldown. VIP (Donators): Unlimited downloads, no cooldown.' },
+            { question: 'Why did my download get stuck on "Processing..."?', answer: 'This bug has been fixed in v2.0.0! If you still experience it, the bot now has a 60-second timeout and will show an error message instead of hanging forever.' },
+            { question: 'How do I become VIP?', answer: 'Use /donate command in the bot to see donation options. VIP status is linked to your API key.' },
+            { question: 'Can I download multiple URLs at once?', answer: 'VIP users can send up to 5 URLs per message. Free users are limited to 1 URL per message.' },
+        ],
+    },
+    {
         category: 'Downloads',
         items: [
             { question: 'Why is my download failing?', answer: 'Common reasons: private content (needs cookie), invalid URL, or rate limit exceeded. Check the troubleshooting guide.' },
             { question: 'How do I download private content?', answer: <span>Add your cookie in Settings. See the <Link href="/docs/guides/cookies" className="text-[var(--accent-primary)] hover:underline">Cookie Setup Guide</Link>.</span> },
             { question: 'What quality options are available?', answer: 'Quality depends on the original video. We provide all available qualities from the platform (360p to 1080p+).' },
+            { question: 'Why does the bot send SD instead of HD?', answer: 'If HD video exceeds 40MB (Telegram limit), the bot automatically sends SD with an HD download link button.' },
         ],
     },
     {
@@ -34,6 +45,7 @@ const faqs: { category: string; items: FAQItem[] }[] = [
         items: [
             { question: 'What are cookies and why do I need them?', answer: 'Cookies identify your logged-in session. Required for private content, stories, or age-restricted videos.' },
             { question: 'What are the rate limits?', answer: 'Public: 15 req/min. With API key: 100 req/min. Playground: 5 req/2min.' },
+            { question: 'What was fixed in v2.0.0?', answer: 'Major bot reliability fixes: "Processing Stuck" bug, memory leaks from sessions, rate limit bypass at midnight, duplicate request handling, and silent error failures.' },
         ],
     },
     {

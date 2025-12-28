@@ -419,6 +419,7 @@ export async function getStorageStats(): Promise<{
 // ═══════════════════════════════════════════════════════════════
 
 import { getEncrypted, setEncrypted } from './crypto';
+import { getBackgroundBlob, saveBackgroundBlob, deleteBackgroundBlob } from './seasonal';
 
 export interface FullBackupData {
     version: number;
@@ -428,6 +429,8 @@ export interface FullBackupData {
     settings: Record<string, string>;
     // Decrypted sensitive data for cross-browser portability
     decryptedData?: Record<string, string>;
+    // Seasonal background as base64
+    seasonalBackground?: string;
 }
 
 // Keys that use encrypted storage and need special handling
@@ -472,13 +475,28 @@ export async function createFullBackup(): Promise<FullBackupData> {
         settings[key] = value;
     }
     
+    // Get seasonal background from IndexedDB
+    let seasonalBackground: string | undefined;
+    try {
+        const blob = await getBackgroundBlob();
+        if (blob) {
+            // Convert blob to base64
+            const buffer = await blob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            seasonalBackground = `data:${blob.type};base64,${base64}`;
+        }
+    } catch {
+        // Skip if can't get background
+    }
+    
     return {
-        version: 2, // Bumped version for new format
+        version: 3, // Bumped version for seasonal data
         exportedAt: Date.now(),
         appVersion: '1.2.0',
         history: historyData,
         settings,
         decryptedData: Object.keys(decryptedData).length > 0 ? decryptedData : undefined,
+        seasonalBackground,
     };
 }
 
@@ -493,6 +511,7 @@ export async function downloadFullBackupAsZip(filename?: string): Promise<void> 
         appVersion: backup.appVersion,
         historyCount: backup.history.stats.total,
         hasDecryptedData: !!backup.decryptedData,
+        hasSeasonalBackground: !!backup.seasonalBackground,
     }, null, 2));
     zip.file('history.json', JSON.stringify(backup.history, null, 2));
     zip.file('settings.json', JSON.stringify(backup.settings, null, 2));
@@ -500,6 +519,11 @@ export async function downloadFullBackupAsZip(filename?: string): Promise<void> 
     // Include decrypted sensitive data if available
     if (backup.decryptedData) {
         zip.file('sensitive.json', JSON.stringify(backup.decryptedData, null, 2));
+    }
+    
+    // Include seasonal background if available
+    if (backup.seasonalBackground) {
+        zip.file('seasonal-background.txt', backup.seasonalBackground);
     }
     
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -518,11 +542,13 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
     historySkipped: number;
     settingsImported: number;
     sensitiveImported: number;
+    seasonalRestored: boolean;
 }> {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     
     let historyImported = 0, historySkipped = 0, settingsImported = 0, sensitiveImported = 0;
+    let seasonalRestored = false;
     
     // Import history
     const historyFile = zip.file('history.json');
@@ -558,7 +584,22 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
         });
     }
     
-    return { historyImported, historySkipped, settingsImported, sensitiveImported };
+    // Import seasonal background
+    const seasonalFile = zip.file('seasonal-background.txt');
+    if (seasonalFile) {
+        try {
+            const dataUrl = await seasonalFile.async('string');
+            // Convert data URL back to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            await saveBackgroundBlob(blob);
+            seasonalRestored = true;
+        } catch {
+            // Skip if can't restore background
+        }
+    }
+    
+    return { historyImported, historySkipped, settingsImported, sensitiveImported, seasonalRestored };
 }
 
 // ═══════════════════════════════════════════════════════════════

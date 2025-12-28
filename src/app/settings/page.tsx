@@ -2,15 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare } from 'lucide-react';
+import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare, Clock } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
-import { ThemeType, getTheme, saveTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getSettings, saveSettings, type LanguagePreference } from '@/lib/storage';
+import { ThemeType, getTheme, saveTheme, getResolvedTheme, getTimeBasedTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getSettings, saveSettings, type LanguagePreference, resetSeasonalSettings, deleteBackgroundBlob } from '@/lib/storage';
 import { isPushSupported, getPermissionStatus, subscribeToPush, unsubscribeFromPush, isSubscribed } from '@/lib/utils/push-notifications';
 import { FacebookIcon, WeiboIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
 import Swal from 'sweetalert2';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import { DiscordWebhookSettings } from '@/components/DiscordWebhookSettings';
+import { SeasonalSettings } from '@/components/SeasonalSettings';
+import { setAdaptText as setAdaptTextSetting } from '@/components/AdaptText';
 import { locales, localeNames, localeFlags } from '@/i18n/config';
 import { useLocaleRefresh } from '@/components/IntlProvider';
 import { useTranslations } from 'next-intl';
@@ -38,6 +40,7 @@ const TABS: { id: TabId; label: string; icon: typeof Palette }[] = [
 ];
 
 const THEMES: { id: ThemeType; label: string; icon: typeof Sun; desc: string }[] = [
+    { id: 'auto', label: 'Auto', icon: Clock, desc: 'Based on time' },
     { id: 'dark', label: 'Dark', icon: Moon, desc: 'Easy on the eyes' },
     { id: 'light', label: 'Light', icon: Sun, desc: 'Classic bright' },
     { id: 'solarized', label: 'Solarized', icon: Sparkles, desc: 'Warm tones' },
@@ -57,6 +60,7 @@ const PLATFORMS = [
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('basic');
     const [currentTheme, setCurrentTheme] = useState<ThemeType>('dark');
+    const [resolvedAutoTheme, setResolvedAutoTheme] = useState<string>('');
     const [isClearing, setIsClearing] = useState<string | null>(null);
     const t = useTranslations('settings');
     const tCommon = useTranslations('common');
@@ -92,11 +96,15 @@ export default function SettingsPage() {
     // Discord webhook state
     const [discordConfigured, setDiscordConfigured] = useState(false);
     
+    // Highlight level state
+    const [adaptTextEnabled, setAdaptTextEnabled] = useState(false);
+    
     // Use SWR for admin cookie status
     const { cookieStatus: adminCookieData } = useCookieStatus();
 
     useEffect(() => {
         setCurrentTheme(getTheme());
+        setResolvedAutoTheme(getTimeBasedTheme());
         setUserCookies(getAllCookieStatus());
         setSkipCacheState(getSkipCache());
 
@@ -116,6 +124,11 @@ export default function SettingsPage() {
         // Check discord webhook configuration
         const discordSettings = getUserDiscordSettings();
         setDiscordConfigured(!!discordSettings?.webhookUrl);
+        
+        // Load adapt text setting
+        import('@/components/AdaptText').then(({ getAdaptText }) => {
+            setAdaptTextEnabled(getAdaptText());
+        });
         
         // PWA install prompt listener
         const handleBeforeInstall = (e: Event) => {
@@ -286,6 +299,28 @@ export default function SettingsPage() {
                 await Swal.fire({ icon: 'success', title: 'IndexedDB Cleared', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
             } catch (err) {
                 await Swal.fire({ icon: 'error', title: 'Failed', text: err instanceof Error ? err.message : 'Could not clear IndexedDB', background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            } finally {
+                setIsClearing(null);
+            }
+        }
+    };
+
+    const clearSeasonalData = async () => {
+        const result = await Swal.fire({
+            icon: 'warning', title: 'Clear Seasonal Effects?', 
+            text: 'This will remove custom background and reset seasonal settings.',
+            showCancelButton: true, confirmButtonText: 'Clear', confirmButtonColor: '#ef4444', background: 'var(--bg-card)', color: 'var(--text-primary)'
+        });
+        if (result.isConfirmed) {
+            setIsClearing('seasonal');
+            try {
+                // Clear IndexedDB background
+                await deleteBackgroundBlob();
+                // Reset localStorage settings
+                resetSeasonalSettings();
+                await Swal.fire({ icon: 'success', title: 'Seasonal Effects Cleared', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            } catch (err) {
+                await Swal.fire({ icon: 'error', title: 'Failed', text: err instanceof Error ? err.message : 'Could not clear seasonal data', background: 'var(--bg-card)', color: 'var(--text-primary)' });
             } finally {
                 setIsClearing(null);
             }
@@ -554,19 +589,26 @@ export default function SettingsPage() {
                                             <Palette className="w-5 h-5 text-purple-400" />
                                             <h2 className="font-semibold">{t('theme.title')}</h2>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-2 gap-2">
                                             {THEMES.map((theme) => (
                                                 <button
                                                     key={theme.id}
                                                     onClick={() => handleThemeChange(theme.id)}
-                                                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${currentTheme === theme.id
+                                                    className={`flex items-center gap-3 px-4 py-3 rounded-full border-2 transition-all ${currentTheme === theme.id
                                                         ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
-                                                        : 'border-[var(--border-color)] hover:border-[var(--text-muted)]'
+                                                        : 'border-[var(--border-color)] hover:border-[var(--text-muted)] bg-[var(--bg-secondary)]'
                                                         }`}
                                                 >
-                                                    <theme.icon className={`w-8 h-8 ${currentTheme === theme.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]'}`} />
-                                                    <span className={`text-sm font-medium ${currentTheme === theme.id ? 'text-[var(--accent-primary)]' : ''}`}>{t(`theme.${theme.id}`)}</span>
-                                                    <span className="text-[10px] text-[var(--text-muted)]">{t(`theme.${theme.id}Desc`)}</span>
+                                                    <theme.icon className={`w-5 h-5 flex-shrink-0 ${currentTheme === theme.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]'}`} />
+                                                    <div className="flex flex-col items-start min-w-0">
+                                                        <span className={`text-sm font-medium ${currentTheme === theme.id ? 'text-[var(--accent-primary)]' : ''}`}>
+                                                            {t(`theme.${theme.id}`)}
+                                                            {theme.id === 'auto' && currentTheme === 'auto' && resolvedAutoTheme && (
+                                                                <span className="text-[10px] ml-1 text-[var(--text-muted)]">→ {resolvedAutoTheme}</span>
+                                                            )}
+                                                        </span>
+                                                        <span className="text-[10px] text-[var(--text-muted)]">{theme.desc}</span>
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>
@@ -712,6 +754,45 @@ export default function SettingsPage() {
                                                 </button>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Seasonal Effects Section */}
+                                    <div>
+                                        <SeasonalSettings />
+                                    </div>
+
+                                    {/* Adapt Text Section */}
+                                    <div className="pt-4 border-t border-[var(--border-color)]">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Sparkles className="w-5 h-5 text-yellow-400" />
+                                                <div>
+                                                    <h2 className="font-semibold text-sm">Adapt Text</h2>
+                                                    <p className="text-[10px] text-[var(--text-muted)]">Auto-adjust text for custom background</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newValue = !adaptTextEnabled;
+                                                    setAdaptTextEnabled(newValue);
+                                                    setAdaptTextSetting(newValue);
+                                                }}
+                                                className={`relative w-11 h-6 rounded-full transition-colors ${
+                                                    adaptTextEnabled 
+                                                        ? 'bg-yellow-500' 
+                                                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
+                                                }`}
+                                            >
+                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                                    adaptTextEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                }`} />
+                                            </button>
+                                        </div>
+                                        {adaptTextEnabled && (
+                                            <p className="text-[10px] text-yellow-500/80 mt-2">
+                                                ✨ Text shadow enabled for better visibility on custom backgrounds
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -910,6 +991,17 @@ export default function SettingsPage() {
                                             </div>
                                             <button onClick={clearIndexedDB} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear history">
                                                 {isClearing === 'indexeddb' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)] transition-all">
+                                            <Sparkles className="w-4 h-4 text-pink-400" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium">Seasonal Effects</p>
+                                                <p className="text-[10px] text-[var(--text-muted)]">Background & particles</p>
+                                            </div>
+                                            <button onClick={clearSeasonalData} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear seasonal">
+                                                {isClearing === 'seasonal' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                             </button>
                                         </div>
 

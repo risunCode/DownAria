@@ -134,6 +134,8 @@
     },
     "theme": {
       "title": "Tema",
+      "auto": "Otomatis",
+      "autoDesc": "Berdasarkan waktu",
       "dark": "Gelap",
       "darkDesc": "Nyaman di mata",
       "light": "Terang",
