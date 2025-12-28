@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { getSeasonalSettings, loadBackgroundFromDB, SeasonType, SeasonalSettings } from '@/lib/storage/seasonal';
+import { getSettings } from '@/lib/storage/settings';
 
 // ═══════════════════════════════════════════════════════════════
 // PARTICLE CONFIGURATIONS - OPTIMIZED & CHILL
@@ -105,6 +106,25 @@ function generateParticles(config: ParticleConfig): ParticleData[] {
 function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; backgroundUrl: string }) {
   const bg = settings.customBackground;
   const [isVisible, setIsVisible] = useState(true);
+  const [allowSound, setAllowSound] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  // Load sound setting
+  useEffect(() => {
+    const appSettings = getSettings();
+    setAllowSound(appSettings.allowVideoSound || false);
+    
+    // Listen for sound setting changes
+    const handleSoundChange = (e: CustomEvent<{ enabled: boolean }>) => {
+      setAllowSound(e.detail.enabled);
+      if (videoRef.current) {
+        videoRef.current.muted = !e.detail.enabled;
+      }
+    };
+    
+    window.addEventListener('wallpaper-sound-changed', handleSoundChange as EventListener);
+    return () => window.removeEventListener('wallpaper-sound-changed', handleSoundChange as EventListener);
+  }, []);
   
   // Pause video when tab is not visible (saves memory & CPU)
   useEffect(() => {
@@ -115,6 +135,17 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
+  
+  // Handle video play/pause based on visibility
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isVisible) {
+        videoRef.current.play().catch(() => {});
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isVisible]);
   
   if (!bg) return null;
 
@@ -139,10 +170,11 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
   if (bg.type === 'video' && !isGif) {
     return (
       <video
+        ref={videoRef}
         src={backgroundUrl}
         autoPlay={isVisible}
         loop
-        muted
+        muted={!allowSound}
         playsInline
         // Memory optimizations
         preload="metadata" // Don't preload full video
@@ -150,16 +182,6 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
         disableRemotePlayback
         className="fixed inset-0 w-full h-full object-cover pointer-events-none"
         style={optimizedStyles}
-        // Pause when not visible
-        ref={(el) => {
-          if (el) {
-            if (isVisible) {
-              el.play().catch(() => {});
-            } else {
-              el.pause();
-            }
-          }
-        }}
       />
     );
   }
@@ -332,7 +354,14 @@ export function SeasonalEffects() {
         <style jsx global>{`
           /* Apply card opacity to glass-card elements */
           .glass-card {
-            background-color: rgba(var(--bg-card-rgb, 28, 33, 40), ${cardOpacity}) !important;
+            background-color: rgba(var(--bg-card-rgb, 255, 255, 255), ${cardOpacity}) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+          }
+          
+          /* Also apply to bg-secondary elements for consistency */
+          .bg-\\[var\\(--bg-secondary\\)\\] {
+            background-color: rgba(var(--bg-card-rgb, 255, 255, 255), ${cardOpacity * 0.9}) !important;
           }
         `}</style>
       )}

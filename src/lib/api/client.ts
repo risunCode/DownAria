@@ -8,9 +8,12 @@
  * - Fast offline detection
  */
 
-// Backend API URL - defaults to localhost for development
-// Production should set NEXT_PUBLIC_API_URL to Railway backend: https://DownAria-api-production.up.railway.app
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+// Backend API URL - MUST be set via environment variable
+// No fallback - will fail explicitly if not configured
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL && typeof window !== 'undefined') {
+    console.error('CRITICAL: NEXT_PUBLIC_API_URL environment variable is not set');
+}
 
 // Default configuration
 const DEFAULT_TIMEOUT = 60000; // 60 seconds for scraping operations (some platforms are slow)

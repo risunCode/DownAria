@@ -175,7 +175,12 @@ export function ApiPlaygroundTab() {
         setLoading(true);
         setResult(null);
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        if (!API_URL) {
+            setResult({ success: false, error: 'API_URL not configured' });
+            setLoading(false);
+            return;
+        }
         try {
             const res = await fetch(`${API_URL}/api/v1/playground`, {
                 method: 'POST',

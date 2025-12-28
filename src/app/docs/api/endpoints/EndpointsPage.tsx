@@ -6,7 +6,11 @@ import { Copy, Check, Code } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://DownAria-api-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+    console.warn('NEXT_PUBLIC_API_URL is not set - API examples will use placeholder');
+}
+const API_BASE = API_URL || '[API_URL]';
 
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);
@@ -120,7 +124,7 @@ export function EndpointsPage() {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="bash"
-                            code={`curl "${API_URL}/api/v1?key=dwa_live_xxxxx&url=https://www.facebook.com/share/p/1G8yBgJaPa/"`}
+                            code={`curl "${API_BASE}/api/v1?key=dwa_live_xxxxx&url=https://www.facebook.com/share/p/1G8yBgJaPa/"`}
                         />
 
                         <CodeBlock 
@@ -129,7 +133,7 @@ export function EndpointsPage() {
 const videoUrl = 'https://www.facebook.com/share/p/1G8yBgJaPa/';
 
 const response = await fetch(
-  \`${API_URL}/api/v1?key=\${API_KEY}&url=\${encodeURIComponent(videoUrl)}\`
+  \`${API_BASE}/api/v1?key=\${API_KEY}&url=\${encodeURIComponent(videoUrl)}\`
 );
 
 const { success, data } = await response.json();
@@ -327,7 +331,7 @@ if (success) {
                         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Example</h3>
                         <CodeBlock 
                             language="javascript"
-                            code={`const response = await fetch('${API_URL}/api/v1/chat', {
+                            code={`const response = await fetch('${API_BASE}/api/v1/chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const STORAGE_KEY = 'downaria_ai_chat_sessions';
 
 type AIModel = 'gemini-2.5-flash' | 'gemini-flash-latest' | 'gpt5' | 'copilot-smart';

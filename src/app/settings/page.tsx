@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare, Clock } from 'lucide-react';
+import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare, Clock, Volume2, VolumeX, Image } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
-import { ThemeType, getTheme, saveTheme, getResolvedTheme, getTimeBasedTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getSettings, saveSettings, type LanguagePreference, resetSeasonalSettings, deleteBackgroundBlob } from '@/lib/storage';
+import { ThemeType, getTheme, saveTheme, getResolvedTheme, getTimeBasedTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getSettings, saveSettings, type LanguagePreference, resetSeasonalSettings, deleteBackgroundBlob, getSeasonalSettings, setBackgroundOpacity, setBackgroundBlur } from '@/lib/storage';
 import { isPushSupported, getPermissionStatus, subscribeToPush, unsubscribeFromPush, isSubscribed } from '@/lib/utils/push-notifications';
 import { FacebookIcon, WeiboIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
 import Swal from 'sweetalert2';
@@ -756,43 +756,55 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Seasonal Effects Section */}
-                                    <div>
-                                        <SeasonalSettings />
-                                    </div>
-
-                                    {/* Adapt Text Section */}
+                                    {/* Experimental Section - All experimental features consolidated */}
                                     <div className="pt-4 border-t border-[var(--border-color)]">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <Sparkles className="w-5 h-5 text-yellow-400" />
-                                                <div>
-                                                    <h2 className="font-semibold text-sm">Adapt Text</h2>
-                                                    <p className="text-[10px] text-[var(--text-muted)]">Auto-adjust text for custom background</p>
-                                                </div>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <Sparkles className="w-5 h-5 text-purple-400" />
+                                            <div>
+                                                <h2 className="font-semibold text-sm">Experimental</h2>
+                                                <p className="text-[10px] text-[var(--text-muted)]">Beta features - may change or be removed</p>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    const newValue = !adaptTextEnabled;
-                                                    setAdaptTextEnabled(newValue);
-                                                    setAdaptTextSetting(newValue);
-                                                }}
-                                                className={`relative w-11 h-6 rounded-full transition-colors ${
-                                                    adaptTextEnabled 
-                                                        ? 'bg-yellow-500' 
-                                                        : 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
-                                                }`}
-                                            >
-                                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                                                    adaptTextEnabled ? 'translate-x-6' : 'translate-x-1'
-                                                }`} />
-                                            </button>
                                         </div>
-                                        {adaptTextEnabled && (
-                                            <p className="text-[10px] text-yellow-500/80 mt-2">
-                                                ✨ Text shadow enabled for better visibility on custom backgrounds
-                                            </p>
-                                        )}
+                                        
+                                        <div className="space-y-4">
+                                            {/* Seasonal Effects & Custom Background */}
+                                            <SeasonalSettings />
+                                            
+                                            {/* Wallpaper Settings - Only show if custom background exists */}
+                                            <WallpaperSettingsInline />
+                                            
+                                            {/* Adapt Text Toggle */}
+                                            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                                                <div className="flex items-center gap-3">
+                                                    <Sparkles className="w-5 h-5 text-yellow-400" />
+                                                    <div>
+                                                        <p className="text-sm font-medium">Adapt Text</p>
+                                                        <p className="text-[10px] text-[var(--text-muted)]">Auto-adjust text for custom background</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const newValue = !adaptTextEnabled;
+                                                        setAdaptTextEnabled(newValue);
+                                                        setAdaptTextSetting(newValue);
+                                                    }}
+                                                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                                                        adaptTextEnabled 
+                                                            ? 'bg-yellow-500' 
+                                                            : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
+                                                    }`}
+                                                >
+                                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                                        adaptTextEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                    }`} />
+                                                </button>
+                                            </div>
+                                            {adaptTextEnabled && (
+                                                <p className="text-[10px] text-yellow-500/80 px-3">
+                                                    ✨ Text shadow enabled for better visibility on custom backgrounds
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1056,6 +1068,133 @@ export default function SettingsPage() {
                 </div>
             </div>
         </SidebarLayout>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WALLPAPER SETTINGS COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
+function WallpaperSettingsInline() {
+    const [mounted, setMounted] = useState(false);
+    const [settings, setSettingsState] = useState<ReturnType<typeof getSettings> | null>(null);
+    const [seasonalSettings, setSeasonalSettingsState] = useState<ReturnType<typeof getSeasonalSettings> | null>(null);
+    
+    // Load settings after mount to avoid hydration mismatch
+    useEffect(() => {
+        setSettingsState(getSettings());
+        setSeasonalSettingsState(getSeasonalSettings());
+        setMounted(true);
+    }, []);
+    
+    // Only show if mounted and custom background exists
+    if (!mounted || !settings || !seasonalSettings || !seasonalSettings.customBackground) return null;
+    
+    const handleOpacityChange = (value: number) => {
+        setBackgroundOpacity(value);
+        setSeasonalSettingsState(getSeasonalSettings());
+        saveSettings({ wallpaperOpacity: value });
+        setSettingsState(getSettings());
+    };
+    
+    const handleBlurChange = (value: number) => {
+        setBackgroundBlur(value);
+        setSeasonalSettingsState(getSeasonalSettings());
+        saveSettings({ backgroundBlur: value });
+        setSettingsState(getSettings());
+    };
+    
+    const handleSoundToggle = () => {
+        const newValue = !settings.allowVideoSound;
+        saveSettings({ allowVideoSound: newValue });
+        setSettingsState(getSettings());
+        // Dispatch event for SeasonalEffects to pick up
+        window.dispatchEvent(new CustomEvent('wallpaper-sound-changed', { detail: { enabled: newValue } }));
+    };
+    
+    const isVideo = seasonalSettings.customBackground?.type === 'video';
+    
+    return (
+        <div className="space-y-3 p-3 rounded-lg bg-[var(--bg-secondary)]">
+            <div className="flex items-center gap-2 mb-2">
+                <Image className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-medium">Wallpaper Settings</span>
+            </div>
+            
+            {/* Wallpaper Opacity */}
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-[var(--text-secondary)]">Wallpaper Opacity</span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{seasonalSettings.backgroundOpacity || 8}%</span>
+                </div>
+                <input 
+                    type="range" 
+                    min="5" 
+                    max="25" 
+                    value={seasonalSettings.backgroundOpacity || 8} 
+                    onChange={e => handleOpacityChange(Number(e.target.value))} 
+                    className="w-full accent-[var(--accent-primary)] h-1.5 rounded-full" 
+                />
+                <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1">
+                    <span>Subtle</span>
+                    <span>Visible</span>
+                </div>
+            </div>
+            
+            {/* Background Blur */}
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-[var(--text-secondary)]">Background Blur</span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{seasonalSettings.backgroundBlur || 0}px</span>
+                </div>
+                <input 
+                    type="range" 
+                    min="0" 
+                    max="20" 
+                    value={seasonalSettings.backgroundBlur || 0} 
+                    onChange={e => handleBlurChange(Number(e.target.value))} 
+                    className="w-full accent-[var(--accent-primary)] h-1.5 rounded-full" 
+                />
+                <div className="flex justify-between text-[10px] text-[var(--text-muted)] mt-1">
+                    <span>Sharp</span>
+                    <span>Blurry</span>
+                </div>
+            </div>
+            
+            {/* Allow Sound - Only for video backgrounds */}
+            {isVideo && (
+                <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]/50">
+                    <div className="flex items-center gap-2">
+                        {settings.allowVideoSound ? (
+                            <Volume2 className="w-4 h-4 text-green-400" />
+                        ) : (
+                            <VolumeX className="w-4 h-4 text-[var(--text-muted)]" />
+                        )}
+                        <div>
+                            <p className="text-sm font-medium">Allow Sound</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">Play video with audio</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleSoundToggle}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${
+                            settings.allowVideoSound 
+                                ? 'bg-green-500' 
+                                : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
+                        }`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            settings.allowVideoSound ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                    </button>
+                </div>
+            )}
+            {isVideo && settings.allowVideoSound && (
+                <p className="text-[10px] text-amber-500/80">
+                    ⚠️ Sound will play when video background is visible
+                </p>
+            )}
+        </div>
     );
 }
 

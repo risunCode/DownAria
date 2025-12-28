@@ -21,7 +21,9 @@ const getAppIcon = () => {
     if (typeof window !== 'undefined') {
         return `${window.location.origin}/icon.png`;
     }
-    return `${process.env.NEXT_PUBLIC_BASE_URL || 'https://xt-fetch.vercel.app'}/icon.png`;
+    // Use env var without fallback - server-side only
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    return baseUrl ? `${baseUrl}/icon.png` : '/icon.png';
 };
 
 // Send method for large files
@@ -127,7 +129,8 @@ function markSent(key: string): void {
 
 function getBaseUrl(): string {
     if (typeof window !== 'undefined') return window.location.origin;
-    return process.env.NEXT_PUBLIC_BASE_URL || 'https://xt-fetch.vercel.app';
+    // Use env var without fallback - server-side only
+    return process.env.NEXT_PUBLIC_BASE_URL || '';
 }
 
 function getProxyUrl(mediaUrl: string, platform: string): string {

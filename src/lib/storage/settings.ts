@@ -135,6 +135,10 @@ export interface AppSettings {
   preferredQuality: 'highest' | 'hd' | 'sd';
   showEngagement: boolean;
   highlightLevel: number; // 0-100, text highlight/glow intensity
+  // New settings
+  wallpaperOpacity: number; // 5-20, default 8
+  backgroundBlur: number; // 0-20, default 0
+  allowVideoSound: boolean; // default false - video background sound
 }
 
 const SETTINGS_KEY = 'downaria_settings';
@@ -145,6 +149,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   preferredQuality: 'highest',
   showEngagement: true,
   highlightLevel: 0,
+  // New defaults
+  wallpaperOpacity: 8,
+  backgroundBlur: 0,
+  allowVideoSound: false,
 };
 
 export function getSettings(): AppSettings {

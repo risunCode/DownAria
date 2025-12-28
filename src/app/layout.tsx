@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://downaria.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   title: "DownAria - Free Social Media Video Downloader | Facebook, Instagram, TikTok, Twitter",
   description: "Download videos, reels, stories from Facebook, Instagram, TikTok, Twitter/X, Weibo for free. No watermark, no login, unlimited downloads. Fast & easy social media downloader by risunCode.",
   keywords: [

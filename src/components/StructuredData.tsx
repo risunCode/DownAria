@@ -5,7 +5,7 @@ export function StructuredData() {
         '@type': 'WebApplication',
         name: 'DownAria',
         description: 'Free social media video downloader for Facebook, Instagram, TikTok, Twitter/X, and Weibo. No watermark, no registration required.',
-        url: process.env.NEXT_PUBLIC_BASE_URL || 'https://downaria.vercel.app',
+        url: process.env.NEXT_PUBLIC_BASE_URL || '',
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
         offers: {

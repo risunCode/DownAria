@@ -14,7 +14,7 @@ import type { HistoryEntry } from '@/lib/storage';
 import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function ShareContent() {
   const searchParams = useSearchParams();

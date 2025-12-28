@@ -7,7 +7,7 @@ import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
 import { useState } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
     const [copied, setCopied] = useState(false);

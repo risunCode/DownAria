@@ -53,18 +53,22 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
   const [blur, setBlur] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [windowSize, setWindowSize] = useState({ width: 1920, height: 1080 });
   const containerRef = useRef<HTMLDivElement>(null);
   
   const isVideo = file.type.startsWith('video/');
   const isGif = file.type === 'image/gif';
   const fileExt = file.name.split('.').pop()?.toUpperCase() || 'FILE';
 
-  // Detect mobile
+  // Detect mobile and window size
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const updateSize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
   useEffect(() => {
@@ -120,16 +124,17 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         </div>
       </div>
 
-      {/* Preview Area */}
+      {/* Preview Area - Simulates actual window view */}
       <div className="p-4">
-        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview</p>
+        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (as it will appear)</p>
         <div
           ref={containerRef}
-          className={`relative w-full rounded-xl overflow-hidden bg-[var(--bg-secondary)] cursor-move touch-none border border-[var(--border-color)] ${isMobile ? 'aspect-[16/10]' : 'aspect-video'}`}
+          className="relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)]"
+          style={{ aspectRatio: `${windowSize.width} / ${windowSize.height}` }}
           onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}
           onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove}
         >
-          {/* Background Media */}
+          {/* Background Media - Full cover like actual display */}
           {(isVideo && !isGif) ? (
             <video src={previewUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover"
               style={{ objectPosition: `${position.x}% ${position.y}%`, transform: `scale(${position.scale})`, opacity: wallpaperOpacity / 100, filter: blur > 0 ? `blur(${blur}px)` : undefined }} />
@@ -140,7 +145,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
           
           {/* Drag hint - top left */}
           <div className="absolute top-2 left-2 bg-black/60 px-2.5 py-1 rounded-full text-[10px] text-white flex items-center gap-1.5">
-            <Move className="w-3 h-3" />Drag to main object
+            <Move className="w-3 h-3" />Drag to focus point
           </div>
           
           {/* Position dot */}
@@ -490,54 +495,31 @@ export function SeasonalSettings() {
         </p>
 
         {settings.customBackground && backgroundUrl ? (
-          <div className="relative rounded-xl overflow-hidden border border-[var(--border-color)]">
-            {settings.customBackground.type === 'video' ? (
-              <video
-                src={backgroundUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-24 object-cover"
-                style={{
-                  objectPosition: `${settings.customBackground.position.x}% ${settings.customBackground.position.y}%`,
-                  opacity: (settings.backgroundOpacity || 20) / 100,
-                  filter: settings.backgroundBlur ? `blur(${settings.backgroundBlur}px)` : undefined,
-                }}
-              />
-            ) : (
-              <img
-                src={backgroundUrl}
-                alt="Custom background"
-                className="w-full h-24 object-cover"
-                style={{
-                  objectPosition: `${settings.customBackground.position.x}% ${settings.customBackground.position.y}%`,
-                  opacity: (settings.backgroundOpacity || 20) / 100,
-                  filter: settings.backgroundBlur ? `blur(${settings.backgroundBlur}px)` : undefined,
-                }}
-              />
-            )}
-            
-            {/* Info overlay */}
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 text-white text-xs">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+            {/* Info */}
+            <div className="flex items-center gap-2">
               {settings.customBackground.type === 'video' ? (
-                <Video className="w-3 h-3" />
+                <Video className="w-5 h-5 text-purple-400" />
               ) : (
-                <Image className="w-3 h-3" />
+                <Image className="w-5 h-5 text-blue-400" />
               )}
-              {formatFileSize(settings.customBackground.size)}
+              <div>
+                <p className="text-sm font-medium text-[var(--text-primary)]">
+                  {settings.customBackground.type === 'video' ? 'Video' : 'Image'} Background
+                </p>
+                <p className="text-xs text-[var(--text-muted)]">{formatFileSize(settings.customBackground.size)}</p>
+              </div>
             </div>
             
             {/* Actions */}
-            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/30">
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
-                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Image className="w-4 h-4" />}
-                Change
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Change'}
               </Button>
               <Button
                 variant="danger"
@@ -545,7 +527,6 @@ export function SeasonalSettings() {
                 onClick={handleRemoveBackground}
               >
                 <Trash2 className="w-4 h-4" />
-                Remove
               </Button>
             </div>
           </div>

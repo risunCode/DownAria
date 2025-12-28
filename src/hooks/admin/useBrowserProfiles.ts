@@ -97,7 +97,8 @@ export function useBrowserProfiles() {
     // Admin fetch helper
     const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
         const token = getAuthToken();
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        if (!API_URL) throw new Error('API_URL not configured');
         const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
         
         const headers: Record<string, string> = { 

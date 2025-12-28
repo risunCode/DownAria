@@ -102,7 +102,7 @@ function UsersTab() {
     const [editForm, setEditForm] = useState({ role: '' });
     const [addForm, setAddForm] = useState({ email: '', password: '', role: 'user' });
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     const getAuthHeaders = useCallback((): Record<string, string> => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };

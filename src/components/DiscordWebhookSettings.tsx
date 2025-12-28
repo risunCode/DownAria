@@ -58,7 +58,7 @@ export function DiscordWebhookSettings() {
         try {
             const payload: Record<string, unknown> = {
                 username: 'DownAria',
-                avatar_url: 'https://downaria.vercel.app/icon.png',
+                avatar_url: typeof window !== 'undefined' ? `${window.location.origin}/icon.png` : '/icon.png',
             };
 
             if (testMessage.trim()) {
@@ -76,7 +76,7 @@ export function DiscordWebhookSettings() {
                     ],
                     footer: {
                         text: settings.footerText || 'via DownAria',
-                        icon_url: 'https://downaria.vercel.app/icon.png',
+                        icon_url: typeof window !== 'undefined' ? `${window.location.origin}/icon.png` : '/icon.png',
                     },
                     timestamp: new Date().toISOString(),
                 }];

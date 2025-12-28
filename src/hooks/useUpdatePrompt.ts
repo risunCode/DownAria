@@ -8,7 +8,7 @@
 import useSWR from 'swr';
 import { fetcher, SWR_CONFIG } from '@/lib/swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface PublicSettings {
     update_prompt_mode?: string;
