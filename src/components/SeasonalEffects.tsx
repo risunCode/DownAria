@@ -103,7 +103,7 @@ function generateParticles(config: ParticleConfig): ParticleData[] {
  * 4. Pause video when tab not visible (Page Visibility API)
  * 5. Use CSS containment for paint isolation
  */
-function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; backgroundUrl: string }) {
+function Background({ settings, backgroundUrl, isModalOpen }: { settings: SeasonalSettings; backgroundUrl: string; isModalOpen: boolean }) {
   const bg = settings.customBackground;
   const [isVisible, setIsVisible] = useState(true);
   const [allowSound, setAllowSound] = useState(false);
@@ -147,6 +147,13 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
     }
   }, [isVisible]);
   
+  // Mute video when modal is open to prevent sound overlap with preview
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = !allowSound || isModalOpen;
+    }
+  }, [isModalOpen, allowSound]);
+  
   if (!bg) return null;
 
   const opacity = (settings.backgroundOpacity || 20) / 100;
@@ -167,6 +174,9 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
   };
 
   // Video background
+  // Mute when modal is open to prevent sound overlap with preview
+  const shouldMute = !allowSound || isModalOpen;
+  
   if (bg.type === 'video' && !isGif) {
     return (
       <video
@@ -174,7 +184,7 @@ function Background({ settings, backgroundUrl }: { settings: SeasonalSettings; b
         src={backgroundUrl}
         autoPlay={isVisible}
         loop
-        muted={!allowSound}
+        muted={shouldMute}
         playsInline
         // Memory optimizations
         preload="metadata" // Don't preload full video
@@ -360,7 +370,7 @@ export function SeasonalEffects() {
     <>
       {/* Custom Background - behind everything */}
       {settings.customBackground && backgroundUrl && (
-        <Background settings={settings} backgroundUrl={backgroundUrl} />
+        <Background settings={settings} backgroundUrl={backgroundUrl} isModalOpen={isModalOpen} />
       )}
       
       {/* Card Opacity CSS - applies to glass-card elements when background is set */}

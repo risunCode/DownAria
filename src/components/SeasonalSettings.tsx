@@ -129,13 +129,13 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         </div>
       </div>
 
-      {/* Preview Area - Full viewport (background covers entire screen) */}
-      <div className="p-4">
-        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (full screen)</p>
+      {/* Preview Area - Compact preview */}
+      <div className="px-4 py-2">
+        <p className="text-xs text-[var(--text-muted)] mb-2 font-medium">Preview (drag to set focus point)</p>
         <div
           ref={containerRef}
-          className="relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)]"
-          style={{ aspectRatio: `${windowSize.width} / ${windowSize.height}` }}
+          className="relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)] max-h-32 md:max-h-40"
+          style={{ aspectRatio: '16 / 9' }}
           onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}
           onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove}
         >
@@ -160,7 +160,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
       </div>
 
       {/* Customization */}
-      <div className="px-4 pb-4 space-y-4">
+      <div className="px-4 pb-3 space-y-3">
         <p className="text-xs text-[var(--text-muted)] font-medium">Customization</p>
         
         {/* Zoom */}
