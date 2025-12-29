@@ -19,6 +19,7 @@ export interface Announcement {
     show_on_history: boolean;
     show_on_settings: boolean;
     show_on_docs: boolean;
+    dismissable: boolean;
     start_date: string;
     end_date?: string;
     enabled: boolean;

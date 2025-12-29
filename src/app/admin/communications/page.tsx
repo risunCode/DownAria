@@ -118,12 +118,13 @@ function AnnouncementsTab() {
         show_on_history: false,
         show_on_settings: false,
         show_on_docs: false,
+        dismissable: true,
         priority: 0,
         enabled: true,
     });
 
     const resetForm = () => {
-        setFormData({ title: '', message: '', type: 'info', icon: '📢', link_url: '', link_text: '', show_on_home: true, show_on_history: false, show_on_settings: false, show_on_docs: false, priority: 0, enabled: true });
+        setFormData({ title: '', message: '', type: 'info', icon: '📢', link_url: '', link_text: '', show_on_home: true, show_on_history: false, show_on_settings: false, show_on_docs: false, dismissable: true, priority: 0, enabled: true });
         setEditingId(null);
     };
 
@@ -145,6 +146,7 @@ function AnnouncementsTab() {
             show_on_history: ann.show_on_history,
             show_on_settings: ann.show_on_settings,
             show_on_docs: ann.show_on_docs,
+            dismissable: ann.dismissable ?? true,
             priority: ann.priority,
             enabled: ann.enabled,
         });
@@ -328,6 +330,19 @@ function AnnouncementsTab() {
                                 </label>
                             ))}
                         </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                        <div>
+                            <span className="text-sm font-medium">Dismissable</span>
+                            <p className="text-xs text-[var(--text-muted)]">Allow users to dismiss this announcement</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, dismissable: !formData.dismissable })}
+                            className={`relative w-11 h-6 rounded-full transition-colors ${formData.dismissable ? 'bg-green-500' : 'bg-gray-600'}`}
+                        >
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${formData.dismissable ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </button>
                     </div>
                     <div className="flex justify-end gap-2 pt-4 border-t border-[var(--border-color)]">
                         <button onClick={() => { setShowModal(false); resetForm(); }} className="px-4 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)]">Cancel</button>
