@@ -1,22 +1,33 @@
 /**
  * Client-Side Storage Encryption
- * 
- * Provides obfuscation + integrity check for sensitive localStorage data.
- * NOT cryptographically secure against determined attackers, but raises
- * the bar significantly against casual XSS attacks.
- * 
+ * ==============================
+ * XOR cipher + HMAC integrity check for sensitive localStorage data.
  * Uses browser fingerprint as key - unique per browser/device.
+ * 
+ * Storage Key: downaria_cookies
  */
 
+import { STORAGE_KEYS } from './settings';
+
 // ═══════════════════════════════════════════════════════════════
-// FINGERPRINT GENERATION
+// TYPES
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Generate a simple browser fingerprint as encryption key
- * Combines multiple browser properties for uniqueness
- */
-function generateFingerprint(): string {
+export interface CookieStorage {
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  weibo?: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FINGERPRINT
+// ═══════════════════════════════════════════════════════════════
+
+let cachedFingerprint: string | null = null;
+
+function getFingerprint(): string {
+  if (cachedFingerprint) return cachedFingerprint;
   if (typeof window === 'undefined') return 'server-side';
   
   const components = [
@@ -26,35 +37,27 @@ function generateFingerprint(): string {
     screen.colorDepth,
     new Date().getTimezoneOffset(),
     navigator.hardwareConcurrency || 0,
-    // Canvas fingerprint (simplified)
     getCanvasFingerprint(),
   ];
   
-  return simpleHash(components.join('|'));
+  cachedFingerprint = simpleHash(components.join('|'));
+  return cachedFingerprint;
 }
 
-/**
- * Simple canvas fingerprint
- */
 function getCanvasFingerprint(): string {
   try {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return 'no-canvas';
-    
     ctx.textBaseline = 'top';
     ctx.font = '14px Arial';
     ctx.fillText('DownAria', 2, 2);
-    
     return canvas.toDataURL().slice(-50);
   } catch {
     return 'canvas-error';
   }
 }
 
-/**
- * Simple hash function (djb2)
- */
 function simpleHash(str: string): string {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -63,162 +66,124 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
-// Cache fingerprint
-let cachedFingerprint: string | null = null;
-
-function getFingerprint(): string {
-  if (!cachedFingerprint) {
-    cachedFingerprint = generateFingerprint();
-  }
-  return cachedFingerprint;
-}
-
 // ═══════════════════════════════════════════════════════════════
-// XOR CIPHER
+// XOR CIPHER + HMAC
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Simple XOR cipher - symmetric encryption
- * Returns hex string to avoid encoding issues
- */
+const ENCRYPTED_PREFIX = 'enc:';
+
 function xorCipher(text: string, key: string): string {
   const result: number[] = [];
   for (let i = 0; i < text.length; i++) {
     result.push(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
   }
-  // Return as hex string to avoid encoding issues
   return result.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * Decrypt XOR cipher from hex string
- */
 function xorDecipher(hex: string, key: string): string {
   const bytes: number[] = [];
   for (let i = 0; i < hex.length; i += 2) {
     bytes.push(parseInt(hex.substring(i, i + 2), 16));
   }
-  let result = '';
-  for (let i = 0; i < bytes.length; i++) {
-    result += String.fromCharCode(bytes[i] ^ key.charCodeAt(i % key.length));
-  }
-  return result;
+  return bytes.map((b, i) => String.fromCharCode(b ^ key.charCodeAt(i % key.length))).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// HMAC FOR INTEGRITY
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Simple HMAC-like integrity check
- */
 function computeHMAC(data: string, key: string): string {
-  const combined = key + data + key;
-  return simpleHash(combined);
+  return simpleHash(key + data + key);
+}
+
+function encryptValue(value: string): string {
+  const fp = getFingerprint();
+  const encrypted = xorCipher(value, fp);
+  return `${ENCRYPTED_PREFIX}${encrypted}.${computeHMAC(encrypted, fp)}`;
+}
+
+function decryptValue(stored: string): string | null {
+  if (!stored.startsWith(ENCRYPTED_PREFIX)) return stored;
+  
+  const [encrypted, hmac] = stored.slice(ENCRYPTED_PREFIX.length).split('.');
+  if (!encrypted || !hmac) return null;
+  
+  const fp = getFingerprint();
+  if (hmac !== computeHMAC(encrypted, fp)) {
+    console.warn('[Crypto] HMAC mismatch');
+    return null;
+  }
+  
+  return xorDecipher(encrypted, fp);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PUBLIC API
+// COOKIE STORAGE
 // ═══════════════════════════════════════════════════════════════
 
-const ENCRYPTED_PREFIX = 'enc:';
+export function getEncryptedCookies(): CookieStorage {
+  if (typeof window === 'undefined') return {};
+  
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.COOKIES);
+    if (!stored) return {};
+    const decrypted = decryptValue(stored);
+    return decrypted ? JSON.parse(decrypted) : {};
+  } catch {
+    return {};
+  }
+}
 
-/**
- * Encrypt and store value in localStorage
- */
-export function setEncrypted(key: string, value: string): void {
+export function setEncryptedCookies(cookies: CookieStorage): void {
   if (typeof window === 'undefined') return;
   
   try {
-    const fingerprint = getFingerprint();
+    const cleaned: CookieStorage = {};
+    for (const [key, value] of Object.entries(cookies)) {
+      if (value?.trim()) cleaned[key as keyof CookieStorage] = value.trim();
+    }
     
-    // XOR encrypt (returns hex string)
-    const encrypted = xorCipher(value, fingerprint);
+    if (Object.keys(cleaned).length === 0) {
+      localStorage.removeItem(STORAGE_KEYS.COOKIES);
+      return;
+    }
     
-    // Add HMAC
-    const hmac = computeHMAC(encrypted, fingerprint);
-    
-    // Store with prefix (no base64 needed, already hex)
-    localStorage.setItem(key, `${ENCRYPTED_PREFIX}${encrypted}.${hmac}`);
+    localStorage.setItem(STORAGE_KEYS.COOKIES, encryptValue(JSON.stringify(cleaned)));
   } catch (e) {
-    // Fallback to plain storage if encryption fails
-    console.warn('[Crypto] Encryption failed, storing plain:', e);
+    console.warn('[Crypto] Failed to save cookies:', e);
+  }
+}
+
+export function clearAllCookies(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(STORAGE_KEYS.COOKIES);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GENERIC ENCRYPTION (for backup/restore)
+// ═══════════════════════════════════════════════════════════════
+
+export function setEncrypted(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, encryptValue(value));
+  } catch {
     localStorage.setItem(key, value);
   }
 }
 
-/**
- * Get and decrypt value from localStorage
- * Returns null if tampered or not found
- */
 export function getEncrypted(key: string): string | null {
   if (typeof window === 'undefined') return null;
-  
   try {
     const stored = localStorage.getItem(key);
-    if (!stored) return null;
-    
-    // Check if encrypted
-    if (!stored.startsWith(ENCRYPTED_PREFIX)) {
-      // Legacy unencrypted data - return as-is
-      return stored;
-    }
-    
-    const data = stored.slice(ENCRYPTED_PREFIX.length);
-    const [encrypted, hmac] = data.split('.');
-    
-    if (!encrypted || !hmac) return null;
-    
-    const fingerprint = getFingerprint();
-    
-    // Verify HMAC
-    const expectedHmac = computeHMAC(encrypted, fingerprint);
-    if (hmac !== expectedHmac) {
-      console.warn('[Crypto] HMAC mismatch - data may be tampered or corrupted');
-      // Return null and let caller handle (will show empty, user can re-enter)
-      return null;
-    }
-    
-    // Decrypt from hex
-    const decrypted = xorDecipher(encrypted, fingerprint);
-    
-    return decrypted;
-  } catch (e) {
-    console.warn('[Crypto] Decryption failed:', e);
+    return stored ? decryptValue(stored) : null;
+  } catch {
     return null;
   }
 }
 
-/**
- * Remove encrypted value
- */
 export function removeEncrypted(key: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(key);
 }
 
-/**
- * Check if value is encrypted
- */
 export function isEncrypted(key: string): boolean {
   if (typeof window === 'undefined') return false;
-  const stored = localStorage.getItem(key);
-  return stored?.startsWith(ENCRYPTED_PREFIX) ?? false;
-}
-
-/**
- * Migrate unencrypted value to encrypted
- * Returns true if migration happened
- */
-export function migrateToEncrypted(key: string): boolean {
-  if (typeof window === 'undefined') return false;
-  
-  const stored = localStorage.getItem(key);
-  if (!stored || stored.startsWith(ENCRYPTED_PREFIX)) {
-    return false; // Nothing to migrate or already encrypted
-  }
-  
-  // Re-save with encryption
-  setEncrypted(key, stored);
-  return true;
+  return localStorage.getItem(key)?.startsWith(ENCRYPTED_PREFIX) ?? false;
 }

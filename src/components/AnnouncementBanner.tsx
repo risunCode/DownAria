@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Info, AlertTriangle, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getDismissedAnnouncements, dismissAnnouncement, isAnnouncementDismissed } from '@/lib/storage/settings';
 
 interface Announcement {
     id: string;
@@ -18,33 +19,6 @@ interface Announcement {
 
 interface AnnouncementBannerProps {
     page: 'home' | 'history' | 'settings' | 'docs';
-}
-
-const DISMISS_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
-
-// Get dismissed announcements from localStorage
-function getDismissedAnnouncements(): Record<string, number> {
-    if (typeof window === 'undefined') return {};
-    try {
-        return JSON.parse(localStorage.getItem('xtf_dismissed_announcements') || '{}');
-    } catch {
-        return {};
-    }
-}
-
-// Save dismissed announcement to localStorage
-function dismissAnnouncement(id: string) {
-    const dismissed = getDismissedAnnouncements();
-    dismissed[id] = Date.now();
-    localStorage.setItem('xtf_dismissed_announcements', JSON.stringify(dismissed));
-}
-
-// Check if announcement is currently dismissed (within 12h cooldown)
-function isAnnouncementDismissed(id: string): boolean {
-    const dismissed = getDismissedAnnouncements();
-    const dismissedAt = dismissed[id];
-    if (!dismissedAt) return false;
-    return Date.now() - dismissedAt < DISMISS_COOLDOWN_MS;
 }
 
 // Track action (impression, click, dismiss)

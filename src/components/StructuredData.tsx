@@ -8,15 +8,20 @@ export function StructuredData() {
         url: process.env.NEXT_PUBLIC_BASE_URL || '',
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
+        creator: {
+            '@type': 'Person',
+            name: 'risunCode',
+            url: 'https://risuncode.github.io',
+            sameAs: ['https://github.com/risunCode']
+        },
+        author: {
+            '@type': 'Person',
+            name: 'risunCode'
+        },
         offers: {
             '@type': 'Offer',
             price: '0',
             priceCurrency: 'USD',
-        },
-        author: {
-            '@type': 'Person',
-            name: 'risunCode',
-            url: 'https://github.com/risunCode',
         },
         aggregateRating: {
             '@type': 'AggregateRating',

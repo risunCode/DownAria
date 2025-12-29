@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useUpdatePrompt } from '@/hooks';
+import { getUpdateDismissed, setUpdateDismissed } from '@/lib/storage/settings';
 
 interface UpdatePromptSettings {
   enabled: boolean;
@@ -19,7 +20,8 @@ const DEFAULT_SETTINGS: UpdatePromptSettings = {
   custom_message: '',
 };
 
-const STORAGE_KEY = 'xtf_update_dismissed';
+// Session storage key for session-based dismissal (not persisted)
+const SESSION_STORAGE_KEY = 'downaria_update_dismissed_session';
 
 /**
  * Force clear all caches and reload
@@ -72,14 +74,14 @@ export function ServiceWorkerRegister() {
     if (mode === 'always') return true;
 
     if (mode === 'once') {
-      // Check localStorage - if dismissed, never show again
-      const dismissed = localStorage.getItem(STORAGE_KEY);
+      // Check unified settings - if dismissed forever, never show again
+      const dismissed = getUpdateDismissed();
       return dismissed !== 'forever';
     }
 
     if (mode === 'session') {
       // Check sessionStorage - if dismissed this session, don't show
-      const dismissed = sessionStorage.getItem(STORAGE_KEY);
+      const dismissed = sessionStorage.getItem(SESSION_STORAGE_KEY);
       return dismissed !== 'session';
     }
 
@@ -188,9 +190,9 @@ export function ServiceWorkerRegister() {
   // Dismiss handler based on mode
   const handleDismiss = () => {
     if (settings.mode === 'once') {
-      localStorage.setItem(STORAGE_KEY, 'forever');
+      setUpdateDismissed('forever');
     } else if (settings.mode === 'session') {
-      sessionStorage.setItem(STORAGE_KEY, 'session');
+      sessionStorage.setItem(SESSION_STORAGE_KEY, 'session');
     }
     setShowPrompt(false);
   };

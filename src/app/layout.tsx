@@ -11,6 +11,7 @@ import { SkipToContent } from "@/components/ui/Accessibility";
 import { MaintenanceCheck } from "@/components/MaintenanceCheck";
 import { SeasonalEffects } from "@/components/SeasonalEffects";
 import { AdaptText } from "@/components/AdaptText";
+import { ThemeColorMeta } from "@/components/ThemeColorMeta";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -31,9 +32,14 @@ export const metadata: Metadata = {
     "weibo downloader", "weibo video downloader",
     "no watermark downloader", "free video downloader", "online video downloader",
     "download reels", "download stories", "download shorts",
-    "risuncode", "risuncode github", "github risuncode", "github/risuncode"
+    "risuncode", "risuncode github", "github risuncode", "github/risuncode",
+    "risun code", "risun", "risuncode portfolio", "surfmanager",
+    // Competitor Keywords (SEO Boost)
+    "ssstik", "ssstiktok", "snaptik", "snaptik app", "savefrom", "savefromnet", "savefrom.net",
+    "y2mate", "fastdl", "snapinsta", "iggram", "musicallyloader", "savetik",
+    "tikmate", "getfvid", "fdown", "fbdown", "twittervideodownloader"
   ],
-  authors: [{ name: "risunCode", url: "https://github.com/risunCode" }],
+  authors: [{ name: "risunCode", url: "https://github.com/risunCode" }, { name: "risuncode.github.io", url: "https://risuncode.github.io" }],
   creator: "risunCode",
   publisher: "risunCode",
   manifest: "/manifest.json",
@@ -63,6 +69,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: './',
+  },
 };
 
 export default function RootLayout({
@@ -84,6 +93,7 @@ export default function RootLayout({
         className={`${jetbrainsMono.variable} font-mono antialiased bg-[var(--bg-primary)] text-[var(--text-primary)]`}
       >
         <SkipToContent />
+        <ThemeColorMeta />
         <SeasonalEffects />
         <AdaptText />
         <IntlProvider>

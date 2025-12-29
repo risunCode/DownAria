@@ -418,8 +418,9 @@ export async function getStorageStats(): Promise<{
 // FULL BACKUP (ZIP)
 // ═══════════════════════════════════════════════════════════════
 
-import { getEncrypted, setEncrypted } from './crypto';
+import { getEncryptedCookies, setEncryptedCookies, type CookieStorage } from './crypto';
 import { getBackgroundBlob, saveBackgroundBlob, deleteBackgroundBlob } from './seasonal';
+import { STORAGE_KEYS } from './settings';
 
 export interface FullBackupData {
     version: number;
@@ -427,14 +428,16 @@ export interface FullBackupData {
     appVersion: string;
     history: ExportData;
     settings: Record<string, string>;
-    // Decrypted sensitive data for cross-browser portability
+    // Decrypted cookies for cross-browser portability
+    cookies?: CookieStorage;
+    // Legacy decrypted data (for backward compatibility with old backups)
     decryptedData?: Record<string, string>;
     // Seasonal background as base64
     seasonalBackground?: string;
 }
 
-// Keys that use encrypted storage and need special handling
-const ENCRYPTED_KEYS = [
+// Legacy keys for backward compatibility when importing old backups
+const LEGACY_ENCRYPTED_KEYS = [
     'downaria_cookie_facebook',
     'downaria_cookie_instagram', 
     'downaria_cookie_weibo',
@@ -445,35 +448,29 @@ export async function createFullBackup(): Promise<FullBackupData> {
     const historyData = await exportHistory();
     
     const settings: Record<string, string> = {};
-    const decryptedData: Record<string, string> = {};
     
+    // Collect all localStorage settings
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (!key) continue;
         
         const value = localStorage.getItem(key) || '';
         
-        // For encrypted keys, try to decrypt and store separately
-        if (ENCRYPTED_KEYS.includes(key)) {
-            try {
-                const decrypted = getEncrypted(key);
-                if (decrypted) {
-                    decryptedData[key] = decrypted;
-                }
-            } catch {
-                // Skip if can't decrypt
-            }
-            // Don't include encrypted data in settings (not portable)
+        // Skip the encrypted cookies key - we handle it separately
+        if (key === STORAGE_KEYS.COOKIES) {
             continue;
         }
         
-        // Skip encrypted data (starts with 'enc:') - not portable
+        // Skip any encrypted data (starts with 'enc:') - not portable
         if (value.startsWith('enc:')) {
             continue;
         }
         
         settings[key] = value;
     }
+    
+    // Get decrypted cookies for portability
+    const cookies = getEncryptedCookies();
     
     // Get seasonal background from IndexedDB
     let seasonalBackground: string | undefined;
@@ -490,12 +487,12 @@ export async function createFullBackup(): Promise<FullBackupData> {
     }
     
     return {
-        version: 3, // Bumped version for seasonal data
+        version: 4, // Bumped version for unified storage
         exportedAt: Date.now(),
-        appVersion: '1.2.0',
+        appVersion: '1.3.0',
         history: historyData,
         settings,
-        decryptedData: Object.keys(decryptedData).length > 0 ? decryptedData : undefined,
+        cookies: Object.keys(cookies).length > 0 ? cookies : undefined,
         seasonalBackground,
     };
 }
@@ -510,15 +507,15 @@ export async function downloadFullBackupAsZip(filename?: string): Promise<void> 
         exportedAt: backup.exportedAt,
         appVersion: backup.appVersion,
         historyCount: backup.history.stats.total,
-        hasDecryptedData: !!backup.decryptedData,
+        hasCookies: !!backup.cookies,
         hasSeasonalBackground: !!backup.seasonalBackground,
     }, null, 2));
     zip.file('history.json', JSON.stringify(backup.history, null, 2));
     zip.file('settings.json', JSON.stringify(backup.settings, null, 2));
     
-    // Include decrypted sensitive data if available
-    if (backup.decryptedData) {
-        zip.file('sensitive.json', JSON.stringify(backup.decryptedData, null, 2));
+    // Include cookies if available (decrypted for portability)
+    if (backup.cookies) {
+        zip.file('cookies.json', JSON.stringify(backup.cookies, null, 2));
     }
     
     // Include seasonal background if available
@@ -541,13 +538,13 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
     historyImported: number;
     historySkipped: number;
     settingsImported: number;
-    sensitiveImported: number;
+    cookiesImported: number;
     seasonalRestored: boolean;
 }> {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     
-    let historyImported = 0, historySkipped = 0, settingsImported = 0, sensitiveImported = 0;
+    let historyImported = 0, historySkipped = 0, settingsImported = 0, cookiesImported = 0;
     let seasonalRestored = false;
     
     // Import history
@@ -571,17 +568,44 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
         });
     }
     
-    // Import sensitive data (re-encrypt with new fingerprint)
+    // Import cookies (new format - v4+)
+    const cookiesFile = zip.file('cookies.json');
+    if (cookiesFile) {
+        try {
+            const cookies = JSON.parse(await cookiesFile.async('string')) as CookieStorage;
+            const existingCookies = getEncryptedCookies();
+            // Merge with existing cookies
+            const merged = { ...existingCookies, ...cookies };
+            setEncryptedCookies(merged);
+            cookiesImported = Object.keys(cookies).length;
+        } catch {
+            // Skip if can't parse
+        }
+    }
+    
+    // Import legacy sensitive data (old format - v3 and below)
     const sensitiveFile = zip.file('sensitive.json');
-    if (sensitiveFile) {
-        const sensitive = JSON.parse(await sensitiveFile.async('string')) as Record<string, string>;
-        Object.entries(sensitive).forEach(([key, value]) => {
-            if (typeof value === 'string' && ENCRYPTED_KEYS.includes(key)) {
-                // Re-encrypt with current browser's fingerprint
-                setEncrypted(key, value);
-                sensitiveImported++;
+    if (sensitiveFile && !cookiesFile) {
+        try {
+            const sensitive = JSON.parse(await sensitiveFile.async('string')) as Record<string, string>;
+            const cookies: CookieStorage = {};
+            
+            // Convert legacy format to new unified format
+            Object.entries(sensitive).forEach(([key, value]) => {
+                if (typeof value === 'string' && LEGACY_ENCRYPTED_KEYS.includes(key)) {
+                    const platform = key.replace('downaria_cookie_', '') as keyof CookieStorage;
+                    cookies[platform] = value;
+                    cookiesImported++;
+                }
+            });
+            
+            if (Object.keys(cookies).length > 0) {
+                const existingCookies = getEncryptedCookies();
+                setEncryptedCookies({ ...existingCookies, ...cookies });
             }
-        });
+        } catch {
+            // Skip if can't parse
+        }
     }
     
     // Import seasonal background
@@ -599,7 +623,7 @@ export async function importFullBackupFromZip(file: File, options?: { mergeHisto
         }
     }
     
-    return { historyImported, historySkipped, settingsImported, sensitiveImported, seasonalRestored };
+    return { historyImported, historySkipped, settingsImported, cookiesImported, seasonalRestored };
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -12,57 +12,20 @@
 
 ## 📸 Screenshots
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/6b3ce04f-24b6-486c-9ca8-4a9e278c20b6" alt="Home" />
-      <br /><b>Home</b>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/aa4f2dc8-a307-457d-8a08-8764529b95fc" alt="History" />
-      <br /><b>History</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/de544e61-adf8-4e8e-a2c5-1a672db7fdb4" alt="Settings" />
-      <br /><b>Settings</b>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://github.com/user-attachments/assets/5c352fc6-66a2-417e-b9e2-8dc94bb109a3" alt="About" />
-      <br /><b>About</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="https://github.com/user-attachments/assets/6234cb2d-eac1-43e7-9b6a-156b9e7f051f" alt="Media Preview Gallery" />
-      <br /><b>Media Preview Gallery</b>
-    </td>
-  </tr>
-</table>
+### Desktop
 
-### 📱 Android (PWA)
+<img width="1920" height="1080" alt="1-home" src="https://github.com/user-attachments/assets/c8d6d40d-bf09-4128-8426-d45f0ad43411" />
+<img width="1920" height="1080" alt="2-playground" src="https://github.com/user-attachments/assets/eb1a6f8a-b87c-4c7d-a929-bcd045e4a764" />
+<img width="1920" height="1080" alt="3-documentation" src="https://github.com/user-attachments/assets/ade7b2e7-a9e4-4355-9eef-7bc7f6f1e704" />
+<img width="1920" height="1080" alt="4-settings" src="https://github.com/user-attachments/assets/82701057-ecdc-4597-835d-01808e6226c4" />
+<img width="1920" height="1080" alt="5-about" src="https://github.com/user-attachments/assets/526a8541-06d3-4f3c-ada7-c4e2f1252e2c" />
 
-<table>
-  <tr>
-    <td align="center" width="25%">
-      <img src="https://github.com/user-attachments/assets/6625a21b-ce96-4dd3-b81f-1438e9b9b660" alt="PWA Install" />
-      <br /><b>PWA Install</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="https://github.com/user-attachments/assets/c3730823-4dd3-40e6-b541-60104643d96f" alt="Home Sidebar" />
-      <br /><b>Home Sidebar</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="https://github.com/user-attachments/assets/ab01e05d-09fa-4a8d-8fe4-5ca95aecfee1" alt="Home Download" />
-      <br /><b>Home Download</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="https://github.com/user-attachments/assets/52b6f98d-4335-469c-a391-1b4a8bc72841" alt="Gallery Preview" />
-      <br /><b>Gallery Preview</b>
-    </td>
-  </tr>
-</table>
+### Mobile
+
+![1-home-mobile](https://github.com/user-attachments/assets/c24be2c5-caf6-43c4-b6cc-468251a50d87) ![2-playground-mobile](https://github.com/user-attachments/assets/a44704e6-27c5-4609-9d29-016348ed7c47)
+![3-documentation-mobile](https://github.com/user-attachments/assets/108c8086-51ea-41e3-bade-66bb85b42336)
+![4-settings-mobile](https://github.com/user-attachments/assets/d35b03b4-5c39-4577-a467-52c1f14322b7)
+![5-about](https://github.com/user-attachments/assets/d96707d5-2235-416e-bb1b-6dbbe2c97e0e)
 
 ---
 
@@ -75,13 +38,13 @@
 | 🎬 **No Watermark** | Clean downloads (when available) |
 | 📱 **Quality Options** | HD, SD, or original quality |
 | 🔒 **No Registration** | No account needed for basic usage |
-| 🌙 **3 Themes** | Dark, Light, Solarized |
-| 📜 **History** | Track your downloads locally |
+| 🌙 **3 Themes** | Dark, Light, Solarized (auto by time) |
+| 📜 **History** | Track downloads locally (IndexedDB) |
 | ⚡ **Fast** | Direct scraping, no middleman |
-| 🛡️ **Anti-Ban** | Smart header rotation with 6 browser profiles |
-| 💾 **Storage Viewer** | View and manage cached data by platform |
-| 🔑 **API Keys** | Rate-limited API access with key management |
-| 🛡️ **Admin Panel** | Service control, analytics, cookie management |
+| 🎨 **Seasonal Effects** | Custom backgrounds, particles |
+| 🔔 **Discord Webhook** | Auto-send downloads to Discord |
+| 🤖 **AI Chat** | Built-in AI assistant (Gemini/GPT) |
+| 📦 **PWA** | Install as app on mobile/desktop |
 
 ---
 
@@ -94,8 +57,7 @@
 | Twitter/X | ✅ Active | Syndication + GraphQL | Age-restricted |
 | TikTok | ✅ Active | TikWM API | No |
 | Weibo | ✅ Active | Mobile API | Always |
-| YouTube | ✅ Active (360p) | Innertube API | No |
-| Douyin | 🔴 Offline | TikWM | - |
+| YouTube | ✅ Active | yt-dlp | No |
 
 ---
 
@@ -103,7 +65,7 @@
 
 ```bash
 # Clone
-git clone https://github.com/risunCode/DownAria.git
+git clone https://github.com/user/DownAria.git
 cd DownAria
 
 # Install
@@ -111,13 +73,13 @@ npm install
 
 # Setup environment
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your credentials
 
 # Run
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) 🎉
+Open [http://localhost:3001](http://localhost:3001) 🎉
 
 ---
 
@@ -125,115 +87,33 @@ Open [http://localhost:3000](http://localhost:3000) 🎉
 
 | Category | Technology |
 |----------|------------|
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 16 (App Router, Turbopack) |
 | Language | TypeScript 5 |
 | Styling | Tailwind CSS 4 |
 | Animation | Framer Motion |
 | Database | Supabase (PostgreSQL) |
-| Auth | JWT + Supabase Auth |
-| HTML Parsing | Cheerio |
-| YouTube | Innertube API |
+| Cache | Redis (Upstash) |
+| Storage | IndexedDB + LocalStorage |
+| Icons | Lucide + FontAwesome |
 | Alerts | SweetAlert2 |
-| Icons | FontAwesome + Lucide |
-| Data Fetching | SWR (stale-while-revalidate) |
 
 ---
 
-## ⚡ Performance Optimizations
+## 💾 Storage Architecture
 
-DownAria is optimized for minimal API calls and fast response times.
+DownAria uses a unified storage system with 5 keys:
 
-### Client-Side Caching (SWR)
-All data fetching uses [SWR](https://swr.vercel.app/) with smart caching:
+| Key | Type | Purpose |
+|-----|------|---------|
+| `downaria_settings` | LocalStorage | All user preferences |
+| `downaria_cookies` | LocalStorage (Encrypted) | Platform cookies |
+| `downaria_seasonal` | LocalStorage | Seasonal theme settings |
+| `downaria_queue` | LocalStorage | Pending download queue |
+| `downaria_ai` | LocalStorage | AI chat sessions |
 
-| Hook | Cache Duration | Purpose |
-|------|----------------|---------|
-| `useStatus` | 60s | Platform status in sidebar |
-| `useAnnouncements` | 2min | Site announcements |
-| `useCookieStatus` | 60s | Cookie availability |
-| `usePlayground` | 10s | Rate limit status |
-| `useUpdatePrompt` | 5min | SW update settings |
-
-### HTTP Cache Headers
-API routes include `Cache-Control` headers for CDN/browser caching:
-- `/api/v1/status` - 30s cache
-- `/api/v1/announcements` - 60s cache
-- `/api/v1/playground` - 30s cache
-
-### Smart Polling
-- Maintenance page only polls when tab is visible
-- Auto-refresh uses SWR's `refreshInterval` (no manual intervals)
-- Request deduplication prevents duplicate calls
-
-### Bundle & UI Optimizations
-- **Error Boundaries** - Graceful error handling with retry
-- **Lazy Loading** - Dynamic imports for heavy components
-- **Skeleton Loading** - Smooth loading states
-- **Accessibility** - Skip links, focus traps, ARIA labels
-- **Reduced Motion** - Respects `prefers-reduced-motion`
-- **High Contrast** - Supports `prefers-contrast: high`
-
-### SEO
-- **Structured Data** - JSON-LD for WebApplication & FAQ
-- **OpenGraph** - Social sharing meta tags
-- **Twitter Cards** - Twitter-specific meta tags
-
----
-
-## 🔐 Security Features
-
-| Feature | Description |
-|---------|-------------|
-| 🔑 **API Key Auth** | Required by default, per-key rate limiting |
-| 🛡️ **Admin Auth** | JWT-based authentication for admin panel |
-| ⏱️ **Rate Limiting** | Per-endpoint and per-key limits |
-| 🔍 **Input Validation** | XSS/SQLi pattern detection |
-| 🛡️ **SSRF Protection** | Proxy whitelist for allowed domains |
-| 📝 **Audit Logging** | Track admin actions |
-| 🔒 **RLS** | Row Level Security on all tables |
-
----
-
-## 🛠️ Admin Panel
-
-Access admin panel at `/auth` (requires login).
-
-| Feature | Description |
-|---------|-------------|
-| 📊 **Dashboard** | Analytics by platform, country, success rate |
-| ⚙️ **Services** | Enable/disable platforms, custom messages |
-| 🍪 **Cookies** | Global cookie management (Supabase) |
-| 🔑 **API Keys** | Generate, manage, rate limit per key |
-| 🎮 **Playground** | Test all API endpoints |
-| 🔧 **Maintenance** | Global pause with custom message |
-
----
-
-## 🔧 Environment Variables
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Admin Auth
-ADMIN_USER=admin
-ADMIN_PASSWORD=your_secure_password
-JWT_SECRET=your_jwt_secret
-
-# Logging
-LOG_LEVEL=error  # error | info | debug
-```
-
----
-
-## 🗄️ Database Setup
-
-Run these SQL files in Supabase SQL Editor:
-
-1. `sql-1-reset.sql` - Reset/clean database
-2. `sql-2-seed.sql` - Create tables and seed data
+Plus IndexedDB for:
+- `downaria_db` → Download history (unlimited)
+- `downaria_seasonal_db` → Custom background files
 
 ---
 
@@ -243,25 +123,33 @@ Run these SQL files in Supabase SQL Editor:
 |-------|-------------|
 | 🌙 **Dark** | GitHub-style dark |
 | ☀️ **Light** | Clean white |
-| 🌅 **Solarized** | Warm cream (default) |
+| 🌅 **Solarized** | Warm cream |
+| 🔄 **Auto** | Dark at night, Solarized at day |
 
 ---
 
-**How to get cookies:**
-1. Install "Cookie Editor" browser extension
-2. Login to the platform
-3. Export cookies (JSON or Header String)
-4. Paste in Settings or Admin Panel
+## 🔐 Security
+
+- Encrypted cookie storage (XOR + HMAC)
+- Browser fingerprint as encryption key
+- No sensitive data in production logs
+- CORS protection on API routes
 
 ---
 
 ## 🌐 Deployment
 
 ### Vercel (Recommended)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/risunCode/DownAria)
+```bash
+npm run build
+vercel deploy
+```
 
-### Manual
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+### Docker
+```bash
+docker build -t downaria .
+docker run -p 3001:3001 downaria
+```
 
 ---
 
@@ -272,7 +160,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 | 🔒 **Public Only** | Private posts require valid cookies |
 | 🎲 **Platform Changes** | Scrapers may break when platforms update |
 | 🍪 **Cookie Expiry** | Cookies expire, need periodic refresh |
-| 📹 **YouTube 360p** | HD streams blocked for server-side |
 
 ---
 
@@ -282,7 +169,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
 - Using cookies for scraping may violate platform ToS
 - Don't spam requests, respect rate limits
-- Use alternative accounts for cookie generation
 - We are not affiliated with any platform
 
 ---
@@ -293,15 +179,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
 ---
 
-## 🤝 Contributing
-
-PRs welcome! Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-
----
-
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/risunCode">risunCode</a>
+  Made with ❤️
 </p>

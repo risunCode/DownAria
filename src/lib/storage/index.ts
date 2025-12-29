@@ -1,27 +1,22 @@
 /**
  * Storage Module
  * ==============
- * Unified storage interface.
+ * 5 Storage Keys:
  * 
- * - IndexedDB: History, Media Cache (unlimited, local)
- * - LocalStorage: Theme, Settings, Cookies (small data)
- * 
- * Usage:
- *   import { initStorage, addHistory, getCachedMedia } from '@/lib/storage';
- *   import { getTheme, saveSettings } from '@/lib/storage';
- *   import { exportHistoryAsJSON, importHistoryFromFile } from '@/lib/storage';
+ * 1. downaria_settings - All user preferences
+ * 2. downaria_cookies - All platform cookies (encrypted)
+ * 3. downaria_seasonal - Seasonal effects
+ * 4. downaria_queue - Pending downloads queue
+ * 5. downaria_ai - AI chat sessions
  */
 
 // ═══════════════════════════════════════════════════════════════
-// INDEXEDDB (Large data - unlimited history)
+// INDEXEDDB (History)
 // ═══════════════════════════════════════════════════════════════
 
 export {
-  // Initialization
   initStorage,
   closeDB,
-
-  // History
   addHistory,
   getHistory,
   getHistoryCount,
@@ -29,31 +24,21 @@ export {
   searchHistory,
   deleteHistory,
   clearHistory,
-
-  // Export / Import
   exportHistory,
   exportHistoryAsJSON,
   exportHistoryAsBlob,
   downloadHistoryExport,
   importHistory,
   importHistoryFromFile,
-  
-  // Full Backup (ZIP)
   createFullBackup,
   downloadFullBackupAsZip,
   importFullBackupFromZip,
-  type FullBackupData,
-
-  // Media Cache (deprecated - Redis handles caching now)
   getCachedMedia,
   setCachedMedia,
   clearExpiredCache,
   clearAllCache,
-
-  // Stats
   getStorageStats,
-
-  // Types
+  type FullBackupData,
   type HistoryEntry,
   type ExportData,
 } from './indexed-db';
@@ -63,19 +48,26 @@ export {
 // ═══════════════════════════════════════════════════════════════
 
 export {
+  getEncryptedCookies,
+  setEncryptedCookies,
+  clearAllCookies,
   setEncrypted,
   getEncrypted,
   removeEncrypted,
   isEncrypted,
-  migrateToEncrypted,
+  type CookieStorage,
 } from './crypto';
 
 // ═══════════════════════════════════════════════════════════════
-// LOCALSTORAGE (Small data)
+// UNIFIED SETTINGS
 // ═══════════════════════════════════════════════════════════════
 
 export {
-  // Theme
+  STORAGE_KEYS,
+  DEFAULT_DISCORD,
+  getUnifiedSettings,
+  saveUnifiedSettings,
+  resetUnifiedSettings,
   getTheme,
   getResolvedTheme,
   getTimeBasedTheme,
@@ -83,37 +75,30 @@ export {
   applyTheme,
   initTheme,
   cleanupAutoTheme,
-  type ThemeType,
-  type ResolvedTheme,
-
-  // App Settings
-  getSettings,
-  saveSettings,
-  resetSettings,
-  type AppSettings,
-
-  // Platform Cookies
   getPlatformCookie,
   savePlatformCookie,
   clearPlatformCookie,
   hasPlatformCookie,
   getAllCookieStatus,
-  type CookiePlatform,
-
-  // Legacy aliases
-  getWeiboCookie,
-  saveWeiboCookie,
-  clearWeiboCookie,
-  hasValidWeiboCookie,
-
-  // Skip Cache
   getSkipCache,
   setSkipCache,
-
-  // Language
   getLanguagePreference,
   setLanguagePreference,
   getResolvedLocale,
+  getDismissedAnnouncements,
+  dismissAnnouncement,
+  isAnnouncementDismissed,
+  getUpdateDismissed,
+  setUpdateDismissed,
+  getDiscordSettings,
+  saveDiscordSettings,
+  getUserDiscordSettings,
+  saveUserDiscordSettings,
+  type DownAriaSettings,
+  type DiscordSettings,
+  type ThemeType,
+  type ResolvedTheme,
+  type CookiePlatform,
   type LanguagePreference,
 } from './settings';
 
@@ -122,7 +107,6 @@ export {
 // ═══════════════════════════════════════════════════════════════
 
 export {
-  // Settings
   getSeasonalSettings,
   saveSeasonalSettings,
   setSeasonalMode,
@@ -135,16 +119,12 @@ export {
   setParticlesWithBackground,
   setRandomInterval,
   resetSeasonalSettings,
-  
-  // IndexedDB Background Storage
   saveBackgroundBlob,
   getBackgroundBlob,
   deleteBackgroundBlob,
   processBackgroundFile,
   loadBackgroundFromDB,
   clearCustomBackground,
-  
-  // Helpers
   getCurrentSeason,
   getRandomSeason,
   getCurrentRandomSeason,
@@ -155,11 +135,9 @@ export {
   fileToDataUrl,
   formatFileSize,
   isValidImageUrl,
-  
-  // Constants
+  useSeasonalSettings,
   ACTIVE_SEASONS,
-  
-  // Types
+  type UseSeasonalSettingsReturn,
   type SeasonType,
   type BackgroundType,
   type BackgroundPosition,

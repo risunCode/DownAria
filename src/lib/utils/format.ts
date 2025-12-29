@@ -95,9 +95,78 @@ export function formatNumber(num: number): string {
 // === URL UTILITIES ===
 
 /**
+ * Domain to platform mapping for fast hostname-based detection
+ * Order: facebook, youtube, instagram, tiktok, twitter, weibo
+ */
+const DOMAIN_PLATFORM_MAP: Record<string, PlatformId> = {
+    // Facebook
+    'facebook.com': 'facebook',
+    'www.facebook.com': 'facebook',
+    'm.facebook.com': 'facebook',
+    'web.facebook.com': 'facebook',
+    'fb.watch': 'facebook',
+    'fb.gg': 'facebook',
+    'fb.me': 'facebook',
+    'l.facebook.com': 'facebook',
+    // YouTube
+    'youtube.com': 'youtube',
+    'www.youtube.com': 'youtube',
+    'm.youtube.com': 'youtube',
+    'music.youtube.com': 'youtube',
+    'youtu.be': 'youtube',
+    // Instagram
+    'instagram.com': 'instagram',
+    'www.instagram.com': 'instagram',
+    'instagr.am': 'instagram',
+    'ig.me': 'instagram',
+    'www.ig.me': 'instagram',
+    'ddinstagram.com': 'instagram',
+    // TikTok
+    'tiktok.com': 'tiktok',
+    'www.tiktok.com': 'tiktok',
+    'vm.tiktok.com': 'tiktok',
+    'vt.tiktok.com': 'tiktok',
+    'm.tiktok.com': 'tiktok',
+    // Twitter/X
+    'twitter.com': 'twitter',
+    'www.twitter.com': 'twitter',
+    'x.com': 'twitter',
+    'www.x.com': 'twitter',
+    't.co': 'twitter',
+    'fxtwitter.com': 'twitter',
+    'www.fxtwitter.com': 'twitter',
+    'vxtwitter.com': 'twitter',
+    'www.vxtwitter.com': 'twitter',
+    'fixupx.com': 'twitter',
+    'www.fixupx.com': 'twitter',
+    // Weibo
+    'weibo.com': 'weibo',
+    'www.weibo.com': 'weibo',
+    'm.weibo.com': 'weibo',
+    'video.weibo.com': 'weibo',
+    'weibo.cn': 'weibo',
+    't.cn': 'weibo',
+};
+
+/**
  * Detect platform from URL
+ * Uses hostname-based detection first (more accurate), then falls back to pattern matching
  */
 export function platformDetect(url: string): PlatformId | null {
+    // Step 1: Try hostname-based detection first (faster and more accurate)
+    try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+        
+        // Direct hostname lookup
+        if (DOMAIN_PLATFORM_MAP[hostname]) {
+            return DOMAIN_PLATFORM_MAP[hostname];
+        }
+    } catch {
+        // Invalid URL, fall through to pattern matching
+    }
+    
+    // Step 2: Fall back to pattern matching for edge cases
     for (const platform of PLATFORMS) {
         for (const pattern of platform.patterns) {
             if (pattern.test(url)) {

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { MediaData, PlatformId } from '@/lib/types';
+import { STORAGE_KEYS } from '@/lib/storage/settings';
 
 export interface QueuedMedia {
   id: string;
@@ -25,7 +26,8 @@ interface PendingDownloadContextType {
 
 const PendingDownloadContext = createContext<PendingDownloadContextType | null>(null);
 
-const QUEUE_STORAGE_KEY = 'xtf_pending_queue';
+// Use unified storage key
+const QUEUE_STORAGE_KEY = STORAGE_KEYS.QUEUE;
 
 export function PendingDownloadProvider({ children }: { children: ReactNode }) {
   const [mediaData, setMediaDataState] = useState<MediaData | null>(null);

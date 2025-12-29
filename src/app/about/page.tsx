@@ -13,6 +13,7 @@ import {
     TiktokIcon,
     WeiboIcon,
     YoutubeIcon,
+    LockIcon,
 } from '@/components/ui/Icons';
 import { faPinterest, faThreads } from '@fortawesome/free-brands-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -37,9 +38,9 @@ export default function AboutPage() {
             <div className="py-6 px-4 lg:px-8">
                 <div className="max-w-4xl mx-auto space-y-8">
                     {/* Hero */}
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
                         className="text-center"
                     >
                         <h1 className="text-3xl font-bold mb-2">
@@ -70,7 +71,34 @@ export default function AboutPage() {
                         </div>
                     </motion.div>
 
-                    {/* Quick Links - 2 Columns */}
+                    {/* Changelog - Full Width */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                        className="glass-card p-6"
+                    >
+                        <div className="flex items-center gap-2 mb-4">
+                            <Clock className="w-5 h-5 text-[var(--accent-primary)]" />
+                            <h3 className="font-semibold text-lg text-[var(--text-primary)]">Changelog</h3>
+                            <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.9.0</span>
+                        </div>
+                        <ul className="text-sm text-[var(--text-muted)] space-y-2 mb-4">
+                            <li>🎨 New Themes - Nord, Dracula, Monokai</li>
+                            <li>🤖 Bot v2.0.0 - Reliability Fixes</li>
+                            <li>💾 Redis Sessions</li>
+                            <li>📊 Enhanced Monitoring</li>
+                        </ul>
+                        <Link
+                            href="/docs/changelog"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] transition-all text-sm font-medium"
+                        >
+                            <Clock className="w-4 h-4" />
+                            View Full Changelog
+                        </Link>
+                    </motion.div>
+
+                    {/* Documentation & Privacy - 2 Columns */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Documentation Card */}
                         <motion.div
@@ -95,7 +123,7 @@ export default function AboutPage() {
                             </Link>
                         </motion.div>
 
-                        {/* Changelog Card */}
+                        {/* Privacy Card */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -103,25 +131,44 @@ export default function AboutPage() {
                             className="glass-card p-5 flex flex-col"
                         >
                             <div className="flex items-center gap-2 mb-3">
-                                <Clock className="w-5 h-5 text-[var(--accent-primary)]" />
-                                <h3 className="font-semibold text-[var(--text-primary)]">Changelog</h3>
-                                <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.9.0</span>
+                                <LockIcon className="w-5 h-5 text-green-400" />
+                                <h3 className="font-semibold text-[var(--text-primary)]">Privacy Policy</h3>
                             </div>
-                            <ul className="text-xs text-[var(--text-muted)] space-y-1 mb-4 flex-1">
-                                <li>🎨 New Themes - Nord, Dracula, Monokai</li>
-                                <li>🤖 Bot v2.0.0 - Reliability Fixes</li>
-                                <li>💾 Redis Sessions</li>
-                                <li>📊 Enhanced Monitoring</li>
-                            </ul>
+                            <p className="text-sm text-[var(--text-muted)] mb-4 flex-1">
+                                We respect your user data. Learn how we handle your information and cookies.
+                            </p>
                             <Link
-                                href="/docs/changelog"
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] transition-all text-sm font-medium"
+                                href="/privacy"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-green-400 transition-all text-sm font-medium"
                             >
-                                <Clock className="w-4 h-4" />
-                                View Full Changelog
+                                <LockIcon className="w-4 h-4" />
+                                View Policy
                             </Link>
                         </motion.div>
                     </div>
+
+                    {/* Credits - Full Width */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.28 }}
+                        className="glass-card p-5 flex flex-col"
+                    >
+                        <div className="flex items-center gap-2 mb-3">
+                            <Heart className="w-5 h-5 text-pink-400" />
+                            <h3 className="font-semibold text-[var(--text-primary)]">Credits</h3>
+                        </div>
+                        <p className="text-sm text-[var(--text-muted)] mb-4 flex-1">
+                            Meet the creator and the open-source technologies that power DownAria.
+                        </p>
+                        <Link
+                            href="/credits"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-pink-400 transition-all text-sm font-medium"
+                        >
+                            <Heart className="w-4 h-4" />
+                            View Credits
+                        </Link>
+                    </motion.div>
 
                     {/* Supported Platforms Section */}
                     <motion.div
@@ -136,9 +183,8 @@ export default function AboutPage() {
                             {allPlatforms.map((platform, i) => (
                                 <div
                                     key={i}
-                                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] ${
-                                        platform.status === 'coming' ? 'opacity-50' : ''
-                                    }`}
+                                    className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] ${platform.status === 'coming' ? 'opacity-50' : ''
+                                        }`}
                                 >
                                     <div style={{ color: platform.color }}>
                                         <platform.icon className="w-6 h-6" />
@@ -221,7 +267,7 @@ export default function AboutPage() {
                             {t('startDownloading')}
                         </Link>
                         <a
-                            href="https://github.com/risunCode/DownAria"
+                            href="https://github.com/risunCode"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center justify-center gap-2 bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium py-3 px-6 rounded-xl text-sm border border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] transition-all"

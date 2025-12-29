@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { getSeasonalSettings, loadBackgroundFromDB, SeasonType, SeasonalSettings, startRandomRotation, stopRandomRotation } from '@/lib/storage/seasonal';
-import { getSettings } from '@/lib/storage/settings';
+import { getUnifiedSettings } from '@/lib/storage/settings';
 
 // ═══════════════════════════════════════════════════════════════
 // PARTICLE CONFIGURATIONS - OPTIMIZED & CHILL
@@ -111,8 +111,8 @@ function Background({ settings, backgroundUrl, isModalOpen }: { settings: Season
   
   // Load sound setting
   useEffect(() => {
-    const appSettings = getSettings();
-    setAllowSound(appSettings.allowVideoSound || false);
+    const s = getUnifiedSettings();
+    setAllowSound(s.videoSound || false);
     
     // Listen for sound setting changes
     const handleSoundChange = (e: CustomEvent<{ enabled: boolean }>) => {

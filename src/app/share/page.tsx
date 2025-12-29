@@ -11,7 +11,7 @@ import { DownloadPreview } from '@/components/DownloadPreview';
 import { CardSkeleton } from '@/components/ui/Card';
 import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
-import { getPlatformCookie, getWeiboCookie } from '@/lib/storage';
+import { getPlatformCookie } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -87,7 +87,7 @@ function ShareContent() {
       // Get platform cookie if available
       let platformCookie: string | undefined;
       if (detectedPlatform === 'weibo') {
-        platformCookie = getWeiboCookie() || undefined;
+        platformCookie = getPlatformCookie('weibo') || undefined;
       } else if (['facebook', 'instagram'].includes(detectedPlatform)) {
         platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
       }

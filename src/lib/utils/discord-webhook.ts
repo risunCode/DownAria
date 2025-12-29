@@ -1,7 +1,7 @@
 /**
  * Discord Webhook Utility
  * User-side webhook for download notifications
- * Settings stored in localStorage (plain, for cross-browser backup compatibility)
+ * Settings stored in unified downaria_settings
  * 
  * Discord Webhook Limits:
  * - 30 messages/minute per channel
@@ -13,6 +13,12 @@
 
 import Swal from 'sweetalert2';
 import { formatNumber, formatBytes } from './format';
+import { 
+  getUserDiscordSettings, 
+  saveUserDiscordSettings, 
+  DEFAULT_DISCORD,
+  type DiscordSettings 
+} from '@/lib/storage/settings';
 
 const APP_NAME = 'DownAria';
 const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB - Discord stops auto-embedding above this
@@ -21,72 +27,22 @@ const getAppIcon = () => {
     if (typeof window !== 'undefined') {
         return `${window.location.origin}/icon.png`;
     }
-    // Use env var without fallback - server-side only
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
     return baseUrl ? `${baseUrl}/icon.png` : '/icon.png';
 };
 
-// Send method for large files
+// Re-export types and functions from settings for backward compatibility
+export type { DiscordSettings as UserDiscordSettings };
 export type DiscordSendMethod = 'smart' | 'single' | 'double';
+export { getUserDiscordSettings, saveUserDiscordSettings };
+export const DEFAULT_USER_DISCORD = DEFAULT_DISCORD;
 
-export interface UserDiscordSettings {
-    webhookUrl: string;
-    autoSend: boolean;
-    embedEnabled: boolean;
-    embedColor: string;
-    footerText: string;
-    sendMethod: DiscordSendMethod; // NEW: smart | single | double
-    mention: string; // NEW: <@ID>, @everyone, @here
-}
-
-export const DEFAULT_USER_DISCORD: UserDiscordSettings = {
-    webhookUrl: '',
-    autoSend: false,
-    embedEnabled: true,
-    embedColor: '#5865F2',
-    footerText: 'via DownAria',
-    sendMethod: 'smart', // Default: auto-detect based on file size
-    mention: '', // Default: no mention
-};
-
-// Storage key for Discord settings
-export const DISCORD_STORAGE_KEY = 'xtf_discord';
-
-// Use plain localStorage for cross-browser backup compatibility
-// Webhook URLs are not super sensitive and users need portability
-export function getUserDiscordSettings(): UserDiscordSettings | null {
-    if (typeof window === 'undefined') return null;
-    try {
-        const saved = localStorage.getItem(DISCORD_STORAGE_KEY);
-        if (saved) {
-            // Handle legacy encrypted data - if it starts with 'enc:', clear it
-            if (saved.startsWith('enc:')) {
-                console.warn('[Discord] Found encrypted data, clearing for fresh start');
-                localStorage.removeItem(DISCORD_STORAGE_KEY);
-                return null;
-            }
-            return { ...DEFAULT_USER_DISCORD, ...JSON.parse(saved) };
-        }
-    } catch (e) {
-        console.error('[Discord] Failed to parse settings:', e);
-        // Clear corrupted data
-        localStorage.removeItem(DISCORD_STORAGE_KEY);
-    }
-    return null;
-}
-
-export function saveUserDiscordSettings(settings: UserDiscordSettings): void {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.setItem(DISCORD_STORAGE_KEY, JSON.stringify(settings));
-    } catch (e) {
-        console.error('[Discord] Failed to save settings:', e);
-    }
-}
+// Legacy storage key export (for reference only, not used)
+export const DISCORD_STORAGE_KEY = 'downaria_settings';
 
 // Duplicate prevention
 const recentMessages = new Map<string, number>(); // key -> timestamp
-const MESSAGE_CACHE_TTL = 60 * 1000;
+const MESSAGE_CACHE_TTL = 30 * 1000; // 30 seconds
 const MAX_CACHE_SIZE = 100;
 
 // Rate limit tracking with proper Discord headers
@@ -97,7 +53,9 @@ let rateLimitState = {
 };
 
 function getMessageKey(data: { platform: string; sourceUrl?: string; mediaUrl?: string }): string {
-    return `${data.platform}:${data.sourceUrl || data.mediaUrl || ''}`.toLowerCase();
+    // Include timestamp bucket (30s intervals) to allow re-sends after TTL
+    const timeBucket = Math.floor(Date.now() / MESSAGE_CACHE_TTL);
+    return `${data.platform}:${data.sourceUrl || data.mediaUrl || ''}:${timeBucket}`.toLowerCase();
 }
 
 function isDuplicate(key: string): boolean {
@@ -559,4 +517,70 @@ export async function sendDiscordNotification(data: {
         console.error('[Discord] Send error:', err);
         return { sent: false, reason: 'error', details: err instanceof Error ? err.message : 'Unknown error' };
     }
+}
+
+/**
+ * Send multiple items to Discord in batch
+ * @param items Array of notification data items
+ * @param manual Whether this is a manual send (shows confirmation dialogs)
+ * @returns Object with count of sent and failed items
+ */
+export async function sendDiscordBatch(
+    items: Array<{
+        platform: string;
+        title: string;
+        quality: string;
+        thumbnail?: string;
+        mediaUrl?: string;
+        mediaType?: 'video' | 'image' | 'audio';
+        sourceUrl?: string;
+        author?: string;
+        engagement?: { likes?: number; comments?: number; shares?: number; views?: number };
+        fileSize?: number;
+    }>,
+    manual = false
+): Promise<{ sent: number; failed: number }> {
+    const settings = getUserDiscordSettings();
+    
+    if (!settings?.webhookUrl) {
+        return { sent: 0, failed: items.length };
+    }
+
+    if (items.length === 0) {
+        return { sent: 0, failed: 0 };
+    }
+
+    const result = { sent: 0, failed: 0 };
+    const batchDelay = settings.batchDelay || DEFAULT_USER_DISCORD.batchDelay;
+    
+    // If sendAllOnBatch is false, only send the first item
+    const itemsToSend = settings.sendAllOnBatch ? items : [items[0]];
+
+    for (let i = 0; i < itemsToSend.length; i++) {
+        const item = itemsToSend[i];
+        
+        // Add delay between sends (except for first item)
+        if (i > 0 && batchDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, batchDelay));
+        }
+
+        try {
+            const sendResult = await sendDiscordNotification(item, manual);
+            if (sendResult.sent) {
+                result.sent++;
+            } else {
+                result.failed++;
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[Discord Batch] Item ${i + 1} failed:`, sendResult.reason, sendResult.details);
+                }
+            }
+        } catch (err) {
+            result.failed++;
+            if (process.env.NODE_ENV === 'development') {
+                console.error(`[Discord Batch] Item ${i + 1} error:`, err);
+            }
+        }
+    }
+
+    return result;
 }

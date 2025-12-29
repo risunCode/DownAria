@@ -7,6 +7,7 @@ import { SidebarLayout } from '@/components/Sidebar';
 import { DownloadForm } from '@/components/DownloadForm';
 import { DownloadPreview } from '@/components/DownloadPreview';
 import { HistoryList } from '@/components/HistoryList';
+
 import { CardSkeleton } from '@/components/ui/Card';
 import { MagicIcon, BoltIcon, LayersIcon, LockIcon } from '@/components/ui/Icons';
 import { MaintenanceMode } from '@/components/MaintenanceMode';
@@ -14,8 +15,8 @@ import AnnouncementBanner from '@/components/AnnouncementBanner';
 import CompactAdDisplay from '@/components/CompactAdDisplay';
 import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
 import { PlatformId, MediaData } from '@/lib/types';
-import type { HistoryEntry } from '@/lib/storage';
-import { getWeiboCookie, clearWeiboCookie, getPlatformCookie } from '@/lib/storage';
+
+import { getPlatformCookie, clearPlatformCookie } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 import Swal from 'sweetalert2';
 import { api } from '@/lib/api';
@@ -102,7 +103,7 @@ function showError(title: string, message: string, options?: {
 
 function showNetworkError(error: unknown, onRetry?: () => void) {
   const status = analyzeNetworkError(error);
-  
+
   const iconMap = {
     'offline': '📡',
     'timeout': '⏱️',
@@ -111,11 +112,11 @@ function showNetworkError(error: unknown, onRetry?: () => void) {
     'unknown': '❌',
   };
 
-  const message = !status.online 
+  const message = !status.online
     ? `${status.suggestion} Check your WiFi or mobile data connection.`
     : status.suggestion;
 
-  showError(`${iconMap[status.type]} ${status.message}`, message, { 
+  showError(`${iconMap[status.type]} ${status.message}`, message, {
     icon: status.type === 'server-error' ? 'warning' : 'error',
     buttonColor: '#6366f1',
     showRetry: true,
@@ -137,14 +138,15 @@ function handleMetaError(errorMsg: string, platform: 'facebook' | 'instagram') {
 export default function Home() {
   const [platform, setPlatform] = useState<PlatformId>('facebook');
   const [isLoading, setIsLoading] = useState(false);
-  const [historyRefresh, setHistoryRefresh] = useState(0);
+
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const t = useTranslations('home');
   const tErrors = useTranslations('errors');
-  
+
   // Check maintenance status
   const { isFullMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
-  
+
   // Show maintenance page if full maintenance is active
   if (isFullMaintenance) {
     return <MaintenanceMode message={maintenanceMessage} />;
@@ -155,9 +157,14 @@ export default function Home() {
     // Check if skip cache is enabled in settings
     const { getSkipCache } = await import('@/lib/storage');
     const skipCache = getSkipCache();
-    
+
     return api.post('/api/v1/publicservices', { url, cookie, skipCache });
   };
+
+  const handleDownloadComplete = () => {
+    setHistoryRefresh(prev => prev + 1);
+  };
+
 
   const handleSubmit = async (url: string) => {
     setIsLoading(true);
@@ -177,7 +184,7 @@ export default function Home() {
       // Get platform cookie if available
       let platformCookie: string | undefined;
       if (detectedPlatform === 'weibo') {
-        platformCookie = getWeiboCookie() || undefined;
+        platformCookie = getPlatformCookie('weibo') || undefined;
       } else if (['facebook', 'instagram'].includes(detectedPlatform)) {
         platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
       }
@@ -196,7 +203,7 @@ export default function Home() {
       // Handle Weibo cookie errors
       if (detectedPlatform === 'weibo') {
         if (result.error === 'COOKIE_EXPIRED') {
-          clearWeiboCookie();
+          clearPlatformCookie('weibo');
         }
 
         if (result.error?.includes('cookie') || result.error?.includes('Cookie') || result.error === 'COOKIE_REQUIRED') {
@@ -224,7 +231,7 @@ export default function Home() {
       // Handle specific error codes from backend
       const errorCode = (result as { errorCode?: string }).errorCode;
       const errorMessage = result.error || 'Failed to fetch';
-      
+
       // Map error codes to user-friendly messages
       if (errorCode) {
         switch (errorCode) {
@@ -268,7 +275,7 @@ export default function Home() {
 
       // Check for AbortError (our timeout)
       if (error instanceof Error && error.name === 'AbortError') {
-        const timeoutMsg = detectedPlatform === 'youtube' 
+        const timeoutMsg = detectedPlatform === 'youtube'
           ? 'The server is taking too long to respond. YouTube extraction can be slow for some videos. Try again - the result may be cached now.'
           : 'The server is taking too long to respond. This might be a temporary issue. Try again - the result may be cached now.';
         showError('⏱️ Request Timeout', timeoutMsg, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
@@ -277,15 +284,15 @@ export default function Home() {
 
       // Check for network errors FIRST (offline, timeout, server unreachable)
       const networkStatus = analyzeNetworkError(error);
-      if (networkStatus.type === 'offline' || networkStatus.type === 'timeout' || 
-          errorMsg.toLowerCase().includes('failed to fetch') || !isOnline()) {
+      if (networkStatus.type === 'offline' || networkStatus.type === 'timeout' ||
+        errorMsg.toLowerCase().includes('failed to fetch') || !isOnline()) {
         showNetworkError(error, () => handleSubmit(url));
         return;
       }
 
       // Handle YouTube extraction timeout from backend
       if (errorMsg.includes('timed out') || errorMsg.includes('timeout')) {
-        const extractionMsg = detectedPlatform === 'youtube' 
+        const extractionMsg = detectedPlatform === 'youtube'
           ? 'YouTube video extraction timed out. Some videos take longer to process. Try again - the result may be cached now.'
           : 'The extraction process timed out. Some videos take longer to process. Try again - the result may be cached now.';
         showError('⏱️ Extraction Timeout', extractionMsg, { icon: 'warning', buttonColor: '#6366f1', showRetry: true, onRetry: () => handleSubmit(url) });
@@ -296,7 +303,7 @@ export default function Home() {
       if (errorMsg.includes('Rate limit') || errorMsg.includes('rate limit') || errorMsg.includes('429')) {
         const resetMatch = errorMsg.match(/(\d+)s/);
         const resetIn = resetMatch ? parseInt(resetMatch[1]) : 60;
-        
+
         showError('⏳ Slow Down!', `Whoops, calm down bro! You've made too many requests. Please wait ${resetIn} seconds. Rate limiting helps keep the service fast for everyone.`, { icon: 'warning', buttonColor: '#f59e0b' });
         return;
       }
@@ -318,9 +325,7 @@ export default function Home() {
     }
   };
 
-  const handleDownloadComplete = (_entry: HistoryEntry) => {
-    setHistoryRefresh(prev => prev + 1);
-  };
+
 
   // Batch queue handlers
 
@@ -331,7 +336,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
           {/* Announcements */}
           <AnnouncementBanner page="home" />
-          
+
           {/* Compact Hero */}
           <div className="text-center py-2 sm:py-4">
             <AnimatedTitle />
@@ -382,8 +387,11 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* History - compact */}
-          <HistoryList refreshTrigger={historyRefresh} compact />
+          {/* Download History */}
+          <div className="mt-8">
+            <HistoryList refreshTrigger={historyRefresh} compact />
+          </div>
+
 
           {/* Compact Ads - Bottom of page */}
           <CompactAdDisplay placement="home-bottom" maxAds={3} className="mt-6" />

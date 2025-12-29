@@ -25,7 +25,7 @@ import {
   startRandomRotation,
   stopRandomRotation,
 } from '@/lib/storage';
-import { getSettings } from '@/lib/storage/settings';
+import { getUnifiedSettings } from '@/lib/storage';
 import Swal from 'sweetalert2';
 
 // ═══════════════════════════════════════════════════════════════
@@ -319,15 +319,15 @@ export function SeasonalSettings() {
     }
     
     // Check file size - 400MB if allowLargeBackground enabled, otherwise 200MB
-    const appSettings = getSettings();
-    const maxSize = appSettings.allowLargeBackground ? 400 : 200;
+    const settings = getUnifiedSettings();
+    const maxSize = settings.allowLargeBackground ? 400 : 200;
     const maxSizeBytes = maxSize * 1024 * 1024;
     
     if (file.size > maxSizeBytes) {
       Swal.fire({
         icon: 'error',
         title: 'File Too Large',
-        text: `Maximum file size is ${maxSize}MB${!appSettings.allowLargeBackground ? ' (enable Large Files in settings for 400MB)' : ''}`,
+        text: `Maximum file size is ${maxSize}MB${!settings.allowLargeBackground ? ' (enable Large Files in settings for 400MB)' : ''}`,
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
       });
@@ -502,8 +502,8 @@ export function SeasonalSettings() {
       {/* Custom Background */}
       <div className="pt-2 border-t border-[var(--border-color)]">
         {(() => {
-          const appSettings = getSettings();
-          const maxSize = appSettings.allowLargeBackground ? 400 : 200;
+          const s = getUnifiedSettings();
+          const maxSize = s.allowLargeBackground ? 400 : 200;
           return (
             <div className="flex items-center justify-between mb-3">
               <div>

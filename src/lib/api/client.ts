@@ -18,12 +18,9 @@ if (!API_URL && typeof window !== 'undefined') {
 // Default configuration
 const DEFAULT_TIMEOUT = 60000; // 60 seconds for scraping operations (some platforms are slow)
 const DEFAULT_RETRIES = 3;
-const CONNECTION_TIMEOUT = 15000; // 15 seconds for initial connection check (was 5s, too aggressive)
-const OFFLINE_CACHE_TTL = 10000; // Cache offline status for 10 seconds
+const CONNECTION_TIMEOUT = 15000; // 15 seconds for initial connection check
 
-// Track backend status to avoid repeated slow failures
-let lastOfflineCheck = 0;
-let isBackendOffline = false;
+// NO MORE OFFLINE CACHING - always try fresh connection
 
 export class ApiError extends Error {
     constructor(public status: number, message: string, public data?: unknown) {
@@ -90,38 +87,18 @@ async function fetchWithTimeout(
             ...options, 
             signal: controller.signal 
         });
-        // Backend responded - mark as online
-        isBackendOffline = false;
         return response;
     } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
             throw new TimeoutError(`Request timed out after ${timeout}ms`);
         }
-        // Connection failed - likely offline
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-            isBackendOffline = true;
-            lastOfflineCheck = Date.now();
-            throw new OfflineError('Cannot connect to backend server');
-        }
+        // Log the actual error for debugging
+        console.error('[API Client] Fetch error:', error);
+        // Re-throw original error - don't mask it as offline
         throw error;
     } finally {
         clearTimeout(timeoutId);
     }
-}
-
-/**
- * Quick check if backend was recently detected as offline
- * Avoids repeated slow connection attempts
- */
-function isRecentlyOffline(): boolean {
-    if (!isBackendOffline) return false;
-    const elapsed = Date.now() - lastOfflineCheck;
-    // If offline status is stale, allow retry
-    if (elapsed > OFFLINE_CACHE_TTL) {
-        isBackendOffline = false;
-        return false;
-    }
-    return true;
 }
 
 /**
@@ -137,11 +114,6 @@ async function fetchWithRetry(
     retries = DEFAULT_RETRIES,
     timeout = DEFAULT_TIMEOUT
 ): Promise<Response> {
-    // Fast fail if backend was recently detected as offline
-    if (isRecentlyOffline()) {
-        throw new OfflineError('Backend server is offline (cached)');
-    }
-    
     let lastError: Error | null = null;
     
     // Use shorter timeout for first attempt to detect offline faster
@@ -250,21 +222,3 @@ export const api = {
 };
 
 export default api;
-
-/**
- * Reset offline status (useful after user action or network change)
- */
-export function resetOfflineStatus(): void {
-    isBackendOffline = false;
-    lastOfflineCheck = 0;
-}
-
-/**
- * Check if backend is currently marked as offline
- */
-export function checkBackendStatus(): { offline: boolean; lastCheck: number } {
-    return {
-        offline: isBackendOffline,
-        lastCheck: lastOfflineCheck,
-    };
-}

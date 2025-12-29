@@ -614,3 +614,133 @@ export function isValidImageUrl(url: string): boolean {
     return false;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// REACT HOOK FOR SEASONAL SETTINGS
+// ═══════════════════════════════════════════════════════════════
+
+import { useState, useEffect, useCallback } from 'react';
+
+export interface UseSeasonalSettingsReturn {
+  settings: SeasonalSettings;
+  isLoading: boolean;
+  backgroundUrl: string | null;
+  updateSettings: (updates: Partial<SeasonalSettings>) => void;
+  refreshSettings: () => Promise<void>;
+}
+
+/**
+ * React hook for managing seasonal settings with proper loading state.
+ * Prevents UI blinking by tracking loading state while fetching from
+ * localStorage and IndexedDB.
+ */
+export function useSeasonalSettings(): UseSeasonalSettingsReturn {
+  const [settings, setSettings] = useState<SeasonalSettings>(DEFAULT_SETTINGS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
+
+  /**
+   * Load settings from localStorage and background blob from IndexedDB
+   */
+  const loadSettings = useCallback(async () => {
+    try {
+      // Load settings from localStorage
+      const loadedSettings = getSeasonalSettings();
+      setSettings(loadedSettings);
+
+      // If there's a custom background, load the blob from IndexedDB
+      if (loadedSettings.customBackground) {
+        const blobUrl = await loadBackgroundFromDB();
+        if (blobUrl) {
+          // Revoke old URL if exists to prevent memory leaks
+          if (backgroundUrl) {
+            URL.revokeObjectURL(backgroundUrl);
+          }
+          setBackgroundUrl(blobUrl);
+        } else {
+          setBackgroundUrl(null);
+        }
+      } else {
+        // No custom background, clear any existing URL
+        if (backgroundUrl) {
+          URL.revokeObjectURL(backgroundUrl);
+        }
+        setBackgroundUrl(null);
+      }
+    } catch (error) {
+      console.error('Failed to load seasonal settings:', error);
+      // Fall back to defaults on error
+      setSettings(DEFAULT_SETTINGS);
+      setBackgroundUrl(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Refresh settings (can be called manually)
+   */
+  const refreshSettings = useCallback(async () => {
+    setIsLoading(true);
+    await loadSettings();
+  }, [loadSettings]);
+
+  /**
+   * Update settings and persist to storage
+   */
+  const updateSettings = useCallback((updates: Partial<SeasonalSettings>) => {
+    saveSeasonalSettings(updates);
+    // Settings will be refreshed via the event listener
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  // Listen for settings changes (from other tabs or same tab)
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      loadSettings();
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === SEASONAL_KEY) {
+        loadSettings();
+      }
+    };
+
+    const handleRandomChange = (event: CustomEvent<{ season: SeasonType }>) => {
+      setSettings(prev => ({
+        ...prev,
+        season: event.detail.season,
+      }));
+    };
+
+    // Listen for custom events (same tab)
+    window.addEventListener('seasonal-settings-changed', handleSettingsChange);
+    // Listen for storage events (other tabs)
+    window.addEventListener('storage', handleStorageChange);
+    // Listen for random season changes
+    window.addEventListener('seasonal-random-change', handleRandomChange as EventListener);
+
+    return () => {
+      window.removeEventListener('seasonal-settings-changed', handleSettingsChange);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('seasonal-random-change', handleRandomChange as EventListener);
+      
+      // Cleanup blob URL on unmount
+      if (backgroundUrl) {
+        URL.revokeObjectURL(backgroundUrl);
+      }
+    };
+  }, [loadSettings, backgroundUrl]);
+
+  return {
+    settings,
+    isLoading,
+    backgroundUrl,
+    updateSettings,
+    refreshSettings,
+  };
+}

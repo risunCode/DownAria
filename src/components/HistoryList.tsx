@@ -192,7 +192,7 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
         );
     }
 
-    const displayedHistory = compact ? filteredHistory.slice(0, 3) : filteredHistory;
+    const displayedHistory = compact ? filteredHistory.slice(0, 1) : filteredHistory;
 
     return (
         <motion.div
@@ -204,10 +204,12 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <Clock className="w-5 h-5" />
-                    {t('title')}
-                    <span className="text-sm font-normal text-[var(--text-muted)]">
-                        ({filteredHistory.length}{mediaFilter !== 'all' ? `/${history.length}` : ''})
-                    </span>
+                    {compact ? 'Last download' : t('title')}
+                    {!compact && (
+                        <span className="text-sm font-normal text-[var(--text-muted)]">
+                            ({filteredHistory.length}{mediaFilter !== 'all' ? `/${history.length}` : ''})
+                        </span>
+                    )}
                 </h2>
 
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -223,14 +225,17 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
                             />
                         </div>
                     )}
-                    <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={handleClearAll}
-                        leftIcon={<Trash2 className="w-4 h-4" />}
-                    >
-                        {tCommon('clear')}
-                    </Button>
+                    {/* Clear Button - Only show in full view */}
+                    {!compact && (
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={handleClearAll}
+                            leftIcon={<Trash2 className="w-4 h-4" />}
+                        >
+                            {tCommon('clear')}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -370,15 +375,18 @@ export function HistoryList({ refreshTrigger, compact = false }: HistoryListProp
                 </AnimatePresence>
             </div>
 
-            {/* Show more link */}
-            {compact && history.length > 3 && (
-                <motion.a
-                    href="/history"
-                    whileHover={{ x: 5 }}
-                    className="inline-flex items-center gap-2 text-sm text-[var(--accent-primary)] hover:text-[var(--accent-secondary)]"
-                >
-                    View all {history.length} items →
-                </motion.a>
+            {/* Show more button */}
+            {compact && history.length > 1 && (
+                <div className="flex justify-end">
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => window.location.href = '/history'}
+                        className="w-full sm:w-auto"
+                    >
+                        View all {history.length} items →
+                    </Button>
+                </div>
             )}
         </motion.div>
     );

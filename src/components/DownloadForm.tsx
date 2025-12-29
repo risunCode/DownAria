@@ -119,21 +119,24 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
         return () => clearInterval(interval);
     }, [url]);
 
-    // Auto-submit when valid URL detected
+    // Auto-submit when valid URL detected (with 300ms debounce)
     useEffect(() => {
-        if (url.length > 15 && !isLoading) {
-            const detected = platformDetect(url);
-            if (detected) {
-                if (detected !== platform) onPlatformChange(detected);
-                if (validateUrl(url, detected) && 
-                    (!lastSubmission.current || 
-                     lastSubmission.current.url !== url || 
-                     Date.now() - lastSubmission.current.timestamp >= MIN_RESUBMIT_INTERVAL)) {
-                    lastSubmission.current = { url, timestamp: Date.now() };
-                    const timer = setTimeout(() => onSubmit(url), 300);
-                    return () => clearTimeout(timer);
+        if (url.length > 20 && !isLoading) {
+            // Debounce URL detection by 300ms to avoid rapid detection while typing
+            const debounceTimer = setTimeout(() => {
+                const detected = platformDetect(url);
+                if (detected) {
+                    if (detected !== platform) onPlatformChange(detected);
+                    if (validateUrl(url, detected) && 
+                        (!lastSubmission.current || 
+                         lastSubmission.current.url !== url || 
+                         Date.now() - lastSubmission.current.timestamp >= MIN_RESUBMIT_INTERVAL)) {
+                        lastSubmission.current = { url, timestamp: Date.now() };
+                        onSubmit(url);
+                    }
                 }
-            }
+            }, 300);
+            return () => clearTimeout(debounceTimer);
         }
     }, [url]);
 

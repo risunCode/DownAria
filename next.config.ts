@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 // CSP Whitelist for external resources
+const isDev = process.env.NODE_ENV === 'development';
+
 const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
   'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com"],
@@ -14,6 +16,8 @@ const CSP_DIRECTIVES = {
     "https://*.vercel.app",
     "https://va.vercel-scripts.com",
     "wss://*.supabase.co",
+    // Development: Allow backend API connections
+    ...(isDev ? ["http://localhost:3002", "http://127.0.0.1:3002"] : []),
   ],
   'media-src': ["'self'", "blob:", "https:", "http:"],
   'frame-ancestors': ["'none'"],
