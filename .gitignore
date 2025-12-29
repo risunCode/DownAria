@@ -28,6 +28,11 @@
 .env.test.local
 .env.production.local
 
+# Test files with potential secrets
+test_api.js
+test_*.js
+*.test.local.js
+
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
