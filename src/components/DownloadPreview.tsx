@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
@@ -32,6 +32,17 @@ import {
     findPreferredFormat,
     getQualityBadge,
 } from '@/lib/utils/media';
+// Shared download store
+import { 
+    setDownloadProgress as setGlobalDownloadProgress,
+    subscribeDownloadProgress,
+    getDownloadProgress,
+    type DownloadProgress as GlobalDownloadProgress,
+} from '@/lib/stores/download-store';
+
+// YouTube filesize limit for frontend (350MB warning, backend allows 450MB)
+const YOUTUBE_MAX_FILESIZE_MB = 350;
+const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
 import { DownloadProgress, getProgressText as getProgressTextUtil } from '@/components/media/DownloadProgress';
@@ -102,6 +113,53 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         setFileSizes({});
         setFileSizeNumerics({});
     }, [data.url]); // Reset when URL changes (new content)
+
+    // Sync with global download store - subscribe to updates from MediaGallery
+    useEffect(() => {
+        const unsubscribe = subscribeDownloadProgress(data.url, (progress) => {
+            // Map global progress to local state format
+            const status: DownloadStatus = 
+                progress.status === 'downloading' ? 'downloading' :
+                progress.status === 'done' ? 'success' :
+                progress.status === 'error' ? 'error' : 'idle';
+            
+            // Update for 'main' item (single item) or current selected item
+            const itemId = 'main';
+            setDownloadStatus(prev => ({ ...prev, [itemId]: status }));
+            setDownloadProgress(prev => ({
+                ...prev,
+                [itemId]: {
+                    loaded: progress.loaded,
+                    total: progress.total,
+                    percent: progress.percent,
+                    speed: progress.speed,
+                    message: progress.message,
+                }
+            }));
+        });
+        
+        // Check initial state from store
+        const initial = getDownloadProgress(data.url);
+        if (initial.status !== 'idle') {
+            const status: DownloadStatus = 
+                initial.status === 'downloading' ? 'downloading' :
+                initial.status === 'done' ? 'success' :
+                initial.status === 'error' ? 'error' : 'idle';
+            setDownloadStatus(prev => ({ ...prev, main: status }));
+            setDownloadProgress(prev => ({
+                ...prev,
+                main: {
+                    loaded: initial.loaded,
+                    total: initial.total,
+                    percent: initial.percent,
+                    speed: initial.speed,
+                    message: initial.message,
+                }
+            }));
+        }
+        
+        return unsubscribe;
+    }, [data.url]);
 
     // Fetch file sizes for ALL formats - use backend sizes if available, fallback to proxy fetch
     useEffect(() => {
@@ -225,6 +283,13 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         });
     };
 
+    // Check if format exceeds YouTube size limit
+    const isOverYouTubeLimit = (format: MediaFormat | undefined): boolean => {
+        if (platform !== 'youtube' || !format) return false;
+        const size = format.filesize || 0;
+        return size > YOUTUBE_MAX_FILESIZE_BYTES;
+    };
+
     // Send to webhook
     const handleSendToWebhook = async (format: MediaFormat, itemId: string) => {
         const settings = getUserDiscordSettings();
@@ -299,6 +364,8 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     const triggerDownload = async (format: MediaFormat, itemId: string) => {
         setDownloadStatus(prev => ({ ...prev, [itemId]: 'downloading' }));
         setDownloadProgress(prev => ({ ...prev, [itemId]: { loaded: 0, total: 0, percent: 0, speed: 0 } }));
+        // Update global store for sync with MediaGallery
+        setGlobalDownloadProgress(data.url, { status: 'downloading', percent: 0, loaded: 0, total: 0, speed: 0 });
 
         try {
             const { downloadMedia, triggerBlobDownload } = await import('@/lib/utils/media');
@@ -315,6 +382,15 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                         message: progress.message,
                     }
                 }));
+                // Update global store
+                setGlobalDownloadProgress(data.url, {
+                    status: progress.status === 'done' ? 'done' : progress.status === 'error' ? 'error' : 'downloading',
+                    percent: progress.percent,
+                    loaded: progress.loaded,
+                    total: progress.total,
+                    speed: progress.speed,
+                    message: progress.message,
+                });
             });
 
             if (!result.success) {
@@ -370,11 +446,19 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
             }
 
             setDownloadStatus(prev => ({ ...prev, [itemId]: 'success' }));
-            setTimeout(() => setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' })), 5000);
+            setGlobalDownloadProgress(data.url, { status: 'done', percent: 100, loaded: 0, total: 0, speed: 0 });
+            setTimeout(() => {
+                setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' }));
+                setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
+            }, 5000);
         } catch (e) {
             console.error('Download error:', e);
             setDownloadStatus(prev => ({ ...prev, [itemId]: 'error' }));
-            setTimeout(() => setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' })), 5000);
+            setGlobalDownloadProgress(data.url, { status: 'error', percent: 0, loaded: 0, total: 0, speed: 0 });
+            setTimeout(() => {
+                setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' }));
+                setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
+            }, 5000);
         }
     };
 
@@ -550,13 +634,16 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
                                     if (format) triggerDownload(format, selectedItemId);
                                 }}
-                                    disabled={downloadStatus[selectedItemId] === 'downloading'}
+                                    disabled={downloadStatus[selectedItemId] === 'downloading' || isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])}
+                                    title={isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
                                     leftIcon={downloadStatus[selectedItemId] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                    {downloadStatus[selectedItemId] === 'downloading'
-                                        ? getProgressText(selectedItemId)
-                                        : downloadStatus[selectedItemId] === 'success'
-                                            ? t('done')
-                                            : `${t('download')}${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? ` (${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])})` : ''}`}
+                                    {isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])
+                                        ? `Terlalu besar`
+                                        : downloadStatus[selectedItemId] === 'downloading'
+                                            ? getProgressText(selectedItemId)
+                                            : downloadStatus[selectedItemId] === 'success'
+                                                ? t('done')
+                                                : `${t('download')}${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? ` (${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])})` : ''}`}
                                 </Button>
                             </div>
                             {/* Progress Bar for carousel item */}
@@ -623,12 +710,15 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             </Button>
                             {/* Download button */}
                             <Button size="xs" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
-                                disabled={downloadStatus[itemIds[0]] === 'downloading'}
+                                disabled={downloadStatus[itemIds[0]] === 'downloading' || isOverYouTubeLimit(selectedFormats[itemIds[0]])}
+                                title={isOverYouTubeLimit(selectedFormats[itemIds[0]]) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
                                 leftIcon={downloadStatus[itemIds[0]] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                {downloadStatus[itemIds[0]] === 'downloading'
-                                    ? getProgressText(itemIds[0])
-                                    : downloadStatus[itemIds[0]] === 'success' ? t('downloaded') : t('download')}
-                                {downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
+                                {isOverYouTubeLimit(selectedFormats[itemIds[0]]) 
+                                    ? `Terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)`
+                                    : downloadStatus[itemIds[0]] === 'downloading'
+                                        ? getProgressText(itemIds[0])
+                                        : downloadStatus[itemIds[0]] === 'success' ? t('downloaded') : t('download')}
+                                {!isOverYouTubeLimit(selectedFormats[itemIds[0]]) && downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
                                     <span className="ml-1 opacity-70">({getFileSize(itemIds[0], selectedFormats[itemIds[0]])})</span>
                                 )}
                             </Button>
@@ -661,6 +751,14 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 initialFormat={selectedFormats[selectedItemId] || null}
                 onDownloadComplete={onDownloadComplete}
             />
+
+            {/* YouTube Size Limit Warning */}
+            {platform === 'youtube' && (
+                <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>Our Limitation For YouTube: max {YOUTUBE_MAX_FILESIZE_MB}MB per download. Pilih kualitas yang lebih rendah jika file terlalu besar.</span>
+                </div>
+            )}
         </motion.div>
     );
 }

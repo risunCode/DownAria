@@ -13,6 +13,10 @@ import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/dis
 import { addHistory, type HistoryEntry } from '@/lib/storage';
 import Swal from 'sweetalert2';
 
+// YouTube filesize limit for frontend (350MB warning, backend allows 450MB)
+const YOUTUBE_MAX_FILESIZE_MB = 350;
+const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
+
 // Shared utilities and components
 import { 
   extractPostId, 
@@ -23,6 +27,12 @@ import {
   getYouTubePreviewNotice,
   getQualityBadge,
 } from '@/lib/utils/media';
+// Shared download store
+import { 
+  setDownloadProgress as setGlobalDownloadProgress,
+  subscribeDownloadProgress,
+  getDownloadProgress,
+} from '@/lib/stores/download-store';
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
 import { DownloadProgress } from '@/components/media/DownloadProgress';
@@ -161,6 +171,43 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const videoRef = useRef<HTMLVideoElement>(null);
   const loopCountRef = useRef(0);
   const MAX_LOOPS = 8; // Auto-stop after 8 loops (user might be asleep 😴)
+  const abortControllerRef = useRef<AbortController | null>(null); // For cancelling downloads
+
+  // Check if format exceeds YouTube size limit
+  const isOverYouTubeLimit = (format: MediaFormat | null): boolean => {
+    if (platform !== 'youtube' || !format) return false;
+    const size = format.filesize || 0;
+    return size > YOUTUBE_MAX_FILESIZE_BYTES;
+  };
+
+  // Handle close - prevent during download, send cancel signal
+  const handleClose = useCallback(() => {
+    if (downloadState.status === 'downloading') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Download sedang berjalan',
+        text: 'Yakin mau batalkan download?',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, batalkan',
+        cancelButtonText: 'Lanjutkan download',
+        background: 'var(--bg-card)',
+        color: 'var(--text-primary)',
+        confirmButtonColor: '#ef4444',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Cancel the download
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+          }
+          setDownloadState({ status: 'idle', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
+          onClose();
+        }
+      });
+      return;
+    }
+    onClose();
+  }, [downloadState.status, onClose]);
 
   // Memoize grouped formats - only recalculate when formats change
   const groupedItems = useMemo(() => groupFormatsByItem(data.formats || []), [data.formats]);
@@ -185,6 +232,39 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       }
     }
   }, [isOpen, initialFormat, itemIds]);
+
+  // Sync with global download store - subscribe to updates from DownloadPreview
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const unsubscribe = subscribeDownloadProgress(data.url, (progress) => {
+      setDownloadState({
+        status: progress.status,
+        progress: progress.percent,
+        speed: progress.speed,
+        loaded: progress.loaded,
+        total: progress.total,
+        eta: 0,
+        message: progress.message,
+      });
+    });
+    
+    // Check initial state from store (in case download started from DownloadPreview)
+    const initial = getDownloadProgress(data.url);
+    if (initial.status !== 'idle') {
+      setDownloadState({
+        status: initial.status,
+        progress: initial.percent,
+        speed: initial.speed,
+        loaded: initial.loaded,
+        total: initial.total,
+        eta: 0,
+        message: initial.message,
+      });
+    }
+    
+    return unsubscribe;
+  }, [isOpen, data.url]);
 
   // Auto-select format when switching items (only if no initialFormat or user switched manually)
   useEffect(() => {
@@ -318,7 +398,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     setCurrentIndex(prev => (prev < itemIds.length - 1 ? prev + 1 : 0));
   }, [itemIds.length]);
 
-  useKeyboardNavigation(onClose, goToPrev, goToNext, isOpen);
+  useKeyboardNavigation(handleClose, goToPrev, goToNext, isOpen);
 
   // Swipe navigation for carousel
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useSwipeNavigation(goToPrev, goToNext, isCarousel);
@@ -333,10 +413,26 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  // Warn user before leaving page during download
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (downloadState.status === 'downloading') {
+        e.preventDefault();
+        e.returnValue = 'Download sedang berjalan. Yakin mau meninggalkan halaman?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [downloadState.status]);
+
   // Download handler - uses unified helper
   const handleDownload = async () => {
     if (!selectedFormat) return;
     setDownloadState({ status: 'downloading', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
+    // Update global store for sync with DownloadPreview
+    setGlobalDownloadProgress(data.url, { status: 'downloading', percent: 0, loaded: 0, total: 0, speed: 0 });
 
     try {
       const { downloadMedia, triggerBlobDownload } = await import('@/lib/utils/media');
@@ -352,6 +448,15 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
           eta: 0,
           message: progress.message,
         });
+        // Update global store
+        setGlobalDownloadProgress(data.url, {
+          status: progress.status === 'done' ? 'done' : progress.status === 'error' ? 'error' : 'downloading',
+          percent: progress.percent,
+          loaded: progress.loaded,
+          total: progress.total,
+          speed: progress.speed,
+          message: progress.message,
+        });
       });
 
       if (!result.success) {
@@ -364,6 +469,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       }
 
       setDownloadState({ status: 'done', progress: 100, speed: 0, loaded: result.blob?.size || 0, total: result.blob?.size || 0, eta: 0 });
+      setGlobalDownloadProgress(data.url, { status: 'done', percent: 100, loaded: 0, total: 0, speed: 0 });
 
       // Add to history
       const historyId = await addHistory({
@@ -392,11 +498,18 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
         });
       }
 
-      setTimeout(() => setDownloadState(prev => ({ ...prev, status: 'idle' })), 3000);
+      setTimeout(() => {
+        setDownloadState(prev => ({ ...prev, status: 'idle' }));
+        setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
+      }, 3000);
     } catch (err) {
       console.error('Download error:', err);
       setDownloadState({ status: 'error', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
-      setTimeout(() => setDownloadState(prev => ({ ...prev, status: 'idle' })), 3000);
+      setGlobalDownloadProgress(data.url, { status: 'error', percent: 0, loaded: 0, total: 0, speed: 0 });
+      setTimeout(() => {
+        setDownloadState(prev => ({ ...prev, status: 'idle' }));
+        setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
+      }, 3000);
     }
   };
 
@@ -706,14 +819,28 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   // Action buttons - rendered in sticky footer
   const actionButtons = (
     <div className="p-4 space-y-3 border-t border-[var(--border-color)]/50 bg-[var(--bg-card)]">
+      {/* YouTube Size Limit Warning */}
+      {platform === 'youtube' && isOverYouTubeLimit(selectedFormat) && (
+        <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+          <span>🚫</span>
+          <span>File terlalu besar (max {YOUTUBE_MAX_FILESIZE_MB}MB). Pilih kualitas yang lebih rendah.</span>
+        </div>
+      )}
+      
       {/* Actions */}
       <div className="flex gap-2">
         <button
           onClick={handleDownload}
-          disabled={downloadState.status === 'downloading' || !selectedFormat}
+          disabled={downloadState.status === 'downloading' || !selectedFormat || isOverYouTubeLimit(selectedFormat)}
+          title={isOverYouTubeLimit(selectedFormat) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {downloadState.status === 'downloading' ? (
+          {isOverYouTubeLimit(selectedFormat) ? (
+            <>
+              <Download className="w-5 h-5" />
+              Terlalu besar (max {YOUTUBE_MAX_FILESIZE_MB}MB)
+            </>
+          ) : downloadState.status === 'downloading' ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               {downloadState.message || `${downloadState.progress}%`}
@@ -771,9 +898,9 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
 
   // Render based on mode
   return mode === 'fullscreen' ? (
-    <FullscreenWrapper isOpen={isOpen} onClose={onClose} footer={actionButtons}>{content}</FullscreenWrapper>
+    <FullscreenWrapper isOpen={isOpen} onClose={handleClose} footer={actionButtons}>{content}</FullscreenWrapper>
   ) : (
-    <ModalWrapper isOpen={isOpen} onClose={onClose} footer={actionButtons}>{content}</ModalWrapper>
+    <ModalWrapper isOpen={isOpen} onClose={handleClose} footer={actionButtons}>{content}</ModalWrapper>
   );
 }
 

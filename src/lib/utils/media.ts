@@ -562,6 +562,7 @@ export interface YouTubeMergeProgress {
     percent?: number;
     loaded?: number;  // bytes downloaded
     total?: number;   // total bytes (from Content-Length)
+    speed?: number;   // bytes per second (fake during merging)
 }
 
 export interface YouTubeMergeResult {
@@ -1030,7 +1031,7 @@ export async function downloadMedia(
                         percent: p.percent || 0,
                         loaded: p.loaded || 0,
                         total: p.total || 0,
-                        speed: 0,
+                        speed: (p as { speed?: number }).speed || 0, // Pass through fake speed from merge
                         message: p.message
                     });
                 },

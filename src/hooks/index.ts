@@ -15,3 +15,6 @@ export { usePlayground } from './usePlayground';
 
 // Update Prompt (service worker)
 export { useUpdatePrompt } from './useUpdatePrompt';
+
+// Download Sync (shared state between DownloadPreview and MediaGallery)
+export { useDownloadSync } from './useDownloadSync';
