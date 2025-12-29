@@ -780,16 +780,23 @@ export async function downloadMergedYouTube(
             }
         }, UPDATE_INTERVAL);
 
-        // Call merge API
-        const response = await fetch(`${API_URL}/api/v1/youtube/merge`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                url: youtubeUrl,
-                quality,
-                filename
-            })
-        });
+        let response: Response;
+        try {
+            // Call merge API
+            response = await fetch(`${API_URL}/api/v1/youtube/merge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: youtubeUrl,
+                    quality,
+                    filename
+                })
+            });
+        } catch (fetchError) {
+            // Network error - clear interval and rethrow
+            clearInterval(fakeProgressInterval);
+            throw fetchError;
+        }
 
         // Stop fake progress
         clearInterval(fakeProgressInterval);
