@@ -62,6 +62,8 @@ export interface DownAriaSettings {
   wallpaperOpacity: number;
   backgroundBlur: number;
   allowLargeBackground: boolean;
+  customBackgroundEnabled: boolean;
+  backgroundSound: boolean;
   
   // Cache
   skipCache: boolean;
@@ -103,6 +105,8 @@ const DEFAULT_SETTINGS: DownAriaSettings = {
   wallpaperOpacity: 8,
   backgroundBlur: 0,
   allowLargeBackground: false,
+  customBackgroundEnabled: true,
+  backgroundSound: false,
   skipCache: false,
   notifications: false,
   updateDismissed: null,

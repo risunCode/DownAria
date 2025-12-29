@@ -109,10 +109,10 @@ function Background({ settings, backgroundUrl, isModalOpen }: { settings: Season
   const [allowSound, setAllowSound] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
-  // Load sound setting
+  // Load sound setting (backgroundSound from unified settings)
   useEffect(() => {
     const s = getUnifiedSettings();
-    setAllowSound(s.videoSound || false);
+    setAllowSound(s.backgroundSound || false);
     
     // Listen for sound setting changes
     const handleSoundChange = (e: CustomEvent<{ enabled: boolean }>) => {
@@ -122,8 +122,13 @@ function Background({ settings, backgroundUrl, isModalOpen }: { settings: Season
       }
     };
     
+    window.addEventListener('background-sound-changed', handleSoundChange as EventListener);
+    // Also listen for legacy event name for backwards compatibility
     window.addEventListener('wallpaper-sound-changed', handleSoundChange as EventListener);
-    return () => window.removeEventListener('wallpaper-sound-changed', handleSoundChange as EventListener);
+    return () => {
+      window.removeEventListener('background-sound-changed', handleSoundChange as EventListener);
+      window.removeEventListener('wallpaper-sound-changed', handleSoundChange as EventListener);
+    };
   }, []);
   
   // Pause video when tab is not visible (saves memory & CPU)
@@ -233,6 +238,7 @@ export function SeasonalEffects() {
   const [settings, setSettings] = useState<SeasonalSettings | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [customBackgroundEnabled, setCustomBackgroundEnabled] = useState(true);
   const previousUrlRef = useRef<string | null>(null);
 
   // Cleanup blob URLs to prevent memory leaks
@@ -242,6 +248,26 @@ export function SeasonalEffects() {
         URL.revokeObjectURL(previousUrlRef.current);
       }
     };
+  }, []);
+
+  // Load customBackgroundEnabled setting
+  useEffect(() => {
+    const s = getUnifiedSettings();
+    setCustomBackgroundEnabled(s.customBackgroundEnabled !== false); // default true
+    
+    // Listen for settings changes
+    const handleSettingsChange = (e: CustomEvent<{ customBackgroundEnabled?: boolean }>) => {
+      if (e.detail && typeof e.detail.customBackgroundEnabled === 'boolean') {
+        setCustomBackgroundEnabled(e.detail.customBackgroundEnabled);
+      } else {
+        // Re-read from storage
+        const updated = getUnifiedSettings();
+        setCustomBackgroundEnabled(updated.customBackgroundEnabled !== false);
+      }
+    };
+    
+    window.addEventListener('settings-changed', handleSettingsChange as EventListener);
+    return () => window.removeEventListener('settings-changed', handleSettingsChange as EventListener);
   }, []);
 
   // Detect modal/sheet open state by watching DOM
@@ -360,23 +386,26 @@ export function SeasonalEffects() {
 
   if (!settings || (settings.season === 'off' && !settings.customBackground)) return null;
 
+  // Check if custom background should be shown
+  const showCustomBackground = customBackgroundEnabled && settings.customBackground && backgroundUrl;
+
   // Determine if particles should show (hide when modal is open)
   const showParticles = !isModalOpen && 
     settings.season !== 'off' && 
     (!settings.customBackground || settings.particlesWithBackground);
 
   // Card opacity from settings (default 75% when custom background is set - best for readability)
-  const cardOpacity = settings.customBackground ? (settings.cardOpacity ?? 75) / 100 : 1;
+  const cardOpacity = showCustomBackground ? (settings.cardOpacity ?? 75) / 100 : 1;
 
   return (
     <>
       {/* Custom Background - behind everything */}
-      {settings.customBackground && backgroundUrl && (
+      {showCustomBackground && (
         <Background settings={settings} backgroundUrl={backgroundUrl} isModalOpen={isModalOpen} />
       )}
       
       {/* Card Opacity CSS - applies to glass-card elements when background is set */}
-      {settings.customBackground && (
+      {showCustomBackground && (
         <style jsx global>{`
           /* Apply card opacity to glass-card elements */
           .glass-card {

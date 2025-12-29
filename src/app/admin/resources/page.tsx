@@ -13,18 +13,15 @@ import { AdminCard, AdminModal, PlatformIcon, type PlatformId } from '@/componen
 import { 
     useCookies,
     useCookieStats, 
-    useBrowserProfiles,
     useAiKeys,
-    PLATFORM_OPTIONS, BROWSER_OPTIONS, DEVICE_OPTIONS, OS_OPTIONS,
     type CookiePoolStats, type PooledCookie, type CookieTier,
-    type BrowserProfile, type CreateProfileInput,
     type AiApiKey, type AiProvider,
 } from '@/hooks/admin';
 import { faFacebook, faInstagram, faWeibo, faTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 
 type CookiePlatform = 'facebook' | 'instagram' | 'weibo' | 'twitter' | 'youtube';
-type TabType = 'cookies' | 'browserprofiles' | 'aikeys';
+type TabType = 'cookies' | 'aikeys';
 
 const COOKIE_PLATFORMS: { id: CookiePlatform; name: string; icon: IconDefinition; color: string; bgColor: string; required: string }[] = [
     { id: 'facebook', name: 'Facebook', icon: faFacebook, color: 'text-blue-500', bgColor: 'bg-blue-500/10', required: 'c_user, xs' },
@@ -110,7 +107,6 @@ function ResourcesContent() {
 
     // Hooks
     const { stats: cookieStats, refetch: refetchCookies, getStats: getCookieStats } = useCookieStats();
-    const { profiles: browserProfiles, totals: bpTotals, loading: bpLoading, deleteProfile, updateProfile, createProfile, refetch: refetchBP } = useBrowserProfiles();
     const { keys: aiKeys, loading: aiLoading, saving: aiSaving, addKey: addAiKey, toggleKey: toggleAiKey, deleteKey: deleteAiKey, stats: aiStats, refetch: refetchAi } = useAiKeys();
 
     // Calculate totals for tabs
@@ -118,7 +114,6 @@ function ResourcesContent() {
 
     const handleRefreshAll = () => {
         refetchCookies();
-        refetchBP();
         refetchAi();
     };
 
@@ -132,7 +127,7 @@ function ResourcesContent() {
                             <Database className="w-6 h-6 text-[var(--accent-primary)]" />
                             Resources
                         </h1>
-                        <p className="text-[var(--text-muted)] text-sm">Manage cookies & browser profiles</p>
+                        <p className="text-[var(--text-muted)] text-sm">Manage cookies & AI keys</p>
                     </div>
                     <button
                         onClick={handleRefreshAll}
@@ -159,20 +154,6 @@ function ResourcesContent() {
                         </span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('browserprofiles')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            activeTab === 'browserprofiles' 
-                                ? 'bg-[var(--accent-primary)] text-white' 
-                                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
-                        }`}
-                    >
-                        <Monitor className="w-4 h-4" />
-                        Browser Profiles
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${activeTab === 'browserprofiles' ? 'bg-white/20' : 'bg-purple-500/20 text-purple-400'}`}>
-                            {bpTotals.total}
-                        </span>
-                    </button>
-                    <button
                         onClick={() => setActiveTab('aikeys')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                             activeTab === 'aikeys' 
@@ -193,18 +174,6 @@ function ResourcesContent() {
                     <CookiesTab 
                         getStats={getCookieStats}
                         onSelectPlatform={setSelectedCookiePlatform}
-                    />
-                )}
-
-                {activeTab === 'browserprofiles' && (
-                    <BrowserProfilesTab
-                        profiles={browserProfiles}
-                        totals={bpTotals}
-                        loading={bpLoading}
-                        onRefresh={refetchBP}
-                        onAdd={createProfile}
-                        onUpdate={updateProfile}
-                        onDelete={deleteProfile}
                     />
                 )}
 

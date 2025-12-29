@@ -14,18 +14,19 @@
 
 ### Desktop
 
-<img width="1920" height="1080" alt="1-home" src="https://github.com/user-attachments/assets/c8d6d40d-bf09-4128-8426-d45f0ad43411" />
-<img width="1920" height="1080" alt="2-playground" src="https://github.com/user-attachments/assets/eb1a6f8a-b87c-4c7d-a929-bcd045e4a764" />
-<img width="1920" height="1080" alt="3-documentation" src="https://github.com/user-attachments/assets/ade7b2e7-a9e4-4355-9eef-7bc7f6f1e704" />
-<img width="1920" height="1080" alt="4-settings" src="https://github.com/user-attachments/assets/82701057-ecdc-4597-835d-01808e6226c4" />
-<img width="1920" height="1080" alt="5-about" src="https://github.com/user-attachments/assets/526a8541-06d3-4f3c-ada7-c4e2f1252e2c" />
+| Home | Playground | Documentation |
+|:----:|:----------:|:-------------:|
+| <img width="400" alt="home" src="https://github.com/user-attachments/assets/c8d6d40d-bf09-4128-8426-d45f0ad43411" /> | <img width="400" alt="playground" src="https://github.com/user-attachments/assets/eb1a6f8a-b87c-4c7d-a929-bcd045e4a764" /> | <img width="400" alt="documentation" src="https://github.com/user-attachments/assets/ade7b2e7-a9e4-4355-9eef-7bc7f6f1e704" /> |
+
+| Settings | About |
+|:--------:|:-----:|
+| <img width="400" alt="settings" src="https://github.com/user-attachments/assets/82701057-ecdc-4597-835d-01808e6226c4" /> | <img width="400" alt="about" src="https://github.com/user-attachments/assets/526a8541-06d3-4f3c-ada7-c4e2f1252e2c" /> |
 
 ### Mobile
 
-![1-home-mobile](https://github.com/user-attachments/assets/c24be2c5-caf6-43c4-b6cc-468251a50d87) ![2-playground-mobile](https://github.com/user-attachments/assets/a44704e6-27c5-4609-9d29-016348ed7c47)
-![3-documentation-mobile](https://github.com/user-attachments/assets/108c8086-51ea-41e3-bade-66bb85b42336)
-![4-settings-mobile](https://github.com/user-attachments/assets/d35b03b4-5c39-4577-a467-52c1f14322b7)
-![5-about](https://github.com/user-attachments/assets/d96707d5-2235-416e-bb1b-6dbbe2c97e0e)
+| Home | Playground | Documentation | Settings | About |
+|:----:|:----------:|:-------------:|:--------:|:-----:|
+| <img width="180" alt="home-mobile" src="https://github.com/user-attachments/assets/c24be2c5-caf6-43c4-b6cc-468251a50d87" /> | <img width="180" alt="playground-mobile" src="https://github.com/user-attachments/assets/a44704e6-27c5-4609-9d29-016348ed7c47" /> | <img width="180" alt="documentation-mobile" src="https://github.com/user-attachments/assets/108c8086-51ea-41e3-bade-66bb85b42336" /> | <img width="180" alt="settings-mobile" src="https://github.com/user-attachments/assets/d35b03b4-5c39-4577-a467-52c1f14322b7" /> | <img width="180" alt="about-mobile" src="https://github.com/user-attachments/assets/d96707d5-2235-416e-bb1b-6dbbe2c97e0e" /> |
 
 ---
 

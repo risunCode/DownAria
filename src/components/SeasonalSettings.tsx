@@ -60,6 +60,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
   const [isMobile, setIsMobile] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 1920, height: 1080 });
+  const [hasShownOpacityWarning, setHasShownOpacityWarning] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const isVideo = file.type.startsWith('video/');
@@ -185,7 +186,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
           <span className="text-xs text-[var(--text-muted)] w-10 text-right">{(position.scale * 100).toFixed(0)}%</span>
         </div>
 
-        {/* Wallpaper Opacity - Default 8%, max 20% */}
+        {/* Wallpaper Opacity - Default 8%, max 50% */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-[var(--text-secondary)]">Wallpaper Opacity</span>
@@ -218,11 +219,33 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
             <input 
               type="range" 
               min="5" 
-              max="20" 
+              max="50" 
               value={wallpaperOpacity} 
-              onChange={e => setWallpaperOpacity(Number(e.target.value))} 
+              onChange={e => {
+                const newValue = Number(e.target.value);
+                // Show warning when crossing 20% threshold
+                if (newValue > 20 && wallpaperOpacity <= 20 && !hasShownOpacityWarning) {
+                  setHasShownOpacityWarning(true);
+                  Swal.fire({
+                    icon: 'warning',
+                    title: 'High Opacity Warning',
+                    text: 'High opacity may cause readability issues. You have been warned!',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                    timer: 3000,
+                    showConfirmButton: false,
+                  });
+                }
+                setWallpaperOpacity(newValue);
+              }} 
               className="w-full accent-[var(--accent-primary)] h-1 mt-2" 
             />
+          )}
+          {wallpaperOpacity > 20 && (
+            <p className="text-[10px] text-amber-500/80 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              High opacity may affect readability
+            </p>
           )}
         </div>
 

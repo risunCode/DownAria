@@ -1088,6 +1088,7 @@ function WallpaperSettingsInline() {
     const [mounted, setMounted] = useState(false);
     const [settings, setSettingsState] = useState<DownAriaSettings | null>(null);
     const [seasonalSettings, setSeasonalSettingsState] = useState<ReturnType<typeof getSeasonalSettings> | null>(null);
+    const [hasShownOpacityWarning, setHasShownOpacityWarning] = useState(false);
 
     // Load settings after mount to avoid hydration mismatch
     useEffect(() => {
@@ -1100,6 +1101,19 @@ function WallpaperSettingsInline() {
     if (!mounted || !settings || !seasonalSettings || !seasonalSettings.customBackground) return null;
 
     const handleOpacityChange = (value: number) => {
+        // Show warning when crossing 20% threshold
+        if (value > 20 && (seasonalSettings.backgroundOpacity || 8) <= 20 && !hasShownOpacityWarning) {
+            setHasShownOpacityWarning(true);
+            Swal.fire({
+                icon: 'warning',
+                title: 'High Opacity Warning',
+                text: 'High opacity may cause readability issues. You have been warned!',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                timer: 3000,
+                showConfirmButton: false,
+            });
+        }
         setBackgroundOpacity(value);
         setSeasonalSettingsState(getSeasonalSettings());
         saveUnifiedSettings({ wallpaperOpacity: value });
@@ -1114,11 +1128,17 @@ function WallpaperSettingsInline() {
     };
 
     const handleSoundToggle = () => {
-        const newValue = !settings.videoSound;
-        saveUnifiedSettings({ videoSound: newValue });
+        const newValue = !settings.backgroundSound;
+        saveUnifiedSettings({ backgroundSound: newValue });
         setSettingsState(getUnifiedSettings());
         // Dispatch event for SeasonalEffects to pick up
-        window.dispatchEvent(new CustomEvent('wallpaper-sound-changed', { detail: { enabled: newValue } }));
+        window.dispatchEvent(new CustomEvent('background-sound-changed', { detail: { enabled: newValue } }));
+    };
+
+    const handleBackgroundEnabledToggle = () => {
+        const newValue = !settings.customBackgroundEnabled;
+        saveUnifiedSettings({ customBackgroundEnabled: newValue });
+        setSettingsState(getUnifiedSettings());
     };
 
     const isVideo = seasonalSettings.customBackground?.type === 'video';
@@ -1130,6 +1150,31 @@ function WallpaperSettingsInline() {
                 <span className="text-sm font-medium">Wallpaper Settings</span>
             </div>
 
+            {/* Enable/Disable Custom Background */}
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-color)]/50">
+                <div className="flex items-center gap-2">
+                    {settings.customBackgroundEnabled ? (
+                        <EyeOff className="w-4 h-4 text-green-400" />
+                    ) : (
+                        <EyeOff className="w-4 h-4 text-[var(--text-muted)]" />
+                    )}
+                    <div>
+                        <p className="text-sm font-medium">Show Background</p>
+                        <p className="text-[10px] text-[var(--text-muted)]">Toggle custom background visibility</p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleBackgroundEnabledToggle}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${settings.customBackgroundEnabled
+                        ? 'bg-green-500'
+                        : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
+                        }`}
+                >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${settings.customBackgroundEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                </button>
+            </div>
+
             {/* Wallpaper Opacity */}
             <div>
                 <div className="flex items-center justify-between mb-2">
@@ -1139,7 +1184,7 @@ function WallpaperSettingsInline() {
                 <input
                     type="range"
                     min="5"
-                    max="25"
+                    max="50"
                     value={seasonalSettings.backgroundOpacity || 8}
                     onChange={e => handleOpacityChange(Number(e.target.value))}
                     className="w-full accent-[var(--accent-primary)] h-1.5 rounded-full"
@@ -1148,6 +1193,12 @@ function WallpaperSettingsInline() {
                     <span>Subtle</span>
                     <span>Visible</span>
                 </div>
+                {(seasonalSettings.backgroundOpacity || 8) > 20 && (
+                    <p className="text-[10px] text-amber-500/80 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        High opacity may affect readability
+                    </p>
+                )}
             </div>
 
             {/* Background Blur */}
@@ -1174,29 +1225,29 @@ function WallpaperSettingsInline() {
             {isVideo && (
                 <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]/50">
                     <div className="flex items-center gap-2">
-                        {settings.videoSound ? (
+                        {settings.backgroundSound ? (
                             <Volume2 className="w-4 h-4 text-green-400" />
                         ) : (
                             <VolumeX className="w-4 h-4 text-[var(--text-muted)]" />
                         )}
                         <div>
-                            <p className="text-sm font-medium">Allow Sound <span className="text-[10px] text-amber-400">(Experimental)</span></p>
+                            <p className="text-sm font-medium">Background Sound <span className="text-[10px] text-amber-400">(Experimental)</span></p>
                             <p className="text-[10px] text-[var(--text-muted)]">Play video with audio</p>
                         </div>
                     </div>
                     <button
                         onClick={handleSoundToggle}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${settings.videoSound
+                        className={`relative w-11 h-6 rounded-full transition-colors ${settings.backgroundSound
                             ? 'bg-green-500'
                             : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
                             }`}
                     >
-                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${settings.videoSound ? 'translate-x-6' : 'translate-x-1'
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${settings.backgroundSound ? 'translate-x-6' : 'translate-x-1'
                             }`} />
                     </button>
                 </div>
             )}
-            {isVideo && settings.videoSound && (
+            {isVideo && settings.backgroundSound && (
                 <p className="text-[10px] text-amber-500/80">
                     ⚠️ Sound will play when video background is visible
                 </p>
