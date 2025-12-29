@@ -14,6 +14,7 @@ interface Announcement {
     icon?: string;
     link_url?: string;
     link_text?: string;
+    dismissable?: boolean;
     priority: number;
 }
 
@@ -124,14 +125,16 @@ export default function AnnouncementBanner({ page }: AnnouncementBannerProps) {
                                     )}
                                 </div>
 
-                                {/* Dismiss button */}
-                                <button
-                                    onClick={() => handleDismiss(ann.id)}
-                                    className="shrink-0 p-1 rounded-lg hover:bg-white/10 transition-colors"
-                                    title="Dismiss (will reappear in 12 hours)"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
+                                {/* Dismiss button - only show if dismissable */}
+                                {(ann.dismissable !== false) && (
+                                    <button
+                                        onClick={() => handleDismiss(ann.id)}
+                                        className="shrink-0 p-1 rounded-lg hover:bg-white/10 transition-colors"
+                                        title="Dismiss (will reappear in 12 hours)"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     );
