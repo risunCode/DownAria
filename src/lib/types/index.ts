@@ -22,7 +22,10 @@ export type AlertType = 'error_rate' | 'response_time' | 'cookie_health' | 'rate
 // ============================================================================
 
 /** Platform identifier - aligned with backend PlatformId */
-export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
+export type PlatformId = 
+    | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube'
+    | 'bilibili' | 'reddit' | 'soundcloud'
+    | 'eporner' | 'pornhub' | 'rule34video' | 'threads' | 'erome' | 'pixiv';
 
 // ============================================================================
 // ENGAGEMENT STATS (Aligned with Backend)
@@ -202,6 +205,101 @@ export const PLATFORMS: PlatformConfig[] = [
             /^(https?:\/\/)?(www\.|m\.|music\.)?youtube\.com\/(watch|shorts|embed)\?.+/,
             /^(https?:\/\/)?(www\.|m\.|music\.)?youtube\.com\/shorts\/.+/,
             /^(https?:\/\/)?youtu\.be\/.+/,
+        ],
+    },
+    // Generic platforms (yt-dlp/gallery-dl)
+    {
+        id: 'bilibili',
+        name: 'BiliBili',
+        icon: '📺',
+        color: '#00a1d6',
+        placeholder: 'https://www.bilibili.com/video/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/.+/,
+            /^(https?:\/\/)?b23\.tv\/.+/,
+        ],
+    },
+    {
+        id: 'reddit',
+        name: 'Reddit',
+        icon: '🔶',
+        color: '#ff4500',
+        placeholder: 'https://www.reddit.com/r/.../comments/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.|old\.)?reddit\.com\/.+/,
+            /^(https?:\/\/)?redd\.it\/.+/,
+            /^(https?:\/\/)?v\.redd\.it\/.+/,
+        ],
+    },
+    {
+        id: 'soundcloud',
+        name: 'SoundCloud',
+        icon: '🎧',
+        color: '#ff5500',
+        placeholder: 'https://soundcloud.com/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.|m\.)?soundcloud\.com\/.+/,
+        ],
+    },
+    {
+        id: 'threads',
+        name: 'Threads',
+        icon: '🧵',
+        color: '#000000',
+        placeholder: 'https://www.threads.net/@user/post/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?threads\.net\/.+/,
+        ],
+    },
+    {
+        id: 'pixiv',
+        name: 'Pixiv',
+        icon: '🎨',
+        color: '#0096fa',
+        placeholder: 'https://www.pixiv.net/artworks/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?pixiv\.net\/(artworks|en\/artworks)\/.+/,
+        ],
+    },
+    {
+        id: 'erome',
+        name: 'Erome',
+        icon: '🔞',
+        color: '#ff69b4',
+        placeholder: 'https://www.erome.com/a/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?erome\.com\/(a|i)\/.+/,
+        ],
+    },
+    {
+        id: 'eporner',
+        name: 'Eporner',
+        icon: '🔞',
+        color: '#ff69b4',
+        placeholder: 'https://www.eporner.com/video-...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?eporner\.com\/video-.+/,
+        ],
+    },
+    {
+        id: 'pornhub',
+        name: 'PornHub',
+        icon: '🔞',
+        color: '#ff9000',
+        placeholder: 'https://www.pornhub.com/view_video.php?viewkey=...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?pornhub\.com\/view_video\.php\?.+/,
+            /^(https?:\/\/)?(www\.)?pornhubpremium\.com\/.+/,
+        ],
+    },
+    {
+        id: 'rule34video',
+        name: 'Rule34Video',
+        icon: '🔞',
+        color: '#aae5a4',
+        placeholder: 'https://rule34video.com/videos/...',
+        patterns: [
+            /^(https?:\/\/)?(www\.)?rule34video\.com\/videos?\/.+/,
         ],
     },
 ];

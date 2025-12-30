@@ -14,6 +14,7 @@ import { MaintenanceMode } from '@/components/MaintenanceMode';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import CompactAdDisplay from '@/components/CompactAdDisplay';
 import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
+import { useStatus } from '@/hooks/useStatus';
 import { PlatformId, MediaData } from '@/lib/types';
 
 import { getPlatformCookie, clearPlatformCookie, getSkipCache } from '@/lib/storage';
@@ -146,6 +147,9 @@ export default function Home() {
 
   // Check maintenance status
   const { isFullMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
+  
+  // Get platform status
+  const { platforms: platformStatus } = useStatus();
 
   // Show maintenance page if full maintenance is active
   if (isFullMaintenance) {
@@ -172,6 +176,14 @@ export default function Home() {
 
     if (detectedPlatform !== platform) {
       setPlatform(detectedPlatform);
+    }
+
+    // Check if platform is enabled
+    const platformInfo = platformStatus.find(p => p.id === detectedPlatform);
+    if (platformInfo && !platformInfo.enabled) {
+      setIsLoading(false);
+      showError('🔧 Platform Offline', `${platformInfo.name} is temporarily unavailable. Please try again later.`, { icon: 'warning' });
+      return;
     }
 
     // Rate limiting handled by server API
@@ -232,6 +244,12 @@ export default function Home() {
       // Map error codes to user-friendly messages
       if (errorCode) {
         switch (errorCode) {
+          case 'MAINTENANCE':
+            showError('🔧 Under Maintenance', errorMessage || 'Service is under maintenance. Please try again later.', { icon: 'warning' });
+            return;
+          case 'PLATFORM_DISABLED':
+            showError('🔧 Platform Offline', errorMessage || 'This platform is temporarily unavailable. Please try again later.', { icon: 'warning' });
+            return;
           case 'PRIVATE_CONTENT':
           case 'COOKIE_REQUIRED':
           case 'AGE_RESTRICTED':

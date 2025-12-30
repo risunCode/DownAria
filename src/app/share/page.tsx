@@ -14,6 +14,7 @@ import type { HistoryEntry } from '@/lib/storage';
 import { getPlatformCookie, getSkipCache } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 import { fetchMediaWithCache } from '@/hooks/useScraperCache';
+import { useStatus } from '@/hooks/useStatus';
 
 function ShareContent() {
   const searchParams = useSearchParams();
@@ -26,6 +27,9 @@ function ShareContent() {
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
   const [sharedUrl, setSharedUrl] = useState<string>('');
   const [autoFetched, setAutoFetched] = useState(false);
+  
+  // Get platform status
+  const { platforms: platformStatus } = useStatus();
 
   // Extract URL from share params
   useEffect(() => {
@@ -79,6 +83,21 @@ function ShareContent() {
 
     if (detectedPlatform !== platform) {
       setPlatform(detectedPlatform);
+    }
+
+    // Check if platform is enabled
+    const platformInfo = platformStatus.find(p => p.id === detectedPlatform);
+    if (platformInfo && !platformInfo.enabled) {
+      setIsLoading(false);
+      Swal.fire({
+        icon: 'warning',
+        title: '🔧 Platform Offline',
+        text: `${platformInfo.name} is temporarily unavailable. Please try again later.`,
+        background: 'var(--bg-card)',
+        color: 'var(--text-primary)',
+        confirmButtonColor: 'var(--accent-primary)',
+      });
+      return;
     }
 
     try {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen, Plus, ChevronRight } from 'lucide-react';
+import { History, Info, Menu, X, Home, Settings, Palette, Sun, Moon, Sparkles, ChevronDown, Wrench, BookOpen, Plus, ChevronRight, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -12,12 +12,13 @@ import {
     TiktokIcon,
     YoutubeIcon,
 } from '@/components/ui/Icons';
-import { ThemeType, saveTheme, initTheme } from '@/lib/storage';
+import { ThemeType, saveTheme, initTheme, getTheme } from '@/lib/storage';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useStatus } from '@/hooks/useStatus';
 
 const THEMES: { id: ThemeType; label: string; icon: typeof Sun }[] = [
+    { id: 'auto', label: 'Auto', icon: Clock },
     { id: 'dark', label: 'Dark', icon: Moon },
     { id: 'light', label: 'Light', icon: Sun },
     { id: 'solarized', label: 'Solarized', icon: Sparkles },
@@ -48,8 +49,8 @@ export function SidebarLayout({ children }: SidebarProps) {
     const { platforms: platformStatus } = useStatus();
 
     useEffect(() => {
-        const theme = initTheme();
-        setCurrentTheme(theme);
+        initTheme(); // Apply theme to DOM
+        setCurrentTheme(getTheme()); // Get saved preference (including 'auto')
     }, []);
 
     // Close sidebar on route change (for back/forward navigation)

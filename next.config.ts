@@ -6,11 +6,11 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
 const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  // Removed 'unsafe-inline' and 'unsafe-eval' for security - use nonces or hashes if inline scripts needed
-  'script-src': ["'self'", "https://va.vercel-scripts.com"],
+  // Next.js requires unsafe-inline for hydration scripts
+  'script-src': ["'self'", "'unsafe-inline'", "https://va.vercel-scripts.com"],
   'style-src': ["'self'", "'unsafe-inline'"], // unsafe-inline kept for styles as it's lower risk
-  // Restricted img-src: removed http: to prevent mixed content, only allow https: and specific CDNs
-  'img-src': ["'self'", "data:", "blob:", "https:"],
+  // Restricted img-src: allow http localhost for dev, https for prod
+  'img-src': ["'self'", "data:", "blob:", "https:", "http://localhost:*"],
   'font-src': ["'self'", "data:"],
   'connect-src': [
     "'self'",
@@ -18,12 +18,13 @@ const CSP_DIRECTIVES = {
     "https://*.railway.app",
     "https://*.vercel.app",
     "https://va.vercel-scripts.com",
+    "https://discord.com",
     "wss://*.supabase.co",
     // API URL from environment variable
     ...(apiUrl ? [apiUrl] : []),
   ],
-  // Restricted media-src: removed http: to prevent mixed content
-  'media-src': ["'self'", "blob:", "https:"],
+  // Restricted media-src: allow http localhost for dev proxy
+  'media-src': ["'self'", "blob:", "https:", "http://localhost:*"],
   'frame-ancestors': ["'none'"],
   'base-uri': ["'self'"],
   'form-action': ["'self'"],

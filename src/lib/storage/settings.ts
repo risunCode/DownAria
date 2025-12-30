@@ -85,7 +85,7 @@ export const DEFAULT_DISCORD: DiscordSettings = {
   webhookUrl: '',
   autoSend: false,
   embedEnabled: true,
-  embedColor: '#5865F2',
+  embedColor: '#f3d61b',
   footerText: 'via DownAria',
   sendMethod: 'smart',
   mention: '',

@@ -13,8 +13,8 @@ import { useServices } from '@/hooks/admin';
 
 const ALL_PLATFORMS: PlatformId[] = [
     'facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo',
-    'bilibili', 'reddit', 'xiaohongshu', 'soundcloud', 'bluesky',
-    'eporner', 'pornhub', 'rule34video', 'threads', 'erome', 'pixiv'
+    'bilibili', 'reddit', 'soundcloud', 'threads', 'pixiv',
+    'eporner', 'pornhub', 'rule34video', 'erome'
 ];
 
 type MaintenanceMode = 'off' | 'api' | 'all';

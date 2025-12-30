@@ -96,7 +96,7 @@ export function formatNumber(num: number): string {
 
 /**
  * Domain to platform mapping for fast hostname-based detection
- * Order: facebook, youtube, instagram, tiktok, twitter, weibo
+ * Order: facebook, youtube, instagram, tiktok, twitter, weibo + generic platforms
  */
 const DOMAIN_PLATFORM_MAP: Record<string, PlatformId> = {
     // Facebook
@@ -146,6 +146,40 @@ const DOMAIN_PLATFORM_MAP: Record<string, PlatformId> = {
     'video.weibo.com': 'weibo',
     'weibo.cn': 'weibo',
     't.cn': 'weibo',
+    // BiliBili
+    'bilibili.com': 'bilibili',
+    'www.bilibili.com': 'bilibili',
+    'b23.tv': 'bilibili',
+    // Reddit
+    'reddit.com': 'reddit',
+    'www.reddit.com': 'reddit',
+    'old.reddit.com': 'reddit',
+    'redd.it': 'reddit',
+    'v.redd.it': 'reddit',
+    // SoundCloud
+    'soundcloud.com': 'soundcloud',
+    'www.soundcloud.com': 'soundcloud',
+    'm.soundcloud.com': 'soundcloud',
+    // Threads
+    'threads.net': 'threads',
+    'www.threads.net': 'threads',
+    // Pixiv
+    'pixiv.net': 'pixiv',
+    'www.pixiv.net': 'pixiv',
+    // Erome
+    'erome.com': 'erome',
+    'www.erome.com': 'erome',
+    // Eporner
+    'eporner.com': 'eporner',
+    'www.eporner.com': 'eporner',
+    // PornHub
+    'pornhub.com': 'pornhub',
+    'www.pornhub.com': 'pornhub',
+    'pornhubpremium.com': 'pornhub',
+    'www.pornhubpremium.com': 'pornhub',
+    // Rule34Video
+    'rule34video.com': 'rule34video',
+    'www.rule34video.com': 'rule34video',
 };
 
 /**

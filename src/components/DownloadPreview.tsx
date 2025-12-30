@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
@@ -115,8 +115,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         setAudioConvertEnabled(stored === 'true');
     }, []);
 
-    // Check if content has NO audio formats (for showing audio conversion option)
-    const hasNoAudioFormats = !formats.some(f => f.type === 'audio');
+    // Check if content has audio formats available
+    // If yes, audio will show in FormatSelector - no need for convert buttons
+    const hasAudioFormats = formats.some(f => f.type === 'audio');
 
     // Estimate audio filesize: duration_seconds * 128kbps / 8, or fallback to video_filesize * 0.1
     const estimateAudioSize = (format: MediaFormat | undefined): number => {
@@ -146,20 +147,45 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         return 0;
     };
 
-    // Handle audio conversion
+    // Handle audio conversion - extract audio from video (only when no native audio available)
     const handleAudioConvert = async (format: MediaFormat, itemId: string, audioFormat: 'mp3' | 'm4a') => {
         const key = `${itemId}-${audioFormat}`;
         setAudioConvertStatus(prev => ({ ...prev, [key]: 'converting' }));
 
         try {
+            const allFormats = groupedItems[itemId] || formats;
+            
+            // Find best quality video for audio extraction
+            const videoFormats = allFormats.filter(f => f.type === 'video');
+            
+            let bestVideoForAudio: MediaFormat | undefined;
+            
+            // Sort by quality preference for audio (medium-high is best)
+            const qualityOrder = ['1080p', '720p', 'HD', 'FHD', '480p', '1440p', '4K', '2160p', '360p', 'SD'];
+            
+            for (const q of qualityOrder) {
+                bestVideoForAudio = videoFormats.find(f => 
+                    f.quality.toLowerCase().includes(q.toLowerCase())
+                );
+                if (bestVideoForAudio) break;
+            }
+            
+            // Fallback to first video if no quality match
+            if (!bestVideoForAudio) {
+                bestVideoForAudio = videoFormats[0] || format;
+            }
+            
+            console.log(`[AudioConvert] Extracting from ${bestVideoForAudio.quality} video`);
+
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
             const response = await fetch(`${apiUrl}/api/v1/merge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    url: format.url,
+                    url: bestVideoForAudio.url,
                     format: audioFormat,
-                    filename: data.title || 'audio'
+                    filename: data.title || 'audio',
+                    platform: platform
                 })
             });
 
@@ -274,22 +300,138 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         return unsubscribe;
     }, [data.url]);
 
-    // Check if any download is in progress
-    const isAnyDownloading = Object.values(downloadStatus).some(s => s === 'downloading') || globalStatus === 'downloading';
+    // Check if any download OR conversion is in progress
+    const isAnyConverting = Object.values(audioConvertStatus).some(s => s === 'converting');
+    const isAnyDownloading = Object.values(downloadStatus).some(s => s === 'downloading') || globalStatus === 'downloading' || isAnyConverting;
 
-    // Prevent page refresh/close during download
+    // Cancel ongoing downloads/conversions
+    const cancelAllProcesses = useCallback(() => {
+        // Reset all download statuses
+        setDownloadStatus({});
+        setDownloadProgress({});
+        setGlobalStatus('idle');
+        setAudioConvertStatus({});
+        
+        // Note: Backend processes will timeout/cleanup automatically
+        // AbortController could be added for fetch requests if needed
+        console.log('[DownloadPreview] All processes cancelled by user');
+    }, []);
+
+    // Block navigation helper with SweetAlert + countdown
+    const blockNavigation = useCallback(async (): Promise<boolean> => {
+        if (!isAnyDownloading) return true; // Allow navigation
+        
+        let countdown = 4;
+        
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: isAnyConverting ? 'Konversi Sedang Berjalan!' : 'Download Sedang Berjalan!',
+            text: 'Jika kamu meninggalkan halaman, proses akan dibatalkan. Yakin mau keluar?',
+            showCancelButton: true,
+            confirmButtonText: `Ya, Keluar (${countdown})`,
+            cancelButtonText: 'Tetap di Sini',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: 'var(--accent-primary)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            allowOutsideClick: false,
+            allowEscapeKey: true,
+            didOpen: () => {
+                const confirmBtn = Swal.getConfirmButton();
+                if (confirmBtn) {
+                    confirmBtn.disabled = true;
+                    confirmBtn.style.opacity = '0.5';
+                    confirmBtn.style.cursor = 'not-allowed';
+                    
+                    const interval = setInterval(() => {
+                        countdown--;
+                        if (countdown > 0) {
+                            confirmBtn.textContent = `Ya, Keluar (${countdown})`;
+                        } else {
+                            confirmBtn.textContent = 'Ya, Keluar';
+                            confirmBtn.disabled = false;
+                            confirmBtn.style.opacity = '1';
+                            confirmBtn.style.cursor = 'pointer';
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+            }
+        });
+        
+        if (result.isConfirmed) {
+            // Cancel all ongoing processes before navigating
+            cancelAllProcesses();
+        }
+        
+        return result.isConfirmed;
+    }, [isAnyDownloading, isAnyConverting, cancelAllProcesses]);
+
+    // Block browser back/forward navigation during download
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (!isAnyDownloading) return;
+
+        // Push a dummy state to detect back button
+        window.history.pushState({ downloadInProgress: true }, '');
+
+        const handlePopState = async () => {
             if (isAnyDownloading) {
-                e.preventDefault();
-                e.returnValue = 'Download sedang berjalan. Yakin mau meninggalkan halaman?';
-                return e.returnValue;
+                // Re-push state to stay on page
+                window.history.pushState({ downloadInProgress: true }, '');
+                
+                // Show warning
+                Swal.fire({
+                    icon: 'warning',
+                    title: isAnyConverting ? 'Konversi Sedang Berjalan!' : 'Download Sedang Berjalan!',
+                    text: 'Tunggu proses selesai sebelum meninggalkan halaman.',
+                    toast: true,
+                    position: 'top',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                });
             }
         };
 
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [isAnyDownloading]);
+        window.addEventListener('popstate', handlePopState);
+        
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            // Cleanup: go back to remove the dummy state we pushed
+            if (window.history.state?.downloadInProgress) {
+                window.history.back();
+            }
+        };
+    }, [isAnyDownloading, isAnyConverting]);
+
+    // Intercept link clicks during download
+    useEffect(() => {
+        if (!isAnyDownloading) return;
+
+        const handleClick = async (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            const link = target.closest('a');
+            
+            if (link && link.href && !link.href.startsWith('blob:') && !link.download) {
+                const isSameOrigin = link.href.startsWith(window.location.origin);
+                
+                if (isSameOrigin) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const shouldNavigate = await blockNavigation();
+                    if (shouldNavigate) {
+                        // User confirmed, allow navigation
+                        window.location.href = link.href;
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('click', handleClick, true);
+        return () => document.removeEventListener('click', handleClick, true);
+    }, [isAnyDownloading, blockNavigation]);
 
     // Prevent paste during download (to avoid accidental new URL submission)
     useEffect(() => {
@@ -636,12 +778,45 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     };
 
     const renderFormatButtons = (formats: MediaFormat[], itemId: string) => (
-        <FormatSelector
-            formats={formats}
-            selected={selectedFormats[itemId] || null}
-            onSelect={(format) => setSelectedFormats(prev => ({ ...prev, [itemId]: format }))}
-            getSize={(f) => getFormatSize(itemId, f)}
-        />
+        <div className="flex flex-col gap-2">
+            <FormatSelector
+                formats={formats}
+                selected={selectedFormats[itemId] || null}
+                onSelect={(format) => setSelectedFormats(prev => ({ ...prev, [itemId]: format }))}
+                getSize={(f) => getFormatSize(itemId, f)}
+            />
+            {/* Audio Conversion - Only show if NO native audio format available */}
+            {audioConvertEnabled && !hasAudioFormats && selectedFormats[itemId]?.type === 'video' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <Button 
+                        size="xs" 
+                        variant="secondary"
+                        onClick={() => handleAudioConvert(selectedFormats[itemId], itemId, 'mp3')}
+                        disabled={audioConvertStatus[`${itemId}-mp3`] === 'converting'}
+                        leftIcon={audioConvertStatus[`${itemId}-mp3`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
+                        title="Convert to MP3"
+                        className="text-[10px] px-2 py-1"
+                    >
+                        {audioConvertStatus[`${itemId}-mp3`] === 'converting' ? '...' : 
+                         audioConvertStatus[`${itemId}-mp3`] === 'success' ? '✓' : 
+                         `MP3${estimateAudioSize(selectedFormats[itemId]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemId]))}` : ''}`}
+                    </Button>
+                    <Button 
+                        size="xs" 
+                        variant="secondary"
+                        onClick={() => handleAudioConvert(selectedFormats[itemId], itemId, 'm4a')}
+                        disabled={audioConvertStatus[`${itemId}-m4a`] === 'converting'}
+                        leftIcon={audioConvertStatus[`${itemId}-m4a`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
+                        title="Convert to M4A"
+                        className="text-[10px] px-2 py-1"
+                    >
+                        {audioConvertStatus[`${itemId}-m4a`] === 'converting' ? '...' : 
+                         audioConvertStatus[`${itemId}-m4a`] === 'success' ? '✓' : 
+                         `M4A${estimateAudioSize(selectedFormats[itemId]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemId]))}` : ''}`}
+                    </Button>
+                </div>
+            )}
+        </div>
     );
 
     return (
@@ -764,43 +939,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
                             </div>
-                            {/* Audio Conversion - Below thumbnail (carousel) */}
-                            {audioConvertEnabled && hasNoAudioFormats && (selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])?.type === 'video' && (
-                                <div className="flex flex-wrap items-center justify-center gap-1">
-                                    <span className="text-[10px] text-[var(--text-muted)]">⚡</span>
-                                    <Button 
-                                        size="xs" 
-                                        variant="secondary"
-                                        onClick={() => {
-                                            const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
-                                            if (format) handleAudioConvert(format, selectedItemId, 'mp3');
-                                        }}
-                                        disabled={audioConvertStatus[`${selectedItemId}-mp3`] === 'converting'}
-                                        className="text-[10px] px-1.5 py-0.5"
-                                        title="Convert to MP3"
-                                    >
-                                        {audioConvertStatus[`${selectedItemId}-mp3`] === 'converting' ? '...' : 
-                                         audioConvertStatus[`${selectedItemId}-mp3`] === 'success' ? '✓' : '⚡MP3'}
-                                    </Button>
-                                    <Button 
-                                        size="xs" 
-                                        variant="secondary"
-                                        onClick={() => {
-                                            const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
-                                            if (format) handleAudioConvert(format, selectedItemId, 'm4a');
-                                        }}
-                                        disabled={audioConvertStatus[`${selectedItemId}-m4a`] === 'converting'}
-                                        className="text-[10px] px-1.5 py-0.5"
-                                        title="Convert to M4A"
-                                    >
-                                        {audioConvertStatus[`${selectedItemId}-m4a`] === 'converting' ? '...' : 
-                                         audioConvertStatus[`${selectedItemId}-m4a`] === 'success' ? '✓' : '⚡M4A'}
-                                    </Button>
-                                </div>
-                            )}
+                            {/* Audio Conversion removed - now in renderFormatButtons */}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-                            {groupedItems[selectedItemId].length > 1 && renderFormatButtons(groupedItems[selectedItemId], selectedItemId)}
+                            {renderFormatButtons(groupedItems[selectedItemId], selectedItemId)}
                             <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
                                 {/* Preview button */}
                                 <Button size="xs" variant="secondary" onClick={() => {
@@ -882,40 +1024,6 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                 </div>
                             </div>
                         </div>
-                        {/* Audio Conversion - Below thumbnail */}
-                        {audioConvertEnabled && hasNoAudioFormats && selectedFormats[itemIds[0]]?.type === 'video' && (
-                            <div className="flex flex-wrap items-center justify-center gap-1.5">
-                                <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-                                    <span>⚡</span>
-                                </span>
-                                <Button 
-                                    size="xs" 
-                                    variant="secondary"
-                                    onClick={() => handleAudioConvert(selectedFormats[itemIds[0]], itemIds[0], 'mp3')}
-                                    disabled={audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting'}
-                                    leftIcon={audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
-                                    title="Convert to MP3"
-                                    className="text-[10px] px-2 py-1"
-                                >
-                                    {audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting' ? '...' : 
-                                     audioConvertStatus[`${itemIds[0]}-mp3`] === 'success' ? '✓' : 
-                                     `MP3${estimateAudioSize(selectedFormats[itemIds[0]]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemIds[0]]))}` : ''}`}
-                                </Button>
-                                <Button 
-                                    size="xs" 
-                                    variant="secondary"
-                                    onClick={() => handleAudioConvert(selectedFormats[itemIds[0]], itemIds[0], 'm4a')}
-                                    disabled={audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting'}
-                                    leftIcon={audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
-                                    title="Convert to M4A"
-                                    className="text-[10px] px-2 py-1"
-                                >
-                                    {audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting' ? '...' : 
-                                     audioConvertStatus[`${itemIds[0]}-m4a`] === 'success' ? '✓' : 
-                                     `M4A${estimateAudioSize(selectedFormats[itemIds[0]]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemIds[0]]))}` : ''}`}
-                                </Button>
-                            </div>
-                        )}
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                         {renderFormatButtons(groupedItems[itemIds[0]], itemIds[0])}
