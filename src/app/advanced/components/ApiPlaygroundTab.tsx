@@ -26,9 +26,14 @@ import {
     faWeibo, 
     faTwitter, 
     faTiktok, 
-    faYoutube, 
+    faYoutube,
+    faReddit,
+    faSoundcloud,
+    faThreads,
+    faPixiv,
     IconDefinition 
 } from '@fortawesome/free-brands-svg-icons';
+import { faGlobe } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/components/ui/Button';
 import { MediaGallery } from '@/components/media';
 import Swal from 'sweetalert2';
@@ -45,6 +50,15 @@ const PLATFORM_ICONS: Record<PlatformId, { icon: IconDefinition; color: string }
     tiktok: { icon: faTiktok, color: 'text-pink-400' },
     weibo: { icon: faWeibo, color: 'text-orange-500' },
     youtube: { icon: faYoutube, color: 'text-red-500' },
+    bilibili: { icon: faGlobe, color: 'text-cyan-400' },
+    reddit: { icon: faReddit, color: 'text-orange-500' },
+    soundcloud: { icon: faSoundcloud, color: 'text-orange-400' },
+    threads: { icon: faThreads, color: 'text-gray-100' },
+    pixiv: { icon: faGlobe, color: 'text-blue-400' },
+    erome: { icon: faGlobe, color: 'text-pink-400' },
+    eporner: { icon: faGlobe, color: 'text-red-400' },
+    pornhub: { icon: faGlobe, color: 'text-orange-400' },
+    rule34video: { icon: faGlobe, color: 'text-green-400' },
 };
 
 // Get platforms with icons for display

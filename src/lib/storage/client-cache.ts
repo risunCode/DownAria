@@ -69,6 +69,15 @@ const TTL_CONFIG: Record<PlatformId, number> = {
   tiktok: 30 * 60 * 1000,      // 30 minutes
   twitter: 30 * 60 * 1000,     // 30 minutes
   weibo: 30 * 60 * 1000,       // 30 minutes
+  bilibili: 30 * 60 * 1000,    // 30 minutes
+  reddit: 30 * 60 * 1000,      // 30 minutes
+  soundcloud: 30 * 60 * 1000,  // 30 minutes
+  threads: 30 * 60 * 1000,     // 30 minutes
+  pixiv: 30 * 60 * 1000,       // 30 minutes
+  erome: 30 * 60 * 1000,       // 30 minutes
+  eporner: 30 * 60 * 1000,     // 30 minutes
+  pornhub: 30 * 60 * 1000,     // 30 minutes
+  rule34video: 30 * 60 * 1000, // 30 minutes
 };
 
 /** TTL for stories (shorter) */
@@ -185,6 +194,55 @@ const CONTENT_ID_EXTRACTORS: Record<PlatformId, (url: string) => string | null> 
     const detail = url.match(/\/(?:detail|status)\/(\d+)/i);
     if (detail) return detail[1];
     return null;
+  },
+  
+  // New platforms - generic ID extraction
+  bilibili: (url) => {
+    const bvId = url.match(/\/video\/(BV[a-zA-Z0-9]+)/i);
+    if (bvId) return bvId[1];
+    const avId = url.match(/\/video\/av(\d+)/i);
+    if (avId) return `av${avId[1]}`;
+    return null;
+  },
+  
+  reddit: (url) => {
+    const postId = url.match(/\/comments\/([a-z0-9]+)/i);
+    return postId ? postId[1] : null;
+  },
+  
+  soundcloud: (url) => {
+    const trackPath = url.match(/soundcloud\.com\/([^/]+\/[^/?]+)/i);
+    return trackPath ? trackPath[1].replace('/', ':') : null;
+  },
+  
+  threads: (url) => {
+    const postId = url.match(/\/post\/([A-Za-z0-9_-]+)/i);
+    return postId ? postId[1] : null;
+  },
+  
+  pixiv: (url) => {
+    const artworkId = url.match(/\/artworks\/(\d+)/i);
+    return artworkId ? artworkId[1] : null;
+  },
+  
+  erome: (url) => {
+    const albumId = url.match(/\/a\/([A-Za-z0-9]+)/i);
+    return albumId ? albumId[1] : null;
+  },
+  
+  eporner: (url) => {
+    const videoId = url.match(/\/video-([a-zA-Z0-9]+)/i);
+    return videoId ? videoId[1] : null;
+  },
+  
+  pornhub: (url) => {
+    const viewkey = url.match(/viewkey=([a-zA-Z0-9]+)/i);
+    return viewkey ? viewkey[1] : null;
+  },
+  
+  rule34video: (url) => {
+    const postId = url.match(/\/post\/(\d+)/i);
+    return postId ? postId[1] : null;
   },
 };
 
