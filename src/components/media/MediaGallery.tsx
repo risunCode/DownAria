@@ -13,8 +13,8 @@ import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/dis
 import { addHistory, type HistoryEntry } from '@/lib/storage';
 import Swal from 'sweetalert2';
 
-// YouTube filesize limit for frontend (350MB warning, backend allows 450MB)
-const YOUTUBE_MAX_FILESIZE_MB = 350;
+// YouTube filesize limit for frontend (400MB warning, backend allows 450MB)
+const YOUTUBE_MAX_FILESIZE_MB = 400;
 const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
 
 // Shared utilities and components
@@ -847,7 +847,11 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
           ) : downloadState.status === 'downloading' ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              {downloadState.message || `${downloadState.progress}%`}
+              {downloadState.message || (
+                downloadState.loaded > 0 
+                  ? `${(downloadState.loaded / 1024 / 1024).toFixed(1)}MB${downloadState.speed > 0 ? ` · ${(downloadState.speed / 1024 / 1024).toFixed(1)}MB/s` : ''}`
+                  : `${downloadState.progress}%`
+              )}
             </>
           ) : downloadState.status === 'done' ? (
             <>

@@ -146,7 +146,7 @@ export default function Home() {
   const tErrors = useTranslations('errors');
 
   // Check maintenance status
-  const { isFullMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
+  const { isFullMaintenance, isApiMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
   
   // Get platform status
   const { platforms: platformStatus } = useStatus();
@@ -170,6 +170,13 @@ export default function Home() {
   const handleSubmit = async (url: string) => {
     setIsLoading(true);
     setMediaData(null);
+
+    // Check API maintenance FIRST - fast fail
+    if (isApiMaintenance) {
+      setIsLoading(false);
+      showError('🔧 Under Maintenance', maintenanceMessage || 'API service is under maintenance. Please try again later.', { icon: 'warning' });
+      return;
+    }
 
     const sanitizedUrl = sanitizeUrl(url);
     const detectedPlatform = platformDetect(sanitizedUrl) || platform;

@@ -38,8 +38,8 @@ import {
     getDownloadProgress,
 } from '@/lib/stores/download-store';
 
-// YouTube filesize limit for frontend (350MB warning, backend allows 450MB)
-const YOUTUBE_MAX_FILESIZE_MB = 350;
+// YouTube filesize limit for frontend (400MB warning, backend allows 450MB)
+const YOUTUBE_MAX_FILESIZE_MB = 400;
 const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';

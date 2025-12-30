@@ -15,6 +15,8 @@ import { getPlatformCookie, getSkipCache } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 import { fetchMediaWithCache } from '@/hooks/useScraperCache';
 import { useStatus } from '@/hooks/useStatus';
+import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
+import { MaintenanceMode } from '@/components/MaintenanceMode';
 
 function ShareContent() {
   const searchParams = useSearchParams();
@@ -30,6 +32,14 @@ function ShareContent() {
   
   // Get platform status
   const { platforms: platformStatus } = useStatus();
+  
+  // Check maintenance status
+  const { isFullMaintenance, isApiMaintenance, message: maintenanceMessage } = useMaintenanceStatus();
+
+  // Show maintenance page if full maintenance is active
+  if (isFullMaintenance) {
+    return <MaintenanceMode message={maintenanceMessage} />;
+  }
 
   // Extract URL from share params
   useEffect(() => {
@@ -77,6 +87,20 @@ function ShareContent() {
   const handleSubmit = async (url: string) => {
     setIsLoading(true);
     setMediaData(null);
+
+    // Check API maintenance FIRST - fast fail
+    if (isApiMaintenance) {
+      setIsLoading(false);
+      Swal.fire({
+        icon: 'warning',
+        title: '🔧 Under Maintenance',
+        text: maintenanceMessage || 'API service is under maintenance. Please try again later.',
+        background: 'var(--bg-card)',
+        color: 'var(--text-primary)',
+        confirmButtonColor: 'var(--accent-primary)',
+      });
+      return;
+    }
 
     const sanitizedUrl = sanitizeUrl(url);
     const detectedPlatform = platformDetect(sanitizedUrl) || platform;
