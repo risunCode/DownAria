@@ -308,6 +308,7 @@ export function DownloadForm({ platform, onPlatformChange, onSubmit, isLoading, 
                                     e.preventDefault(); // Prevent default if we handled it
                                 }
                             }}
+                            maxLength={2000}
                             error={error}
                             disabled={isLoading}
                             className="w-full"

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Palette, Sun, Moon, Sparkles, Database, Cookie, HardDrive, Trash2, Loader2, AlertCircle, Shield, HelpCircle, X, Download, Upload, Bell, BellOff, RefreshCw, Package, Settings2, Zap, Globe as GlobeIcon, EyeOff, Smartphone, History, MessageSquare, Clock, Volume2, VolumeX, Image } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { Button } from '@/components/ui/Button';
-import { ThemeType, getTheme, saveTheme, getResolvedTheme, getTimeBasedTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getUnifiedSettings, saveUnifiedSettings, type LanguagePreference, type DownAriaSettings, resetSeasonalSettings, deleteBackgroundBlob, getSeasonalSettings, setBackgroundOpacity, setBackgroundBlur } from '@/lib/storage';
+import { ThemeType, getTheme, saveTheme, getResolvedTheme, getTimeBasedTheme, savePlatformCookie, clearPlatformCookie, getAllCookieStatus, getSkipCache, setSkipCache, clearHistory, clearAllCache, getHistoryCount, downloadFullBackupAsZip, importFullBackupFromZip, getLanguagePreference, setLanguagePreference, getUnifiedSettings, saveUnifiedSettings, type LanguagePreference, type DownAriaSettings, resetSeasonalSettings, deleteBackgroundBlob, getSeasonalSettings, setBackgroundOpacity, setBackgroundBlur, clearAllClientCache, getCacheStats, type CacheStats } from '@/lib/storage';
 import { isPushSupported, getPermissionStatus, subscribeToPush, unsubscribeFromPush, isSubscribed } from '@/lib/utils/push-notifications';
 import { FacebookIcon, WeiboIcon, InstagramIcon, XTwitterIcon } from '@/components/ui/Icons';
 import Swal from 'sweetalert2';
@@ -78,6 +78,9 @@ export default function SettingsPage() {
     const [isImporting, setIsImporting] = useState(false);
     const backupFileInputRef = useRef<HTMLInputElement>(null);
 
+    // Scraper cache stats
+    const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
+
     // Push notification states
     const [pushSupported, setPushSupported] = useState(false);
     const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default');
@@ -117,6 +120,9 @@ export default function SettingsPage() {
 
         // Load history count
         getHistoryCount().then(setHistoryCount).catch(() => setHistoryCount(0));
+
+        // Load scraper cache stats
+        getCacheStats().then(setCacheStats).catch(() => setCacheStats(null));
 
         // Load language preference
         setCurrentLanguage(getLanguagePreference());
@@ -263,6 +269,25 @@ export default function SettingsPage() {
                 await clearAllCache();
                 setHistoryCount(0);
                 await Swal.fire({ icon: 'success', title: 'Cleared', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+            } finally {
+                setIsClearing(null);
+            }
+        }
+    };
+
+    const clearScraperCache = async () => {
+        const result = await Swal.fire({
+            icon: 'warning', title: 'Clear Scraper Cache?', text: 'This will remove cached scraper results. Next requests will fetch fresh data.',
+            showCancelButton: true, confirmButtonText: 'Clear', confirmButtonColor: '#ef4444', background: 'var(--bg-card)', color: 'var(--text-primary)'
+        });
+        if (result.isConfirmed) {
+            setIsClearing('scraper_cache');
+            try {
+                await clearAllClientCache();
+                setCacheStats(null);
+                await Swal.fire({ icon: 'success', title: 'Scraper Cache Cleared', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-primary)' });
+                // Refresh stats
+                getCacheStats().then(setCacheStats).catch(() => {});
             } finally {
                 setIsClearing(null);
             }
@@ -807,6 +832,9 @@ export default function SettingsPage() {
                                                     ✨ Text shadow enabled for better visibility on custom backgrounds
                                                 </p>
                                             )}
+
+                                            {/* Convert to Audio Toggle */}
+                                            <AudioConvertToggle />
                                         </div>
                                     </div>
                                 </>
@@ -923,7 +951,7 @@ export default function SettingsPage() {
                                                 <Zap className={`w-5 h-5 ${skipCache ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`} />
                                                 <div>
                                                     <p className="text-sm font-medium">Skip Cache</p>
-                                                    <p className="text-xs text-[var(--text-muted)]">Bypass Redis cache for fresh results</p>
+                                                    <p className="text-xs text-[var(--text-muted)]">Always fetch fresh (bypass local cache)</p>
                                                 </div>
                                             </div>
                                             <button
@@ -1009,6 +1037,17 @@ export default function SettingsPage() {
                                                 </div>
                                                 <button onClick={clearIndexedDB} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear history">
                                                     {isClearing === 'indexeddb' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+
+                                            <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)] transition-all">
+                                                <Zap className="w-4 h-4 text-emerald-400" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium">Scraper Cache</p>
+                                                    <p className="text-[10px] text-[var(--text-muted)]">{cacheStats ? `${cacheStats.count} items • ${cacheStats.hitRate} hit` : 'Local cache'}</p>
+                                                </div>
+                                                <button onClick={clearScraperCache} disabled={isClearing !== null} className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-500 transition-colors" title="Clear scraper cache">
+                                                    {isClearing === 'scraper_cache' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                                 </button>
                                             </div>
 
@@ -1343,5 +1382,53 @@ function StorageInfo() {
                 <span className="font-medium text-[var(--text-secondary)]">Est. Total: {sizes.total}</span>
             </div>
         </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO CONVERT TOGGLE COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
+function AudioConvertToggle() {
+    const [enabled, setEnabled] = useState(false);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('experimentalAudioConvert');
+        setEnabled(stored === 'true');
+    }, []);
+
+    const handleToggle = () => {
+        const newValue = !enabled;
+        setEnabled(newValue);
+        localStorage.setItem('experimentalAudioConvert', String(newValue));
+    };
+
+    return (
+        <>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                <div className="flex items-center gap-3">
+                    <span className="text-lg">🎵</span>
+                    <div>
+                        <p className="text-sm font-medium">Convert to Audio</p>
+                        <p className="text-[10px] text-[var(--text-muted)]">Extract audio from videos (MP3/M4A)</p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleToggle}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${enabled
+                        ? 'bg-purple-500'
+                        : 'bg-[var(--bg-card)] border border-[var(--border-color)]'
+                        }`}
+                >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                </button>
+            </div>
+            {enabled && (
+                <p className="text-[10px] text-purple-500/80 px-3">
+                    🎵 Audio conversion buttons will appear for videos without native audio formats
+                </p>
+            )}
+        </>
     );
 }

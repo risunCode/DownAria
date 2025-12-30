@@ -7,26 +7,50 @@ import { DocsNavbar } from '@/components/docs/DocsNavbar';
 
 const changelog = [
     {
-        version: '1.9.0',
-        date: 'December 28, 2025',
-        highlight: '🎨 New Themes + Bot Reliability',
+        version: '2.0.0',
+        date: 'December 30, 2025',
+        highlight: 'New Platforms + Audio Conversion',
         changes: [
             { type: 'new', items: [
-                '🎨 New Themes - Solarized Light, Solarized Dark, Nord, Dracula, Monokai',
-                '🤖 Bot v2.0.0 - Major reliability improvements',
-                '💾 Redis Sessions - Better multi-user handling',
-                '📊 Enhanced Monitoring - Error tracking & queue metrics',
-            ] },
-            { type: 'fixed', items: [
-                '🚨 Bot "Processing Stuck" - Now has 60s timeout',
-                '💥 Memory leaks on high traffic',
-                '⚡ Rate limit bypass at midnight',
-                '🔇 Silent error failures now logged',
+                'Experimental Audio Conversion - Extract MP3/M4A from videos (Settings toggle)',
+                '9 New Platforms - BiliBili, Reddit, SoundCloud, Threads, Pixiv, Erome, Eporner, PornHub, Rule34Video',
+                'HLS Stream Support - m3u8 streams now downloadable as mp4/mp3/m4a',
+                'General Merge API - Convert HLS to mp4/mp3/m4a for all platforms',
             ] },
             { type: 'improved', items: [
-                '🚫 Request deduplication - No more duplicate downloads',
-                '📈 Queue backpressure handling',
-                '🛑 Graceful shutdown on deploy',
+                'Quality Tiers - Added 8K, 4K, 2K, 240p support',
+                'Format Deduplication - Better quality tier grouping',
+                'Security - spawn() with array args (no shell injection)',
+                'Timeout Handling - 45s scraping, 180s merge',
+            ] },
+            { type: 'fixed', items: [
+                'Facebook Author Extraction - No longer returns wrong name from suggested content',
+                'Facebook Cookie Retry - Proper login form detection',
+                'Facebook UA - Fixed iPad Chrome UA (no rotation)',
+            ] },
+        ],
+    },
+    {
+        version: '1.9.0',
+        date: 'December 28, 2025',
+        highlight: 'New Themes + Bot Reliability',
+        changes: [
+            { type: 'new', items: [
+                'New Themes - Solarized Light, Solarized Dark, Nord, Dracula, Monokai',
+                'Bot v2.0.0 - Major reliability improvements',
+                'Redis Sessions - Better multi-user handling',
+                'Enhanced Monitoring - Error tracking & queue metrics',
+            ] },
+            { type: 'fixed', items: [
+                'Bot "Processing Stuck" - Now has 60s timeout',
+                'Memory leaks on high traffic',
+                'Rate limit bypass at midnight',
+                'Silent error failures now logged',
+            ] },
+            { type: 'improved', items: [
+                'Request deduplication - No more duplicate downloads',
+                'Queue backpressure handling',
+                'Graceful shutdown on deploy',
             ] },
         ],
     },
@@ -42,7 +66,7 @@ const changelog = [
         version: '1.8.0',
         date: 'December 26, 2025',
         changes: [
-            { type: 'new', items: ['🤖 Bot Smart Quality - Auto HD if ≤40MB, fallback SD with HD link if >40MB', '🎬 YouTube Flow - Preview deleted after selection, cleaner single-button UX', '🔄 Maintenance Sync - Bot respects frontend global maintenance via Redis', '🎹 Keyboard Groups - Simplified into MENU, DOWNLOAD, PREMIUM, NAV, STATUS, ADMIN'] },
+            { type: 'new', items: ['Bot Smart Quality - Auto HD if ≤40MB, fallback SD with HD link if >40MB', 'YouTube Flow - Preview deleted after selection, cleaner single-button UX', 'Maintenance Sync - Bot respects frontend global maintenance via Redis', 'Keyboard Groups - Simplified into MENU, DOWNLOAD, PREMIUM, NAV, STATUS, ADMIN'] },
             { type: 'improved', items: ['Input Validation - Enhanced YouTube format string validation', 'URL Validation - Stricter proxy URL checks', 'Admin Auth - Improved playground endpoint security', 'Log Safety - User inputs sanitized before logging'] },
         ],
     },
@@ -50,7 +74,7 @@ const changelog = [
         version: '1.7.0',
         date: 'December 25, 2025',
         changes: [
-            { type: 'new', items: ['🤖 Telegram Bot - @downariaxt_bot for video downloads via Telegram', 'User Commands - /start, /help, /mystatus, /history, /premium', 'Admin Commands - /stats, /broadcast, /ban, /unban, /givepremium, /maintenance', 'Rate Limiting - Free: 10/6hrs, Premium: Unlimited'] },
+            { type: 'new', items: ['Telegram Bot - @downariaxt_bot for video downloads via Telegram', 'User Commands - /start, /help, /mystatus, /history, /premium', 'Admin Commands - /stats, /broadcast, /ban, /unban, /givepremium, /maintenance', 'Rate Limiting - Free: 10/6hrs, Premium: Unlimited'] },
             { type: 'improved', items: ['grammY Integration - Webhook support with 25s timeout', 'Global Error Handler - Prevents crashes from middleware errors'] },
         ],
     },
@@ -58,7 +82,7 @@ const changelog = [
         version: '1.6.0',
         date: 'December 25, 2025',
         changes: [
-            { type: 'new', items: ['🎵 Rebranding - XTFetch is now DownAria (Down + Aria = "Melodious Downloads")', 'Cookie Pool Tiers - Public tier for free users, Private tier for premium API', 'Smart Fallback - Private tier falls back to public if all cookies exhausted', 'Tier Management UI - Filter and manage cookies by tier in admin panel'] },
+            { type: 'new', items: ['Rebranding - XTFetch is now DownAria (Down + Aria = "Melodious Downloads")', 'Cookie Pool Tiers - Public tier for free users, Private tier for premium API', 'Smart Fallback - Private tier falls back to public if all cookies exhausted', 'Tier Management UI - Filter and manage cookies by tier in admin panel'] },
             { type: 'improved', items: ['Security Hardening - Strict CORS origin whitelist (no more wildcard)', 'Admin Panel Stability - Fixed various 500 errors in admin endpoints', 'Error Handling - Better handling of empty/invalid API responses'] },
             { type: 'fixed', items: ['Admin panel connection issues resolved', 'AI keys API permission errors fixed', 'Update prompt settings now accessible', 'Removed Direct Proxy feature (discontinued)'] },
         ],

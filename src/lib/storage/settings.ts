@@ -283,8 +283,12 @@ export function setUpdateDismissed(status: 'forever' | 'session' | null): void {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DISCORD
+// DISCORD (with encrypted webhook URL)
 // ═══════════════════════════════════════════════════════════════
+
+import { setEncrypted, getEncrypted } from './crypto';
+
+const DISCORD_WEBHOOK_KEY = 'downaria_discord_webhook';
 
 export function getDiscordSettings(): DiscordSettings | null {
   if (typeof window === 'undefined') return null;
@@ -295,13 +299,41 @@ export function saveDiscordSettings(settings: DiscordSettings | null): void {
   saveUnifiedSettings({ discord: settings });
 }
 
+// Get Discord settings with decrypted webhook URL
 export function getUserDiscordSettings(): DiscordSettings | null {
   const discord = getDiscordSettings();
-  return discord ? { ...DEFAULT_DISCORD, ...discord } : null;
+  if (!discord) return null;
+  
+  // Decrypt webhook URL from separate encrypted storage
+  const encryptedWebhook = getEncrypted(DISCORD_WEBHOOK_KEY);
+  
+  return { 
+    ...DEFAULT_DISCORD, 
+    ...discord,
+    // Use decrypted webhook if available, otherwise use stored (for migration)
+    webhookUrl: encryptedWebhook || discord.webhookUrl || ''
+  };
 }
 
+// Save Discord settings with encrypted webhook URL
 export function saveUserDiscordSettings(settings: DiscordSettings): void {
-  saveDiscordSettings(settings);
+  // Encrypt and store webhook URL separately
+  if (settings.webhookUrl) {
+    setEncrypted(DISCORD_WEBHOOK_KEY, settings.webhookUrl);
+  } else {
+    // Remove encrypted webhook if empty
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DISCORD_WEBHOOK_KEY);
+    }
+  }
+  
+  // Store settings without the webhook URL in plain storage
+  // (webhook is stored encrypted separately)
+  const settingsWithoutWebhook = { 
+    ...settings, 
+    webhookUrl: settings.webhookUrl ? '[encrypted]' : '' 
+  };
+  saveDiscordSettings(settingsWithoutWebhook);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -312,7 +344,8 @@ import { getEncryptedCookies, setEncryptedCookies } from './crypto';
 
 export function getPlatformCookie(platform: CookiePlatform): string | null {
   if (typeof window === 'undefined') return null;
-  return getEncryptedCookies()[platform] || null;
+  const cookies = getEncryptedCookies();
+  return cookies[platform] || null;
 }
 
 export function savePlatformCookie(platform: CookiePlatform, cookie: string): void {
@@ -330,7 +363,8 @@ export function clearPlatformCookie(platform: CookiePlatform): void {
 }
 
 export function hasPlatformCookie(platform: CookiePlatform): boolean {
-  return getPlatformCookie(platform) !== null;
+  const cookie = getPlatformCookie(platform);
+  return cookie !== null;
 }
 
 export function getAllCookieStatus(): Record<CookiePlatform, boolean> {

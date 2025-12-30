@@ -1,11 +1,11 @@
 'use client';
 
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Code, Zap, Shield, Globe, ArrowRight, Copy, Check } from 'lucide-react';
 import { SidebarLayout } from '@/components/Sidebar';
 import { DocsNavbar } from '@/components/docs/DocsNavbar';
-import { useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.downaria.com';
 
@@ -56,48 +56,221 @@ function MacCodeBlock({ tabs }: { tabs: CodeTab[] }) {
 
     return (
         <div className="rounded-xl overflow-hidden bg-[#1e1e1e] border border-[var(--border-color)] shadow-2xl my-6">
-            {/* Mac Window Header */}
-            <div className="flex items-center justify-between px-3 sm:px-4 py-3 bg-[#252526] border-b border-[#333]">
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#ff5f56]" />
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#ffbd2e]" />
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#27c93f]" />
-                </div>
-                {/* Tabs */}
-                <div className="flex items-center gap-1 bg-[#1e1e1e] p-1 rounded-lg overflow-x-auto mx-2 max-w-[200px] sm:max-w-none no-scrollbar">
-                    {tabs.map((tab, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => setActiveTab(idx)}
-                            className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-all whitespace-nowrap flex-shrink-0 ${activeTab === idx
-                                    ? 'bg-[#37373d] text-white shadow-sm'
-                                    : 'text-gray-400 hover:text-gray-200'
-                                }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-                {/* Copy Button */}
-                <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors flex-shrink-0"
-                    title="Copy code"
-                >
-                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                </button>
+            {/* Language Tabs - Google Style */}
+            <div className="flex items-center border-b border-[#333] bg-[#252526] overflow-x-auto no-scrollbar">
+                {tabs.map((tab, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => setActiveTab(idx)}
+                        className={`px-4 py-2.5 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 border-b-2 ${activeTab === idx
+                                ? 'text-blue-400 border-blue-400 bg-[#1e1e1e]'
+                                : 'text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#2a2a2a]'
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Code Content */}
-            <div className="p-3 sm:p-5 overflow-x-auto relative group">
-                <pre className="font-mono text-[10px] sm:text-xs leading-relaxed">
-                    <code className="block text-gray-300 whitespace-pre">
-                        {tabs[activeTab].code}
+            {/* Code Header with Traffic Lights + Actions */}
+            <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-[#333]">
+                {/* Traffic Lights */}
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
+                    <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
+                    <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleCopy}
+                        className="p-1.5 text-gray-400 hover:text-white transition-colors rounded hover:bg-[#3d3d3d]"
+                        title="Copy code"
+                    >
+                        {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                </div>
+            </div>
+
+            {/* Code Content with Syntax Highlighting */}
+            <div className="p-4 sm:p-5 overflow-x-auto">
+                <pre className="font-mono text-xs sm:text-sm leading-relaxed">
+                    <code className="block whitespace-pre">
+                        {tabs[activeTab].code.split('\n').map((line, i) => (
+                            <div key={i} className="min-h-[1.5em]">
+                                {highlightSyntax(line, tabs[activeTab].language)}
+                            </div>
+                        ))}
                     </code>
                 </pre>
             </div>
         </div>
     );
+}
+
+// Simple syntax highlighting
+function highlightSyntax(line: string, language: string): React.ReactNode {
+    if (language === 'python') {
+        return highlightPython(line);
+    } else if (language === 'javascript') {
+        return highlightJS(line);
+    } else if (language === 'bash') {
+        return highlightBash(line);
+    }
+    return <span className="text-gray-300">{line}</span>;
+}
+
+function highlightPython(line: string): React.ReactNode {
+    // Keywords
+    const keywords = ['import', 'from', 'def', 'class', 'return', 'if', 'else', 'for', 'while', 'in', 'and', 'or', 'not', 'True', 'False', 'None', 'async', 'await', 'with', 'as', 'try', 'except', 'finally', 'raise', 'print'];
+    
+    // Simple tokenization
+    let result: React.ReactNode[] = [];
+    let remaining = line;
+    let key = 0;
+    
+    // Comments
+    if (remaining.includes('#')) {
+        const commentIdx = remaining.indexOf('#');
+        const before = remaining.slice(0, commentIdx);
+        const comment = remaining.slice(commentIdx);
+        result.push(<span key={key++}>{highlightPythonTokens(before, keywords)}</span>);
+        result.push(<span key={key++} className="text-[#6a9955]">{comment}</span>);
+        return result;
+    }
+    
+    return highlightPythonTokens(line, keywords);
+}
+
+function highlightPythonTokens(line: string, keywords: string[]): React.ReactNode {
+    let result: React.ReactNode[] = [];
+    let key = 0;
+    
+    // Match strings, keywords, and other tokens
+    const regex = /('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[a-zA-Z_][a-zA-Z0-9_]*|\d+|[^\s])/g;
+    let match;
+    let lastIndex = 0;
+    
+    while ((match = regex.exec(line)) !== null) {
+        // Add whitespace before token
+        if (match.index > lastIndex) {
+            result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex, match.index)}</span>);
+        }
+        
+        const token = match[0];
+        
+        if (token.startsWith("'") || token.startsWith('"')) {
+            // String
+            result.push(<span key={key++} className="text-[#ce9178]">{token}</span>);
+        } else if (keywords.includes(token)) {
+            // Keyword
+            result.push(<span key={key++} className="text-[#c586c0]">{token}</span>);
+        } else if (/^\d+$/.test(token)) {
+            // Number
+            result.push(<span key={key++} className="text-[#b5cea8]">{token}</span>);
+        } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(token) && line.includes(token + '(')) {
+            // Function call
+            result.push(<span key={key++} className="text-[#dcdcaa]">{token}</span>);
+        } else {
+            result.push(<span key={key++} className="text-gray-300">{token}</span>);
+        }
+        
+        lastIndex = regex.lastIndex;
+    }
+    
+    // Add remaining
+    if (lastIndex < line.length) {
+        result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex)}</span>);
+    }
+    
+    return result;
+}
+
+function highlightJS(line: string): React.ReactNode {
+    const keywords = ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'import', 'from', 'export', 'default', 'async', 'await', 'new', 'this', 'class', 'extends', 'try', 'catch', 'finally', 'throw', 'true', 'false', 'null', 'undefined'];
+    
+    let result: React.ReactNode[] = [];
+    let key = 0;
+    
+    // Comments
+    if (line.trim().startsWith('//')) {
+        return <span className="text-[#6a9955]">{line}</span>;
+    }
+    
+    const regex = /('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`|[a-zA-Z_$][a-zA-Z0-9_$]*|\d+|[^\s])/g;
+    let match;
+    let lastIndex = 0;
+    
+    while ((match = regex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+            result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex, match.index)}</span>);
+        }
+        
+        const token = match[0];
+        
+        if (token.startsWith("'") || token.startsWith('"') || token.startsWith('`')) {
+            result.push(<span key={key++} className="text-[#ce9178]">{token}</span>);
+        } else if (keywords.includes(token)) {
+            result.push(<span key={key++} className="text-[#569cd6]">{token}</span>);
+        } else if (/^\d+$/.test(token)) {
+            result.push(<span key={key++} className="text-[#b5cea8]">{token}</span>);
+        } else if (token === 'console') {
+            result.push(<span key={key++} className="text-[#4ec9b0]">{token}</span>);
+        } else {
+            result.push(<span key={key++} className="text-gray-300">{token}</span>);
+        }
+        
+        lastIndex = regex.lastIndex;
+    }
+    
+    if (lastIndex < line.length) {
+        result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex)}</span>);
+    }
+    
+    return result;
+}
+
+function highlightBash(line: string): React.ReactNode {
+    let result: React.ReactNode[] = [];
+    let key = 0;
+    
+    // Comments
+    if (line.trim().startsWith('#')) {
+        return <span className="text-[#6a9955]">{line}</span>;
+    }
+    
+    const regex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|curl|wget|echo|export|-[a-zA-Z]+|--[a-zA-Z-]+|https?:\/\/[^\s"']+|[^\s]+)/g;
+    let match;
+    let lastIndex = 0;
+    
+    while ((match = regex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+            result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex, match.index)}</span>);
+        }
+        
+        const token = match[0];
+        
+        if (token.startsWith('"') || token.startsWith("'")) {
+            result.push(<span key={key++} className="text-[#ce9178]">{token}</span>);
+        } else if (['curl', 'wget', 'echo', 'export'].includes(token)) {
+            result.push(<span key={key++} className="text-[#dcdcaa]">{token}</span>);
+        } else if (token.startsWith('-')) {
+            result.push(<span key={key++} className="text-[#9cdcfe]">{token}</span>);
+        } else if (token.startsWith('http')) {
+            result.push(<span key={key++} className="text-[#ce9178]">{token}</span>);
+        } else {
+            result.push(<span key={key++} className="text-gray-300">{token}</span>);
+        }
+        
+        lastIndex = regex.lastIndex;
+    }
+    
+    if (lastIndex < line.length) {
+        result.push(<span key={key++} className="text-gray-300">{line.slice(lastIndex)}</span>);
+    }
+    
+    return result;
 }
 
 export function ApiOverviewPage() {

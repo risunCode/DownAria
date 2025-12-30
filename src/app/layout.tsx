@@ -12,6 +12,7 @@ import { MaintenanceCheck } from "@/components/MaintenanceCheck";
 import { SeasonalEffects } from "@/components/SeasonalEffects";
 import { AdaptText } from "@/components/AdaptText";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
+import { CacheInitializer } from "@/components/CacheInitializer";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -96,6 +97,7 @@ export default function RootLayout({
         <ThemeColorMeta />
         <SeasonalEffects />
         <AdaptText />
+        <CacheInitializer />
         <IntlProvider>
           <PendingDownloadProvider>
             <MaintenanceCheck>
@@ -104,8 +106,12 @@ export default function RootLayout({
             </MaintenanceCheck>
           </PendingDownloadProvider>
         </IntlProvider>
-        <Analytics />
-        <SpeedInsights />
+        {process.env.NODE_ENV === 'production' && process.env.VERCEL && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
     </html>
   );

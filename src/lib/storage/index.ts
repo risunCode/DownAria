@@ -144,3 +144,22 @@ export {
   type CustomBackground,
   type SeasonalSettings,
 } from './seasonal';
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT-SIDE CACHE (Scraper Results)
+// ═══════════════════════════════════════════════════════════════
+
+export {
+  initCache,
+  cacheGet,
+  cacheSet,
+  cacheDelete,
+  clearExpiredCache as clearExpiredClientCache,
+  clearAllCache as clearAllClientCache,
+  cleanupIfNeeded as cleanupClientCache,
+  getCacheStats,
+  resetCacheStats,
+  extractContentId,
+  type CachedResult,
+  type CacheStats,
+} from './client-cache';

@@ -2,7 +2,48 @@
 
 All notable changes to DownAria will be documented in this file.
 
-## [1.9.0] - 2024-12-28
+## [2.0.0] - 2025-12-30
+
+### 🧪 Experimental: Convert to Audio
+- New toggle in Settings → Experimental: "Convert to Audio"
+- Shows MP3/M4A buttons for videos WITHOUT native audio formats
+- Estimates filesize based on duration (128kbps) or 10% of video size
+- Uses `/api/v1/merge` endpoint with ffmpeg audio extraction
+- Works for Facebook, Instagram, TikTok, etc. (not YouTube - already has audio)
+
+### 🆕 New Platforms (yt-dlp/gallery-dl based)
+Added support for 9 new platforms via generic scraper:
+- **yt-dlp**: BiliBili, Reddit, SoundCloud, Eporner, PornHub, Rule34Video
+- **gallery-dl**: Threads, Erome, Pixiv
+
+### 🎵 HLS Stream Handling
+- Added `isHLS` flag to MediaFormat for HLS/m3u8 streams
+- Generic scraper detects HLS via URL pattern, protocol field, and format_id
+- Prefers direct HTTP URLs over HLS when both available
+
+### 🔀 Merge API Refactored
+- `POST /api/v1/merge` - General merge for all platforms (HLS → mp4/mp3/m4a)
+- `POST /api/v1/merge/youtube` - YouTube-specific (video+audio merge)
+- YouTube max filesize: 400MB
+
+### 🔒 Security
+- All shell commands use `spawn()` with array arguments (no shell injection)
+- URL validation before passing to yt-dlp/gallery-dl
+- Timeout handling (45s for scraping, 180s for merge)
+
+### 📊 Quality Tier Improvements
+- Added support for 8K, 4K, 2K quality tiers
+- Added 240p quality tier
+- Improved format deduplication by quality tier
+
+### 🐛 Facebook Bug Fixes
+- Fixed author extraction returning wrong name from suggested content
+- Fixed inconsistent cookie retry logic
+- Fixed UA rotation causing failures (now uses fixed iPad Chrome UA)
+
+---
+
+## [1.9.0] - 2025-12-28
 
 ### 🔄 Backend Sync
 - **Backend v2.0.0** - Major bot reliability and multi-user fixes
@@ -23,7 +64,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.8.3] - 2024-12-27
+## [1.8.3] - 2025-12-27
 
 ### Security Hardening
 - **Security Headers** - Added missing HTTP security headers via next.config.ts
@@ -42,7 +83,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.8.2] - 2024-12-27
+## [1.8.2] - 2025-12-27
 
 ### 📝 Documentation Updates
 - **API Key Instructions** - Semua referensi "Create an account and generate your API key from Settings → API Keys" diganti ke "Contact admin via Telegram @suntaw"
@@ -64,7 +105,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.8.1] - 2024-12-26
+## [1.8.1] - 2025-12-26
 
 ### 🚀 Performance Improvements
 - **Faster Offline Detection** - Reduced from 3s to instant detection
@@ -83,7 +124,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.8.0] - 2024-12-26
+## [1.8.0] - 2025-12-26
 
 ### 🤖 Telegram Bot Enhancements
 - **Smart Quality Logic** - Non-YouTube videos auto-send HD if ≤40MB, fallback to SD with HD link if >40MB
@@ -99,7 +140,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.7.0] - 2024-12-25
+## [1.7.0] - 2025-12-25
 
 ### 🤖 Telegram Bot Integration
 - **New Bot** - @downariaxt_bot for downloading videos via Telegram
@@ -129,7 +170,7 @@ All notable changes to DownAria will be documented in this file.
 
 ---
 
-## [1.6.0] - 2024-12-25
+## [1.6.0] - 2025-12-25
 
 ### 🎵 Rebranding: XTFetch → DownAria
 - **New Name** - Rebranded from XTFetch to DownAria (Down + Aria = "Melodious Downloads")

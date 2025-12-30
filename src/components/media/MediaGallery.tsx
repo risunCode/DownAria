@@ -180,34 +180,12 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     return size > YOUTUBE_MAX_FILESIZE_BYTES;
   };
 
-  // Handle close - prevent during download, send cancel signal
+  // Handle close - allow close even during download (download continues in DownloadPreview)
   const handleClose = useCallback(() => {
-    if (downloadState.status === 'downloading') {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Download sedang berjalan',
-        text: 'Yakin mau batalkan download?',
-        showCancelButton: true,
-        confirmButtonText: 'Ya, batalkan',
-        cancelButtonText: 'Lanjutkan download',
-        background: 'var(--bg-card)',
-        color: 'var(--text-primary)',
-        confirmButtonColor: '#ef4444',
-      }).then((result) => {
-        if (result.isConfirmed) {
-          // Cancel the download
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-          }
-          setDownloadState({ status: 'idle', progress: 0, speed: 0, loaded: 0, total: 0, eta: 0 });
-          onClose();
-        }
-      });
-      return;
-    }
+    // Just close the modal - download continues in DownloadPreview via shared store
+    // No need to cancel or confirm - user can reopen gallery to see progress
     onClose();
-  }, [downloadState.status, onClose]);
+  }, [onClose]);
 
   // Memoize grouped formats - only recalculate when formats change
   const groupedItems = useMemo(() => groupFormatsByItem(data.formats || []), [data.formats]);
@@ -427,6 +405,31 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [downloadState.status]);
 
+  // Prevent paste during download (to avoid accidental new URL submission)
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handlePaste = (e: ClipboardEvent) => {
+      if (downloadState.status === 'downloading') {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'warning',
+          title: 'Download Sedang Berjalan',
+          text: 'Tunggu download selesai sebelum paste URL baru.',
+          toast: true,
+          position: 'top-end',
+          timer: 3000,
+          showConfirmButton: false,
+          background: 'var(--bg-card)',
+          color: 'var(--text-primary)',
+        });
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [isOpen, downloadState.status]);
+
   // Download handler - uses unified helper
   const handleDownload = async () => {
     if (!selectedFormat) return;
@@ -549,6 +552,7 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       sourceUrl: data.url,
       author: data.author,
       engagement: data.engagement,
+      fileSize: selectedFormat.filesize || 0, // Backend provides filesize for all platforms now
     }, true);
 
     if (result.sent) {

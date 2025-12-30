@@ -95,15 +95,14 @@ function getProxyUrl(mediaUrl: string, platform: string): string {
     return `${getBaseUrl()}/api/v1/proxy?url=${encodeURIComponent(mediaUrl)}&platform=${platform.toLowerCase()}&inline=1`;
 }
 
-// Get file size via HEAD request (returns 0 if unknown)
+// Get file size via HEAD request through proxy (returns 0 if unknown)
 async function getFileSize(url: string, platform: string): Promise<number> {
     try {
-        const isWeibo = platform.toLowerCase() === 'weibo';
-        const targetUrl = isWeibo ? getProxyUrl(url, platform) : url;
-
-        const res = await fetch(targetUrl, { method: 'HEAD' });
-        const contentLength = res.headers.get('content-length');
-        return contentLength ? parseInt(contentLength) : 0;
+        // Always use proxy for HEAD request to avoid CORS issues
+        const proxyUrl = `${getBaseUrl()}/api/v1/proxy?url=${encodeURIComponent(url)}&platform=${platform.toLowerCase()}&head=1`;
+        const res = await fetch(proxyUrl);
+        const size = res.headers.get('x-file-size');
+        return size ? parseInt(size) : 0;
     } catch {
         return 0;
     }

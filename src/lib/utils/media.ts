@@ -766,13 +766,11 @@ export async function downloadMergedYouTube(
         const fakeProgressInterval = setInterval(() => {
             fakeLoaded += bytesPerUpdate * (0.8 + Math.random() * 0.4); // Add some variance
             const fakePercent = Math.min((fakeLoaded / estimatedTotal) * 100, maxFakePercent);
-            const fakeMB = (fakeLoaded / 1024 / 1024).toFixed(1);
-            const totalMB = (estimatedTotal / 1024 / 1024).toFixed(1);
 
             if (fakePercent < maxFakePercent) {
                 onProgress({
                     status: 'merging',
-                    message: `Converting... ${fakeMB} / ~${totalMB} MB (${Math.round(fakePercent)}%)`,
+                    message: 'Converting...',
                     percent: Math.round(fakePercent),
                     loaded: Math.round(fakeLoaded),
                     total: estimatedTotal
@@ -843,10 +841,9 @@ export async function downloadMergedYouTube(
         let lastUpdate = Date.now();
 
         // First progress with actual total size - jump to 80%
-        const totalMB = total > 0 ? (total / 1024 / 1024).toFixed(1) : '?';
         onProgress({
             status: 'downloading',
-            message: `Downloading... 0 / ${totalMB} MB (80%)`,
+            message: 'Downloading...',
             percent: 80,
             loaded: 0,
             total
@@ -867,11 +864,10 @@ export async function downloadMergedYouTube(
                 const downloadPercent = total > 0
                     ? Math.round((loaded / total) * 20) + 80
                     : 90;
-                const loadedMB = (loaded / 1024 / 1024).toFixed(1);
 
                 onProgress({
                     status: 'downloading',
-                    message: `Downloading... ${loadedMB} / ${totalMB} MB (${downloadPercent}%)`,
+                    message: 'Downloading...',
                     percent: Math.min(downloadPercent, 99),
                     loaded,
                     total

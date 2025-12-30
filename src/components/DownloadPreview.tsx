@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
@@ -20,7 +20,6 @@ import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/dis
 import { formatBytes } from '@/lib/utils/format';
 import { getProxiedThumbnail } from '@/lib/api/proxy';
 import { getProxyUrl } from '@/lib/api/proxy';
-import { RichText } from '@/lib/utils/text-parser';
 import { useTranslations } from 'next-intl';
 import { MediaGallery } from '@/components/media';
 import Swal from 'sweetalert2';
@@ -37,7 +36,6 @@ import {
     setDownloadProgress as setGlobalDownloadProgress,
     subscribeDownloadProgress,
     getDownloadProgress,
-    type DownloadProgress as GlobalDownloadProgress,
 } from '@/lib/stores/download-store';
 
 // YouTube filesize limit for frontend (350MB warning, backend allows 450MB)
@@ -107,6 +105,121 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     // Track if sizes have been fetched for current data
     const [sizesFetched, setSizesFetched] = useState(false);
 
+    // Experimental audio conversion state
+    const [audioConvertEnabled, setAudioConvertEnabled] = useState(false);
+    const [audioConvertStatus, setAudioConvertStatus] = useState<Record<string, 'idle' | 'converting' | 'success' | 'error'>>({});
+
+    // Check if experimental audio conversion is enabled
+    useEffect(() => {
+        const stored = localStorage.getItem('experimentalAudioConvert');
+        setAudioConvertEnabled(stored === 'true');
+    }, []);
+
+    // Check if content has NO audio formats (for showing audio conversion option)
+    const hasNoAudioFormats = !formats.some(f => f.type === 'audio');
+
+    // Estimate audio filesize: duration_seconds * 128kbps / 8, or fallback to video_filesize * 0.1
+    const estimateAudioSize = (format: MediaFormat | undefined): number => {
+        if (!format) return 0;
+        // If we have duration string (e.g., "3:45" or "1:23:45"), parse to seconds
+        if (data.duration) {
+            const parts = data.duration.split(':').map(Number);
+            let seconds = 0;
+            if (parts.length === 3) {
+                // HH:MM:SS
+                seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+                // MM:SS
+                seconds = parts[0] * 60 + parts[1];
+            } else if (parts.length === 1) {
+                seconds = parts[0];
+            }
+            if (seconds > 0) {
+                // Estimate based on 128kbps bitrate
+                return Math.round(seconds * 128 * 1000 / 8);
+            }
+        }
+        // Fallback: estimate as 10% of video filesize
+        if (format.filesize) {
+            return Math.round(format.filesize * 0.1);
+        }
+        return 0;
+    };
+
+    // Handle audio conversion
+    const handleAudioConvert = async (format: MediaFormat, itemId: string, audioFormat: 'mp3' | 'm4a') => {
+        const key = `${itemId}-${audioFormat}`;
+        setAudioConvertStatus(prev => ({ ...prev, [key]: 'converting' }));
+
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+            const response = await fetch(`${apiUrl}/api/v1/merge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: format.url,
+                    format: audioFormat,
+                    filename: data.title || 'audio'
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Conversion failed');
+            }
+
+            // Get the blob and trigger download
+            const blob = await response.blob();
+            const filename = `${data.title || 'audio'}.${audioFormat}`;
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setAudioConvertStatus(prev => ({ ...prev, [key]: 'success' }));
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Audio Extracted!',
+                text: `${audioFormat.toUpperCase()} file downloaded`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+            });
+
+            setTimeout(() => {
+                setAudioConvertStatus(prev => ({ ...prev, [key]: 'idle' }));
+            }, 5000);
+        } catch (error) {
+            console.error('Audio conversion error:', error);
+            setAudioConvertStatus(prev => ({ ...prev, [key]: 'error' }));
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Conversion Failed',
+                text: error instanceof Error ? error.message : 'Failed to convert to audio',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 5000,
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+            });
+
+            setTimeout(() => {
+                setAudioConvertStatus(prev => ({ ...prev, [key]: 'idle' }));
+            }, 5000);
+        }
+    };
+
     // Reset sizesFetched when data changes
     useEffect(() => {
         setSizesFetched(false);
@@ -160,6 +273,46 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         
         return unsubscribe;
     }, [data.url]);
+
+    // Check if any download is in progress
+    const isAnyDownloading = Object.values(downloadStatus).some(s => s === 'downloading') || globalStatus === 'downloading';
+
+    // Prevent page refresh/close during download
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isAnyDownloading) {
+                e.preventDefault();
+                e.returnValue = 'Download sedang berjalan. Yakin mau meninggalkan halaman?';
+                return e.returnValue;
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isAnyDownloading]);
+
+    // Prevent paste during download (to avoid accidental new URL submission)
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            if (isAnyDownloading) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Download Sedang Berjalan',
+                    text: 'Tunggu download selesai sebelum paste URL baru.',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 3000,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                });
+            }
+        };
+
+        document.addEventListener('paste', handlePaste);
+        return () => document.removeEventListener('paste', handlePaste);
+    }, [isAnyDownloading]);
 
     // Fetch file sizes for ALL formats - use backend sizes if available, fallback to proxy fetch
     useEffect(() => {
@@ -312,12 +465,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         }
 
         const thumbnail = itemThumbnails[itemId] || data.thumbnail;
-        const itemIndex = itemIds.indexOf(itemId) + 1;
-        const isVideo = format.type === 'video';
 
-        // Get file size
+        // Get file size - prefer format.filesize (from backend), fallback to fetched size
         const sizeKey = `${itemId}-${format.url}`;
-        const sizeBytes = fileSizeNumerics[sizeKey] || 0;
+        const sizeBytes = format.filesize || fileSizeNumerics[sizeKey] || 0;
 
         // Delegate confirmation to sendDiscordNotification (which now has smart dialogs)
         const sendResult = await sendDiscordNotification({
@@ -441,6 +592,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     mediaType: format.type,
                     sourceUrl: data.url,
                     author: data.author,
+                    fileSize: format.filesize || 0,
                 });
                 setSentToWebhook(prev => ({ ...prev, [itemId]: true }));
             }
@@ -593,22 +745,59 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
                     {/* Selected item preview */}
                     <div className="flex flex-col sm:flex-row gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] min-w-0 overflow-hidden">
-                        <div 
-                            className="relative w-full sm:w-32 md:w-40 aspect-video rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg-primary)] cursor-pointer group"
-                            onClick={() => {
-                                setGalleryInitialIndex(itemIds.indexOf(selectedItemId));
-                                setShowGallery(true);
-                            }}
-                        >
-                            {itemThumbnails[selectedItemId] ? (
-                                <Image src={getProxiedThumbnail(itemThumbnails[selectedItemId], platform)} alt="Preview" fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-[var(--text-muted)]" /></div>
-                            )}
-                            {/* Preview overlay */}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                                <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {/* Thumbnail + Audio Convert column */}
+                        <div className="flex flex-col gap-2 w-full sm:w-32 md:w-40 flex-shrink-0">
+                            <div 
+                                className="relative w-full aspect-video rounded-lg overflow-hidden bg-[var(--bg-primary)] cursor-pointer group"
+                                onClick={() => {
+                                    setGalleryInitialIndex(itemIds.indexOf(selectedItemId));
+                                    setShowGallery(true);
+                                }}
+                            >
+                                {itemThumbnails[selectedItemId] ? (
+                                    <Image src={getProxiedThumbnail(itemThumbnails[selectedItemId], platform)} alt="Preview" fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center"><Play className="w-8 h-8 text-[var(--text-muted)]" /></div>
+                                )}
+                                {/* Preview overlay */}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                    <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
                             </div>
+                            {/* Audio Conversion - Below thumbnail (carousel) */}
+                            {audioConvertEnabled && hasNoAudioFormats && (selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])?.type === 'video' && (
+                                <div className="flex flex-wrap items-center justify-center gap-1">
+                                    <span className="text-[10px] text-[var(--text-muted)]">⚡</span>
+                                    <Button 
+                                        size="xs" 
+                                        variant="secondary"
+                                        onClick={() => {
+                                            const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
+                                            if (format) handleAudioConvert(format, selectedItemId, 'mp3');
+                                        }}
+                                        disabled={audioConvertStatus[`${selectedItemId}-mp3`] === 'converting'}
+                                        className="text-[10px] px-1.5 py-0.5"
+                                        title="Convert to MP3"
+                                    >
+                                        {audioConvertStatus[`${selectedItemId}-mp3`] === 'converting' ? '...' : 
+                                         audioConvertStatus[`${selectedItemId}-mp3`] === 'success' ? '✓' : '⚡MP3'}
+                                    </Button>
+                                    <Button 
+                                        size="xs" 
+                                        variant="secondary"
+                                        onClick={() => {
+                                            const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
+                                            if (format) handleAudioConvert(format, selectedItemId, 'm4a');
+                                        }}
+                                        disabled={audioConvertStatus[`${selectedItemId}-m4a`] === 'converting'}
+                                        className="text-[10px] px-1.5 py-0.5"
+                                        title="Convert to M4A"
+                                    >
+                                        {audioConvertStatus[`${selectedItemId}-m4a`] === 'converting' ? '...' : 
+                                         audioConvertStatus[`${selectedItemId}-m4a`] === 'success' ? '✓' : '⚡M4A'}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                             {groupedItems[selectedItemId].length > 1 && renderFormatButtons(groupedItems[selectedItemId], selectedItemId)}
@@ -674,22 +863,59 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
             ) : (
                 /* Single item */
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 min-w-0 overflow-hidden">
-                    <div 
-                        className="relative w-full sm:w-40 md:w-48 lg:w-64 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg-secondary)] cursor-pointer group"
-                        onClick={() => setShowGallery(true)}
-                    >
-                        {(itemThumbnails[itemIds[0]] || data.thumbnail) ? (
-                            <Image src={getProxiedThumbnail(itemThumbnails[itemIds[0]] || data.thumbnail, platform)} alt={data.title || 'Preview'} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center"><Play className="w-12 h-12 text-[var(--text-muted)]" /></div>
-                        )}
-                        {/* Preview overlay */}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium">
-                                <Maximize2 className="w-4 h-4" />
-                                Preview
+                    {/* Thumbnail + Audio Convert column */}
+                    <div className="flex flex-col gap-2 w-full sm:w-40 md:w-48 lg:w-64 flex-shrink-0">
+                        <div 
+                            className="relative w-full aspect-video rounded-xl overflow-hidden bg-[var(--bg-secondary)] cursor-pointer group"
+                            onClick={() => setShowGallery(true)}
+                        >
+                            {(itemThumbnails[itemIds[0]] || data.thumbnail) ? (
+                                <Image src={getProxiedThumbnail(itemThumbnails[itemIds[0]] || data.thumbnail, platform)} alt={data.title || 'Preview'} fill className="object-cover group-hover:scale-105 transition-transform duration-300" unoptimized />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center"><Play className="w-12 h-12 text-[var(--text-muted)]" /></div>
+                            )}
+                            {/* Preview overlay */}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium">
+                                    <Maximize2 className="w-4 h-4" />
+                                    Preview
+                                </div>
                             </div>
                         </div>
+                        {/* Audio Conversion - Below thumbnail */}
+                        {audioConvertEnabled && hasNoAudioFormats && selectedFormats[itemIds[0]]?.type === 'video' && (
+                            <div className="flex flex-wrap items-center justify-center gap-1.5">
+                                <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
+                                    <span>⚡</span>
+                                </span>
+                                <Button 
+                                    size="xs" 
+                                    variant="secondary"
+                                    onClick={() => handleAudioConvert(selectedFormats[itemIds[0]], itemIds[0], 'mp3')}
+                                    disabled={audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting'}
+                                    leftIcon={audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
+                                    title="Convert to MP3"
+                                    className="text-[10px] px-2 py-1"
+                                >
+                                    {audioConvertStatus[`${itemIds[0]}-mp3`] === 'converting' ? '...' : 
+                                     audioConvertStatus[`${itemIds[0]}-mp3`] === 'success' ? '✓' : 
+                                     `MP3${estimateAudioSize(selectedFormats[itemIds[0]]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemIds[0]]))}` : ''}`}
+                                </Button>
+                                <Button 
+                                    size="xs" 
+                                    variant="secondary"
+                                    onClick={() => handleAudioConvert(selectedFormats[itemIds[0]], itemIds[0], 'm4a')}
+                                    disabled={audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting'}
+                                    leftIcon={audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting' ? <Loader2 className="animate-spin w-3 h-3" /> : <span className="text-[10px]">⚡</span>}
+                                    title="Convert to M4A"
+                                    className="text-[10px] px-2 py-1"
+                                >
+                                    {audioConvertStatus[`${itemIds[0]}-m4a`] === 'converting' ? '...' : 
+                                     audioConvertStatus[`${itemIds[0]}-m4a`] === 'success' ? '✓' : 
+                                     `M4A${estimateAudioSize(selectedFormats[itemIds[0]]) ? ` ~${formatBytes(estimateAudioSize(selectedFormats[itemIds[0]]))}` : ''}`}
+                                </Button>
+                            </div>
+                        )}
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                         {renderFormatButtons(groupedItems[itemIds[0]], itemIds[0])}

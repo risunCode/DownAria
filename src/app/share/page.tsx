@@ -11,10 +11,9 @@ import { DownloadPreview } from '@/components/DownloadPreview';
 import { CardSkeleton } from '@/components/ui/Card';
 import { PlatformId, MediaData } from '@/lib/types';
 import type { HistoryEntry } from '@/lib/storage';
-import { getPlatformCookie } from '@/lib/storage';
+import { getPlatformCookie, getSkipCache } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { fetchMediaWithCache } from '@/hooks/useScraperCache';
 
 function ShareContent() {
   const searchParams = useSearchParams();
@@ -83,7 +82,6 @@ function ShareContent() {
     }
 
     try {
-      // Special handling for Weibo
       // Get platform cookie if available
       let platformCookie: string | undefined;
       if (detectedPlatform === 'weibo') {
@@ -92,18 +90,13 @@ function ShareContent() {
         platformCookie = getPlatformCookie(detectedPlatform as 'facebook' | 'instagram') || undefined;
       }
 
-      // Unified API call
-      const response = await fetch(`${API_URL}/api`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: sanitizedUrl, cookie: platformCookie }),
-      });
+      // Use cached scraper
+      const skipCache = getSkipCache();
+      const result = await fetchMediaWithCache(sanitizedUrl, platformCookie, skipCache);
 
-      const data = await response.json();
-
-      if (!data.success) {
+      if (!result.success) {
         // Handle Weibo cookie error
-        if (detectedPlatform === 'weibo' && (data.error?.includes('cookie') || data.error?.includes('Cookie'))) {
+        if (detectedPlatform === 'weibo' && (result.error?.includes('cookie') || result.error?.includes('Cookie'))) {
           setIsLoading(false);
           Swal.fire({
             icon: 'warning',
@@ -115,10 +108,10 @@ function ShareContent() {
           });
           return;
         }
-        throw new Error(data.error || tErrors('fetchFailed'));
+        throw new Error(result.error || tErrors('fetchFailed'));
       }
 
-      setMediaData(data.data);
+      setMediaData(result.data || null);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : t('error');
       Swal.fire({

@@ -18,3 +18,6 @@ export { useUpdatePrompt } from './useUpdatePrompt';
 
 // Download Sync (shared state between DownloadPreview and MediaGallery)
 export { useDownloadSync } from './useDownloadSync';
+
+// Scraper Cache (client-side IndexedDB caching)
+export { useScraperCache, fetchMediaWithCache } from './useScraperCache';

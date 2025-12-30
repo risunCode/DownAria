@@ -47,7 +47,7 @@ const SEASON_OPTIONS: { id: SeasonType | 'auto' | 'random'; label: string; icon:
 
 interface BackgroundPreviewProps {
   file: File;
-  onConfirm: (position: BackgroundPosition, wallpaperOpacity: number, blur: number) => void;
+  onConfirm: (position: BackgroundPosition, wallpaperOpacity: number) => void;
   onCancel: () => void;
 }
 
@@ -55,12 +55,10 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [position, setPosition] = useState<BackgroundPosition>({ x: 50, y: 50, scale: 1 });
   const [wallpaperOpacity, setWallpaperOpacity] = useState(8);
-  const [blur, setBlur] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 1920, height: 1080 });
-  const [hasShownOpacityWarning, setHasShownOpacityWarning] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const isVideo = file.type.startsWith('video/');
@@ -132,7 +130,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         </div>
       </div>
 
-      {/* Preview Area - Compact preview, expandable on mobile */}
+      {/* Preview Area - Taller preview for better visibility */}
       <div className="px-4 py-2">
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs text-[var(--text-muted)] font-medium">Preview (drag to set focus point)</p>
@@ -148,19 +146,18 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
         <div
           ref={containerRef}
           className={`relative w-full rounded-xl overflow-hidden bg-[var(--bg-primary)] cursor-move touch-none border border-[var(--border-color)] transition-all duration-200 ${
-            isMobile && !isPreviewExpanded ? 'max-h-24' : 'max-h-32 md:max-h-40'
+            isMobile && !isPreviewExpanded ? 'h-32' : 'h-48 md:h-56'
           }`}
-          style={{ aspectRatio: '16 / 9' }}
           onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onMouseMove={handleMouseMove}
           onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchMove={handleTouchMove}
         >
           {/* Background Media - Full cover like actual display */}
           {(isVideo && !isGif) ? (
             <video src={previewUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover"
-              style={{ objectPosition: `${position.x}% ${position.y}%`, transform: `scale(${position.scale})`, opacity: wallpaperOpacity / 100, filter: blur > 0 ? `blur(${blur}px)` : undefined }} />
+              style={{ objectPosition: `${position.x}% ${position.y}%`, transform: `scale(${position.scale})`, opacity: wallpaperOpacity / 100 }} />
           ) : (
             <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" draggable={false}
-              style={{ objectPosition: `${position.x}% ${position.y}%`, transform: `scale(${position.scale})`, opacity: wallpaperOpacity / 100, filter: blur > 0 ? `blur(${blur}px)` : undefined }} />
+              style={{ objectPosition: `${position.x}% ${position.y}%`, transform: `scale(${position.scale})`, opacity: wallpaperOpacity / 100 }} />
           )}
           
           {/* Drag hint - top left */}
@@ -186,7 +183,7 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
           <span className="text-xs text-[var(--text-muted)] w-10 text-right">{(position.scale * 100).toFixed(0)}%</span>
         </div>
 
-        {/* Wallpaper Opacity - Default 8%, max 50% */}
+        {/* Wallpaper Opacity - Default 8%, max 20% for modal */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-[var(--text-secondary)]">Wallpaper Opacity</span>
@@ -214,55 +211,24 @@ function BackgroundPreview({ file, onConfirm, onCancel }: BackgroundPreviewProps
               Custom
             </button>
           </div>
-          {/* Slider only shows when Custom is selected */}
+          {/* Slider only shows when Custom is selected - max 20% */}
           {wallpaperOpacity !== 8 && (
             <input 
               type="range" 
               min="5" 
-              max="50" 
+              max="20" 
               value={wallpaperOpacity} 
-              onChange={e => {
-                const newValue = Number(e.target.value);
-                // Show warning when crossing 20% threshold
-                if (newValue > 20 && wallpaperOpacity <= 20 && !hasShownOpacityWarning) {
-                  setHasShownOpacityWarning(true);
-                  Swal.fire({
-                    icon: 'warning',
-                    title: 'High Opacity Warning',
-                    text: 'High opacity may cause readability issues. You have been warned!',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    timer: 3000,
-                    showConfirmButton: false,
-                  });
-                }
-                setWallpaperOpacity(newValue);
-              }} 
+              onChange={e => setWallpaperOpacity(Number(e.target.value))} 
               className="w-full accent-[var(--accent-primary)] h-1 mt-2" 
             />
           )}
-          {wallpaperOpacity > 20 && (
-            <p className="text-[10px] text-amber-500/80 mt-1 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
-              High opacity may affect readability
-            </p>
-          )}
-        </div>
-
-        {/* Blur */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[var(--text-secondary)]">Background Blur</span>
-            <span className="text-xs text-[var(--text-muted)]">{blur}px</span>
-          </div>
-          <input type="range" min="0" max="20" value={blur} onChange={e => setBlur(Number(e.target.value))} className="w-full accent-[var(--accent-primary)] h-1" />
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex gap-2 p-4 border-t border-[var(--border-color)]">
         <Button variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
-        <Button variant="primary" className="flex-1" onClick={() => onConfirm(position, wallpaperOpacity, blur)}>Apply</Button>
+        <Button variant="primary" className="flex-1" onClick={() => onConfirm(position, wallpaperOpacity)}>Apply</Button>
       </div>
     </>
   );
@@ -337,6 +303,7 @@ export function SeasonalSettings() {
         text: 'Please select an image, video, or GIF file',
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
+        confirmButtonText: 'OK',
       });
       return;
     }
@@ -353,6 +320,7 @@ export function SeasonalSettings() {
         text: `Maximum file size is ${maxSize}MB${!settings.allowLargeBackground ? ' (enable Large Files in settings for 400MB)' : ''}`,
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
+        confirmButtonText: 'OK',
       });
       return;
     }
@@ -365,6 +333,7 @@ export function SeasonalSettings() {
         html: `<p>This file is <strong>${formatFileSize(file.size)}</strong></p><p class="text-sm mt-2 text-amber-400">Large files may cause lag on slower devices.</p>`,
         showCancelButton: true,
         confirmButtonText: 'Continue Anyway',
+        cancelButtonText: 'Cancel',
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
       }).then((result) => {
@@ -386,7 +355,7 @@ export function SeasonalSettings() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleConfirmBackground = async (position: BackgroundPosition, wallpaperOpacity: number, blur: number) => {
+  const handleConfirmBackground = async (position: BackgroundPosition, wallpaperOpacity: number) => {
     if (!previewFile) return;
     
     setIsUploading(true);
@@ -398,7 +367,8 @@ export function SeasonalSettings() {
       
       setCustomBackground(background);
       setBackgroundOpacity(wallpaperOpacity);
-      setBackgroundBlur(blur);
+      // Blur is set to 0 by default, can be adjusted in settings page
+      setBackgroundBlur(0);
       
       const url = await loadBackgroundFromDB();
       setBackgroundUrl(url);
@@ -407,8 +377,7 @@ export function SeasonalSettings() {
       Swal.fire({
         icon: 'success',
         title: 'Background Set!',
-        timer: 1500,
-        showConfirmButton: false,
+        confirmButtonText: 'OK',
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
       });
@@ -419,6 +388,7 @@ export function SeasonalSettings() {
         text: err instanceof Error ? err.message : 'Could not process file',
         background: 'var(--bg-card)',
         color: 'var(--text-primary)',
+        confirmButtonText: 'OK',
       });
     } finally {
       setIsUploading(false);

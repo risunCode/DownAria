@@ -1,13 +1,16 @@
 import type { NextConfig } from "next";
 
 // CSP Whitelist for external resources
-const isDev = process.env.NODE_ENV === 'development';
+// API URL from env (supports both local dev and production)
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
 const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
-  'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://va.vercel-scripts.com"],
-  'style-src': ["'self'", "'unsafe-inline'"],
-  'img-src': ["'self'", "data:", "blob:", "https:", "http:"],
+  // Removed 'unsafe-inline' and 'unsafe-eval' for security - use nonces or hashes if inline scripts needed
+  'script-src': ["'self'", "https://va.vercel-scripts.com"],
+  'style-src': ["'self'", "'unsafe-inline'"], // unsafe-inline kept for styles as it's lower risk
+  // Restricted img-src: removed http: to prevent mixed content, only allow https: and specific CDNs
+  'img-src': ["'self'", "data:", "blob:", "https:"],
   'font-src': ["'self'", "data:"],
   'connect-src': [
     "'self'",
@@ -16,10 +19,11 @@ const CSP_DIRECTIVES = {
     "https://*.vercel.app",
     "https://va.vercel-scripts.com",
     "wss://*.supabase.co",
-    // Development: Allow backend API connections
-    ...(isDev ? ["http://localhost:3002", "http://127.0.0.1:3002"] : []),
+    // API URL from environment variable
+    ...(apiUrl ? [apiUrl] : []),
   ],
-  'media-src': ["'self'", "blob:", "https:", "http:"],
+  // Restricted media-src: removed http: to prevent mixed content
+  'media-src': ["'self'", "blob:", "https:"],
   'frame-ancestors': ["'none'"],
   'base-uri': ["'self'"],
   'form-action': ["'self'"],
@@ -42,7 +46,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Content-Security-Policy', value: cspString },
-          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
         ],
       },
     ];

@@ -1,10 +1,13 @@
 'use client';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFacebook, faInstagram, faTwitter, faWeibo, faYoutube } from '@fortawesome/free-brands-svg-icons';
-import { faMusic } from '@fortawesome/free-solid-svg-icons';
+import { faFacebook, faInstagram, faTwitter, faWeibo, faYoutube, faReddit, faSoundcloud, faPixiv } from '@fortawesome/free-brands-svg-icons';
+import { faMusic, faVideo, faImage, faGlobe } from '@fortawesome/free-solid-svg-icons';
 
-export type PlatformId = 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube';
+export type PlatformId = 
+    | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube'
+    | 'bilibili' | 'reddit' | 'xiaohongshu' | 'soundcloud' | 'bluesky'
+    | 'eporner' | 'pornhub' | 'rule34video' | 'threads' | 'erome' | 'pixiv';
 
 interface PlatformIconProps {
     platform: PlatformId;
@@ -20,6 +23,18 @@ const PLATFORM_CONFIG: Record<PlatformId, { icon: typeof faFacebook; color: stri
     tiktok: { icon: faMusic, color: 'text-pink-400', bg: 'bg-pink-400/10', label: 'TikTok' },
     weibo: { icon: faWeibo, color: 'text-orange-500', bg: 'bg-orange-500/10', label: 'Weibo' },
     youtube: { icon: faYoutube, color: 'text-red-500', bg: 'bg-red-500/10', label: 'YouTube' },
+    // New platforms
+    bilibili: { icon: faVideo, color: 'text-cyan-400', bg: 'bg-cyan-400/10', label: 'BiliBili' },
+    reddit: { icon: faReddit, color: 'text-orange-400', bg: 'bg-orange-400/10', label: 'Reddit' },
+    xiaohongshu: { icon: faImage, color: 'text-red-400', bg: 'bg-red-400/10', label: 'XiaoHongShu' },
+    soundcloud: { icon: faSoundcloud, color: 'text-orange-500', bg: 'bg-orange-500/10', label: 'SoundCloud' },
+    bluesky: { icon: faGlobe, color: 'text-blue-400', bg: 'bg-blue-400/10', label: 'Bluesky' },
+    eporner: { icon: faVideo, color: 'text-purple-500', bg: 'bg-purple-500/10', label: 'Eporner' },
+    pornhub: { icon: faVideo, color: 'text-orange-600', bg: 'bg-orange-600/10', label: 'PornHub' },
+    rule34video: { icon: faVideo, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Rule34Video' },
+    threads: { icon: faGlobe, color: 'text-gray-400', bg: 'bg-gray-400/10', label: 'Threads' },
+    erome: { icon: faImage, color: 'text-pink-600', bg: 'bg-pink-600/10', label: 'Erome' },
+    pixiv: { icon: faImage, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Pixiv' },
 };
 
 const SIZE_MAP = { sm: 'w-4 h-4', md: 'w-5 h-5', lg: 'w-6 h-6' };

@@ -16,11 +16,11 @@ import CompactAdDisplay from '@/components/CompactAdDisplay';
 import { useMaintenanceStatus } from '@/hooks/useMaintenanceStatus';
 import { PlatformId, MediaData } from '@/lib/types';
 
-import { getPlatformCookie, clearPlatformCookie } from '@/lib/storage';
+import { getPlatformCookie, clearPlatformCookie, getSkipCache } from '@/lib/storage';
 import { platformDetect, sanitizeUrl } from '@/lib/utils/format';
 import Swal from 'sweetalert2';
-import { api } from '@/lib/api';
 import { analyzeNetworkError, isOnline } from '@/lib/utils/network';
+import { fetchMediaWithCache } from '@/hooks/useScraperCache';
 
 // ============================================================================
 // CONSTANTS
@@ -152,13 +152,10 @@ export default function Home() {
     return <MaintenanceMode message={maintenanceMessage} />;
   }
 
-  // Unified fetch for all platforms using centralized API client
-  const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; platform?: string }> => {
-    // Check if skip cache is enabled in settings
-    const { getSkipCache } = await import('@/lib/storage');
+  // Unified fetch for all platforms using client-side cache
+  const fetchMedia = async (url: string, cookie?: string): Promise<{ success: boolean; data?: MediaData; error?: string; errorCode?: string; fromCache?: boolean }> => {
     const skipCache = getSkipCache();
-
-    return api.post('/api/v1/publicservices', { url, cookie, skipCache });
+    return fetchMediaWithCache(url, cookie, skipCache);
   };
 
   const handleDownloadComplete = () => {
@@ -229,7 +226,7 @@ export default function Home() {
       }
 
       // Handle specific error codes from backend
-      const errorCode = (result as { errorCode?: string }).errorCode;
+      const errorCode = result.errorCode;
       const errorMessage = result.error || 'Failed to fetch';
 
       // Map error codes to user-friendly messages

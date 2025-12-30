@@ -11,7 +11,11 @@ import AdminGuard from '@/components/AdminGuard';
 import { PlatformIcon, StatusBadge, type PlatformId } from '@/components/admin';
 import { useServices } from '@/hooks/admin';
 
-const ALL_PLATFORMS: PlatformId[] = ['facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo'];
+const ALL_PLATFORMS: PlatformId[] = [
+    'facebook', 'instagram', 'twitter', 'tiktok', 'youtube', 'weibo',
+    'bilibili', 'reddit', 'xiaohongshu', 'soundcloud', 'bluesky',
+    'eporner', 'pornhub', 'rule34video', 'threads', 'erome', 'pixiv'
+];
 
 type MaintenanceMode = 'off' | 'api' | 'all';
 
