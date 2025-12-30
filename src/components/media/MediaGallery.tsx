@@ -13,9 +13,9 @@ import { sendDiscordNotification, getUserDiscordSettings } from '@/lib/utils/dis
 import { addHistory, type HistoryEntry } from '@/lib/storage';
 import Swal from 'sweetalert2';
 
-// YouTube filesize limit for frontend (400MB warning, backend allows 450MB)
-const YOUTUBE_MAX_FILESIZE_MB = 400;
-const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
+// Global filesize limit for all platforms (400MB)
+const MAX_FILESIZE_MB = 400;
+const MAX_FILESIZE_BYTES = MAX_FILESIZE_MB * 1024 * 1024;
 
 // Shared utilities and components
 import { 
@@ -173,11 +173,11 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const MAX_LOOPS = 8; // Auto-stop after 8 loops (user might be asleep 😴)
   const abortControllerRef = useRef<AbortController | null>(null); // For cancelling downloads
 
-  // Check if format exceeds YouTube size limit
-  const isOverYouTubeLimit = (format: MediaFormat | null): boolean => {
-    if (platform !== 'youtube' || !format) return false;
+  // Check if format exceeds global size limit (400MB for all platforms)
+  const isOverSizeLimit = (format: MediaFormat | null): boolean => {
+    if (!format) return false;
     const size = format.filesize || 0;
-    return size > YOUTUBE_MAX_FILESIZE_BYTES;
+    return size > MAX_FILESIZE_BYTES;
   };
 
   // Handle close - allow close even during download (download continues in DownloadPreview)
@@ -824,10 +824,10 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
   const actionButtons = (
     <div className="p-4 space-y-3 border-t border-[var(--border-color)]/50 bg-[var(--bg-card)]">
       {/* YouTube Size Limit Warning */}
-      {platform === 'youtube' && isOverYouTubeLimit(selectedFormat) && (
+      {platform === 'youtube' && isOverSizeLimit(selectedFormat) && (
         <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
           <span>🚫</span>
-          <span>File terlalu besar (max {YOUTUBE_MAX_FILESIZE_MB}MB). Pilih kualitas yang lebih rendah.</span>
+          <span>File terlalu besar (max {MAX_FILESIZE_MB}MB). Pilih kualitas yang lebih rendah.</span>
         </div>
       )}
       
@@ -835,14 +835,14 @@ export function MediaGallery({ data, platform, isOpen, onClose, initialIndex = 0
       <div className="flex gap-2">
         <button
           onClick={handleDownload}
-          disabled={downloadState.status === 'downloading' || !selectedFormat || isOverYouTubeLimit(selectedFormat)}
-          title={isOverYouTubeLimit(selectedFormat) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
+          disabled={downloadState.status === 'downloading' || !selectedFormat || isOverSizeLimit(selectedFormat)}
+          title={isOverSizeLimit(selectedFormat) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--accent-primary)] text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {isOverYouTubeLimit(selectedFormat) ? (
+          {isOverSizeLimit(selectedFormat) ? (
             <>
               <Download className="w-5 h-5" />
-              Terlalu besar (max {YOUTUBE_MAX_FILESIZE_MB}MB)
+              Terlalu besar (max {MAX_FILESIZE_MB}MB)
             </>
           ) : downloadState.status === 'downloading' ? (
             <>

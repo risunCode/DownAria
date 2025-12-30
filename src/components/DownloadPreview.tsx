@@ -38,9 +38,9 @@ import {
     getDownloadProgress,
 } from '@/lib/stores/download-store';
 
-// YouTube filesize limit for frontend (400MB warning, backend allows 450MB)
-const YOUTUBE_MAX_FILESIZE_MB = 400;
-const YOUTUBE_MAX_FILESIZE_BYTES = YOUTUBE_MAX_FILESIZE_MB * 1024 * 1024;
+// Global filesize limit for all platforms (400MB)
+const MAX_FILESIZE_MB = 400;
+const MAX_FILESIZE_BYTES = MAX_FILESIZE_MB * 1024 * 1024;
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
 import { DownloadProgress, getProgressText as getProgressTextUtil } from '@/components/media/DownloadProgress';
@@ -578,11 +578,11 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         });
     };
 
-    // Check if format exceeds YouTube size limit
-    const isOverYouTubeLimit = (format: MediaFormat | undefined): boolean => {
-        if (platform !== 'youtube' || !format) return false;
+    // Check if format exceeds global size limit (400MB for all platforms)
+    const isOverSizeLimit = (format: MediaFormat | undefined): boolean => {
+        if (!format) return false;
         const size = format.filesize || 0;
-        return size > YOUTUBE_MAX_FILESIZE_BYTES;
+        return size > MAX_FILESIZE_BYTES;
     };
 
     // Send to webhook
@@ -965,10 +965,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
                                     if (format) triggerDownload(format, selectedItemId);
                                 }}
-                                    disabled={downloadStatus[selectedItemId] === 'downloading' || isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])}
-                                    title={isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
+                                    disabled={downloadStatus[selectedItemId] === 'downloading' || isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])}
+                                    title={isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
                                     leftIcon={downloadStatus[selectedItemId] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                    {isOverYouTubeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])
+                                    {isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])
                                         ? `Terlalu besar`
                                         : downloadStatus[selectedItemId] === 'downloading'
                                             ? getProgressText(selectedItemId)
@@ -1044,15 +1044,15 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                             </Button>
                             {/* Download button */}
                             <Button size="xs" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
-                                disabled={downloadStatus[itemIds[0]] === 'downloading' || isOverYouTubeLimit(selectedFormats[itemIds[0]])}
-                                title={isOverYouTubeLimit(selectedFormats[itemIds[0]]) ? `File terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)` : undefined}
+                                disabled={downloadStatus[itemIds[0]] === 'downloading' || isOverSizeLimit(selectedFormats[itemIds[0]])}
+                                title={isOverSizeLimit(selectedFormats[itemIds[0]]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
                                 leftIcon={downloadStatus[itemIds[0]] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                {isOverYouTubeLimit(selectedFormats[itemIds[0]]) 
-                                    ? `Terlalu besar (max ${YOUTUBE_MAX_FILESIZE_MB}MB)`
+                                {isOverSizeLimit(selectedFormats[itemIds[0]]) 
+                                    ? `Terlalu besar (max ${MAX_FILESIZE_MB}MB)`
                                     : downloadStatus[itemIds[0]] === 'downloading'
                                         ? getProgressText(itemIds[0])
                                         : downloadStatus[itemIds[0]] === 'success' ? t('downloaded') : t('download')}
-                                {!isOverYouTubeLimit(selectedFormats[itemIds[0]]) && downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
+                                {!isOverSizeLimit(selectedFormats[itemIds[0]]) && downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
                                     <span className="ml-1 opacity-70">({getFileSize(itemIds[0], selectedFormats[itemIds[0]])})</span>
                                 )}
                             </Button>
@@ -1086,13 +1086,11 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                 onDownloadComplete={onDownloadComplete}
             />
 
-            {/* YouTube Size Limit Warning */}
-            {platform === 'youtube' && (
-                <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>Our Limitation For YouTube: max {YOUTUBE_MAX_FILESIZE_MB}MB per download. Pilih kualitas yang lebih rendah jika file terlalu besar.</span>
-                </div>
-            )}
+            {/* Global Size Limit Warning */}
+            <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
+                <span>⚠️</span>
+                <span>Download Limit: max {MAX_FILESIZE_MB}MB per file. Pilih kualitas yang lebih rendah jika file terlalu besar.</span>
+            </div>
         </motion.div>
     );
 }
