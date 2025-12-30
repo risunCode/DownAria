@@ -745,9 +745,15 @@ export async function downloadMergedYouTube(
     quality: string,
     filename: string,
     onProgress: (progress: YouTubeMergeProgress) => void,
-    estimatedSize?: number
+    estimatedSize?: number,
+    abortSignal?: AbortSignal
 ): Promise<YouTubeMergeResult> {
     try {
+        // Check if already aborted
+        if (abortSignal?.aborted) {
+            return { success: false, error: 'Download cancelled' };
+        }
+
         // Phase 1: Start request
         onProgress({ status: 'preparing', message: 'Preparing...', percent: 0, loaded: 0, total: 0 });
 
@@ -780,7 +786,7 @@ export async function downloadMergedYouTube(
 
         let response: Response;
         try {
-            // Call merge API
+            // Call merge API with abort signal
             response = await fetch(`${API_URL}/api/v1/youtube/merge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -788,11 +794,15 @@ export async function downloadMergedYouTube(
                     url: youtubeUrl,
                     quality,
                     filename
-                })
+                }),
+                signal: abortSignal
             });
         } catch (fetchError) {
-            // Network error - clear interval and rethrow
+            // Network error or abort - clear interval and rethrow
             clearInterval(fakeProgressInterval);
+            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                return { success: false, error: 'Download cancelled' };
+            }
             throw fetchError;
         }
 
@@ -987,9 +997,15 @@ export async function downloadMedia(
     data: MediaData,
     platform: PlatformId,
     carouselIndex?: number,
-    onProgress?: (progress: DownloadProgress) => void
+    onProgress?: (progress: DownloadProgress) => void,
+    abortSignal?: AbortSignal
 ): Promise<DownloadResult> {
     try {
+        // Check if already aborted
+        if (abortSignal?.aborted) {
+            return { success: false, error: 'Download cancelled' };
+        }
+
         // Generate filename
         let filename = generateFilename(data, platform, format, carouselIndex);
 
@@ -1038,7 +1054,8 @@ export async function downloadMedia(
                         message: p.message
                     });
                 },
-                format.filesize
+                format.filesize,
+                abortSignal
             );
 
             if (!result.success || !result.blob) {
@@ -1070,7 +1087,7 @@ export async function downloadMedia(
 
         // Case 3: Regular direct download
         const proxyUrl = getProxyUrl(format.url, { filename, platform });
-        const response = await fetch(proxyUrl);
+        const response = await fetch(proxyUrl, { signal: abortSignal });
         if (!response.ok) throw new Error(`Download failed: ${response.status}`);
 
         const contentLength = response.headers.get('content-length');
@@ -1084,6 +1101,12 @@ export async function downloadMedia(
         let lastLoaded = 0;
 
         while (true) {
+            // Check if aborted
+            if (abortSignal?.aborted) {
+                reader.cancel();
+                return { success: false, error: 'Download cancelled' };
+            }
+            
             const { done, value } = await reader.read();
             if (done) break;
             chunks.push(value);
@@ -1105,6 +1128,11 @@ export async function downloadMedia(
         return { success: true, blob, filename };
 
     } catch (error) {
+        // Check if it's an abort error
+        if (error instanceof Error && error.name === 'AbortError') {
+            onProgress?.({ status: 'error', percent: 0, loaded: 0, total: 0, speed: 0, message: 'Download cancelled' });
+            return { success: false, error: 'Download cancelled' };
+        }
         const msg = error instanceof Error ? error.message : 'Download failed';
         onProgress?.({ status: 'error', percent: 0, loaded: 0, total: 0, speed: 0, message: msg });
         return { success: false, error: msg };

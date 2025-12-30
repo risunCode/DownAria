@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import {
@@ -61,6 +61,9 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     const [globalStatus, setGlobalStatus] = useState<DownloadStatus>('idle');
     const [showGallery, setShowGallery] = useState(false);
     const [galleryInitialIndex, setGalleryInitialIndex] = useState(0);
+    
+    // AbortController for cancelling downloads
+    const abortControllersRef = useRef<Record<string, AbortController>>({});
     
     const t = useTranslations('download.preview');
     const tCommon = useTranslations('common');
@@ -304,18 +307,38 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     const isAnyConverting = Object.values(audioConvertStatus).some(s => s === 'converting');
     const isAnyDownloading = Object.values(downloadStatus).some(s => s === 'downloading') || globalStatus === 'downloading' || isAnyConverting;
 
-    // Cancel ongoing downloads/conversions
+    // Cancel specific download by itemId
+    const cancelDownload = useCallback((itemId: string) => {
+        const controller = abortControllersRef.current[itemId];
+        if (controller) {
+            controller.abort();
+            delete abortControllersRef.current[itemId];
+        }
+        
+        // Reset status for this item only
+        setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' }));
+        setDownloadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[itemId];
+            return newProgress;
+        });
+        
+        console.log(`[DownloadPreview] Download cancelled for item: ${itemId}`);
+    }, []);
+
+    // Cancel all ongoing downloads/conversions (for navigation blocking)
     const cancelAllProcesses = useCallback(() => {
-        // Reset all download statuses
-        setDownloadStatus({});
-        setDownloadProgress({});
+        // Abort all ongoing fetch requests
+        Object.keys(abortControllersRef.current).forEach(itemId => {
+            cancelDownload(itemId);
+        });
+        
+        // Reset global status
         setGlobalStatus('idle');
         setAudioConvertStatus({});
         
-        // Note: Backend processes will timeout/cleanup automatically
-        // AbortController could be added for fetch requests if needed
         console.log('[DownloadPreview] All processes cancelled by user');
-    }, []);
+    }, [cancelDownload]);
 
     // Block navigation helper with SweetAlert + countdown
     const blockNavigation = useCallback(async (): Promise<boolean> => {
@@ -655,6 +678,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
     // Download function - uses unified helper
     const triggerDownload = async (format: MediaFormat, itemId: string) => {
+        // Create AbortController for this download
+        const abortController = new AbortController();
+        abortControllersRef.current[itemId] = abortController;
+        
         setDownloadStatus(prev => ({ ...prev, [itemId]: 'downloading' }));
         setDownloadProgress(prev => ({ ...prev, [itemId]: { loaded: 0, total: 0, percent: 0, speed: 0 } }));
         // Update global store for sync with MediaGallery
@@ -684,7 +711,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                     speed: progress.speed,
                     message: progress.message,
                 });
-            });
+            }, abortController.signal);
 
             if (!result.success) {
                 throw new Error(result.error || 'Download failed');
@@ -741,6 +768,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
 
             setDownloadStatus(prev => ({ ...prev, [itemId]: 'success' }));
             setGlobalDownloadProgress(data.url, { status: 'done', percent: 100, loaded: 0, total: 0, speed: 0 });
+            
+            // Cleanup abort controller
+            delete abortControllersRef.current[itemId];
+            
             setTimeout(() => {
                 setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' }));
                 setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
@@ -749,6 +780,10 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
             console.error('Download error:', e);
             setDownloadStatus(prev => ({ ...prev, [itemId]: 'error' }));
             setGlobalDownloadProgress(data.url, { status: 'error', percent: 0, loaded: 0, total: 0, speed: 0 });
+            
+            // Cleanup abort controller
+            delete abortControllersRef.current[itemId];
+            
             setTimeout(() => {
                 setDownloadStatus(prev => ({ ...prev, [itemId]: 'idle' }));
                 setGlobalDownloadProgress(data.url, { status: 'idle', percent: 0, loaded: 0, total: 0, speed: 0 });
@@ -961,21 +996,27 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                     leftIcon={sentToWebhook[selectedItemId] ? <CheckCircleIcon className="w-3.5 h-3.5 text-green-400" /> : <Send className="w-3.5 h-3.5" />}>
                                     {sentToWebhook[selectedItemId] ? t('sent') : t('discord')}
                                 </Button>
-                                <Button size="xs" onClick={() => {
-                                    const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
-                                    if (format) triggerDownload(format, selectedItemId);
-                                }}
-                                    disabled={downloadStatus[selectedItemId] === 'downloading' || isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])}
-                                    title={isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
-                                    leftIcon={downloadStatus[selectedItemId] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                    {isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])
-                                        ? `Terlalu besar`
-                                        : downloadStatus[selectedItemId] === 'downloading'
-                                            ? getProgressText(selectedItemId)
+                                {downloadStatus[selectedItemId] === 'downloading' ? (
+                                    <Button size="xs" variant="secondary" onClick={() => cancelDownload(selectedItemId)}
+                                        className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border-red-500/30"
+                                        leftIcon={<Loader2 className="animate-spin w-3.5 h-3.5" />}>
+                                        {getProgressText(selectedItemId)} • Batal
+                                    </Button>
+                                ) : (
+                                    <Button size="xs" onClick={() => {
+                                        const format = selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0];
+                                        if (format) triggerDownload(format, selectedItemId);
+                                    }}
+                                        disabled={isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])}
+                                        title={isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
+                                        leftIcon={<Download className="w-3.5 h-3.5" />}>
+                                        {isOverSizeLimit(selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])
+                                            ? `Terlalu besar`
                                             : downloadStatus[selectedItemId] === 'success'
                                                 ? t('done')
                                                 : `${t('download')}${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0]) ? ` (${getFileSize(selectedItemId, selectedFormats[selectedItemId] || groupedItems[selectedItemId]?.[0])})` : ''}`}
-                                </Button>
+                                    </Button>
+                                )}
                             </div>
                             {/* Progress Bar for carousel item */}
                             {downloadStatus[selectedItemId] === 'downloading' && downloadProgress[selectedItemId] && (
@@ -1043,19 +1084,25 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                 {sentToWebhook[itemIds[0]] ? t('sent') : t('discord')}
                             </Button>
                             {/* Download button */}
-                            <Button size="xs" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
-                                disabled={downloadStatus[itemIds[0]] === 'downloading' || isOverSizeLimit(selectedFormats[itemIds[0]])}
-                                title={isOverSizeLimit(selectedFormats[itemIds[0]]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
-                                leftIcon={downloadStatus[itemIds[0]] === 'downloading' ? <Loader2 className="animate-spin w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}>
-                                {isOverSizeLimit(selectedFormats[itemIds[0]]) 
-                                    ? `Terlalu besar (max ${MAX_FILESIZE_MB}MB)`
-                                    : downloadStatus[itemIds[0]] === 'downloading'
-                                        ? getProgressText(itemIds[0])
+                            {downloadStatus[itemIds[0]] === 'downloading' ? (
+                                <Button size="xs" variant="secondary" onClick={() => cancelDownload(itemIds[0])}
+                                    className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border-red-500/30"
+                                    leftIcon={<Loader2 className="animate-spin w-3.5 h-3.5" />}>
+                                    {getProgressText(itemIds[0])} • Batal
+                                </Button>
+                            ) : (
+                                <Button size="xs" onClick={() => triggerDownload(selectedFormats[itemIds[0]], itemIds[0])}
+                                    disabled={isOverSizeLimit(selectedFormats[itemIds[0]])}
+                                    title={isOverSizeLimit(selectedFormats[itemIds[0]]) ? `File terlalu besar (max ${MAX_FILESIZE_MB}MB)` : undefined}
+                                    leftIcon={<Download className="w-3.5 h-3.5" />}>
+                                    {isOverSizeLimit(selectedFormats[itemIds[0]]) 
+                                        ? `Terlalu besar (max ${MAX_FILESIZE_MB}MB)`
                                         : downloadStatus[itemIds[0]] === 'success' ? t('downloaded') : t('download')}
-                                {!isOverSizeLimit(selectedFormats[itemIds[0]]) && downloadStatus[itemIds[0]] !== 'downloading' && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
-                                    <span className="ml-1 opacity-70">({getFileSize(itemIds[0], selectedFormats[itemIds[0]])})</span>
-                                )}
-                            </Button>
+                                    {!isOverSizeLimit(selectedFormats[itemIds[0]]) && getFileSize(itemIds[0], selectedFormats[itemIds[0]]) && (
+                                        <span className="ml-1 opacity-70">({getFileSize(itemIds[0], selectedFormats[itemIds[0]])})</span>
+                                    )}
+                                </Button>
+                            )}
                         </div>
                         {/* Progress Bar */}
                         {downloadStatus[itemIds[0]] === 'downloading' && downloadProgress[itemIds[0]] && (
