@@ -10,7 +10,8 @@ import {
     Eye,
     Loader2,
     Maximize2,
-    Send
+    Send,
+    Archive
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { MediaData, MediaFormat, PlatformId } from '@/lib/types';
@@ -23,6 +24,7 @@ import { getProxyUrl } from '@/lib/api/proxy';
 import { useTranslations } from 'next-intl';
 import { MediaGallery } from '@/components/media';
 import Swal from 'sweetalert2';
+import JSZip from 'jszip';
 // Shared utilities
 import { 
     extractPostId, 
@@ -41,9 +43,141 @@ import {
 // Global filesize limit for all platforms (400MB)
 const MAX_FILESIZE_MB = 400;
 const MAX_FILESIZE_BYTES = MAX_FILESIZE_MB * 1024 * 1024;
+
+// Threshold for ZIP download (more than this = ZIP)
+const ZIP_THRESHOLD = 10;
+
 import { EngagementDisplay } from '@/components/media/EngagementDisplay';
 import { FormatSelector } from '@/components/media/FormatSelector';
 import { DownloadProgress, getProgressText as getProgressTextUtil } from '@/components/media/DownloadProgress';
+
+// ═══════════════════════════════════════════════════════════════
+// LAZY THUMBNAIL WITH QUEUE - Max 10 concurrent, retry on fail
+// ═══════════════════════════════════════════════════════════════
+
+// Global queue for thumbnail loading
+const thumbnailQueue: Array<() => void> = [];
+let activeLoads = 0;
+const MAX_CONCURRENT = 10;
+
+function processQueue() {
+    while (activeLoads < MAX_CONCURRENT && thumbnailQueue.length > 0) {
+        const next = thumbnailQueue.shift();
+        if (next) {
+            activeLoads++;
+            next();
+        }
+    }
+}
+
+function queueThumbnailLoad(loadFn: () => Promise<void>): void {
+    thumbnailQueue.push(() => {
+        loadFn().finally(() => {
+            activeLoads--;
+            processQueue();
+        });
+    });
+    processQueue();
+}
+
+interface LazyThumbnailProps {
+    src: string;
+    alt: string;
+    platform: PlatformId;
+    className?: string;
+    eager?: boolean; // Load immediately without queue
+}
+
+function LazyThumbnail({ src, alt, platform, className = '', eager = false }: LazyThumbnailProps) {
+    const [isVisible, setIsVisible] = useState(eager);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [hasError, setHasError] = useState(false);
+    const [retryCount, setRetryCount] = useState(0);
+    const [shouldLoad, setShouldLoad] = useState(eager);
+    const ref = useRef<HTMLDivElement>(null);
+    const MAX_RETRIES = 3;
+
+    // IntersectionObserver for lazy loading
+    useEffect(() => {
+        if (eager) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '50px' }
+        );
+
+        if (ref.current) {
+            observer.observe(ref.current);
+        }
+
+        return () => observer.disconnect();
+    }, [eager]);
+
+    // Queue the load when visible
+    useEffect(() => {
+        if (!isVisible || shouldLoad) return;
+        
+        queueThumbnailLoad(async () => {
+            setShouldLoad(true);
+        });
+    }, [isVisible, shouldLoad]);
+
+    const handleLoad = () => {
+        setIsLoaded(true);
+        setHasError(false);
+    };
+
+    const handleError = () => {
+        if (retryCount < MAX_RETRIES) {
+            // Retry after delay
+            setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+                setHasError(false);
+            }, 1000 * (retryCount + 1)); // Exponential backoff: 1s, 2s, 3s
+        } else {
+            setHasError(true);
+        }
+    };
+
+    const proxiedSrc = getProxiedThumbnail(src, platform);
+    // Add retry param to bust cache on retry
+    const srcWithRetry = retryCount > 0 ? `${proxiedSrc}&_retry=${retryCount}` : proxiedSrc;
+
+    return (
+        <div ref={ref} className="relative w-full h-full">
+            {shouldLoad && !hasError ? (
+                <>
+                    {!isLoaded && (
+                        <div className="absolute inset-0 bg-[var(--bg-secondary)] flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 text-[var(--text-muted)] animate-spin" />
+                        </div>
+                    )}
+                    <Image
+                        key={retryCount} // Force remount on retry
+                        src={srcWithRetry}
+                        alt={alt}
+                        fill
+                        className={`object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
+                        unoptimized
+                        onLoad={handleLoad}
+                        onError={handleError}
+                    />
+                </>
+            ) : hasError ? (
+                <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
+                    <span className="text-[10px] text-[var(--text-muted)]">!</span>
+                </div>
+            ) : (
+                <div className="w-full h-full bg-[var(--bg-secondary)]" />
+            )}
+        </div>
+    );
+}
 
 interface DownloadPreviewProps {
     data: MediaData;
@@ -153,6 +287,21 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
     // Handle audio conversion - extract audio from video (only when no native audio available)
     const handleAudioConvert = async (format: MediaFormat, itemId: string, audioFormat: 'mp3' | 'm4a') => {
         const key = `${itemId}-${audioFormat}`;
+        
+        // Check filesize before converting - block if > 400MB
+        const filesize = format.filesize || fileSizes[`${itemId}-${format.quality}`];
+        const filesizeNum = typeof filesize === 'string' ? parseInt(filesize, 10) : filesize;
+        if (filesizeNum && filesizeNum > MAX_FILESIZE_BYTES) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Video Too Large',
+                html: `This video is <b>${formatBytes(filesizeNum)}</b> which exceeds the 400MB limit for audio conversion.<br><br>Please select a lower quality video first.`,
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+            });
+            return;
+        }
+        
         setAudioConvertStatus(prev => ({ ...prev, [key]: 'converting' }));
 
         try {
@@ -791,25 +940,183 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
         }
     };
 
+    // ZIP progress state
+    const [zipProgress, setZipProgress] = useState<{ current: number; total: number; status: string } | null>(null);
+
     const handleDownloadAll = async () => {
-        setGlobalStatus('downloading');
-        let isFirstItem = true;
+        const shouldZip = itemIds.length > ZIP_THRESHOLD;
+        
+        if (shouldZip) {
+            // Download as ZIP for large albums
+            await handleDownloadAsZip();
+        } else {
+            // Individual downloads for small albums
+            setGlobalStatus('downloading');
+            let isFirstItem = true;
+            for (const id of itemIds) {
+                const format = selectedFormats[id] || groupedItems[id]?.[0];
+                if (format) {
+                    try {
+                        // For Download All, only send Discord for first item (representative)
+                        // Mark others as "sent" to prevent duplicate sends
+                        if (!isFirstItem && !sentToWebhook[id]) {
+                            setSentToWebhook(prev => ({ ...prev, [id]: true }));
+                        }
+                        await triggerDownload(format, id);
+                        isFirstItem = false;
+                        await new Promise(r => setTimeout(r, 500));
+                    } catch { /* skip failed */ }
+                }
+            }
+            setGlobalStatus('idle');
+        }
+    };
+
+    const handleDownloadAsZip = async () => {
+        // Check if any file exceeds 400MB limit
+        const oversizedItems: string[] = [];
         for (const id of itemIds) {
             const format = selectedFormats[id] || groupedItems[id]?.[0];
             if (format) {
-                try {
-                    // For Download All, only send Discord for first item (representative)
-                    // Mark others as "sent" to prevent duplicate sends
-                    if (!isFirstItem && !sentToWebhook[id]) {
-                        setSentToWebhook(prev => ({ ...prev, [id]: true }));
-                    }
-                    await triggerDownload(format, id);
-                    isFirstItem = false;
-                    await new Promise(r => setTimeout(r, 1000));
-                } catch { /* skip failed */ }
+                const filesize = format.filesize || fileSizes[`${id}-${format.quality}`];
+                const filesizeNum = typeof filesize === 'string' ? parseInt(filesize, 10) : filesize;
+                if (filesizeNum && filesizeNum > MAX_FILESIZE_BYTES) {
+                    oversizedItems.push(`#${itemIds.indexOf(id) + 1} (${formatBytes(filesizeNum)})`);
+                }
             }
         }
+
+        if (oversizedItems.length > 0) {
+            const result = await Swal.fire({
+                icon: 'warning',
+                title: 'Some Files Too Large',
+                html: `The following items exceed 400MB and will be skipped:<br><br><b>${oversizedItems.slice(0, 5).join(', ')}${oversizedItems.length > 5 ? ` +${oversizedItems.length - 5} more` : ''}</b><br><br>Continue with remaining files?`,
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                cancelButtonText: 'Cancel',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+            });
+            if (!result.isConfirmed) return;
+        }
+
+        setGlobalStatus('downloading');
+        setZipProgress({ current: 0, total: itemIds.length, status: 'Preparing...' });
+        
+        const zip = new JSZip();
+        const folder = zip.folder(data.title?.substring(0, 50).replace(/[<>:"/\\|?*]/g, '_') || 'download');
+        if (!folder) {
+            setGlobalStatus('idle');
+            setZipProgress(null);
+            return;
+        }
+
+        let downloaded = 0;
+        let failed = 0;
+        let skipped = 0;
+        const CONCURRENT_DOWNLOADS = 5;
+
+        // Process in batches
+        for (let i = 0; i < itemIds.length; i += CONCURRENT_DOWNLOADS) {
+            const batch = itemIds.slice(i, i + CONCURRENT_DOWNLOADS);
+            
+            await Promise.all(batch.map(async (id, batchIdx) => {
+                const format = selectedFormats[id] || groupedItems[id]?.[0];
+                if (!format) return;
+
+                // Skip oversized files
+                const filesize = format.filesize || fileSizes[`${id}-${format.quality}`];
+                const filesizeNum = typeof filesize === 'string' ? parseInt(filesize, 10) : filesize;
+                if (filesizeNum && filesizeNum > MAX_FILESIZE_BYTES) {
+                    skipped++;
+                    return;
+                }
+
+                const idx = i + batchIdx + 1;
+                setZipProgress({ current: idx, total: itemIds.length, status: `Downloading ${idx}/${itemIds.length}...` });
+
+                try {
+                    const proxyUrl = getProxyUrl(format.url, { platform, inline: true });
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const blob = await response.blob();
+                    const ext = format.type === 'video' ? 'mp4' : 
+                               format.type === 'audio' ? 'mp3' : 
+                               format.url.split('.').pop()?.split('?')[0] || 'jpg';
+                    const filename = `${String(idx).padStart(3, '0')}_${format.quality || 'media'}.${ext}`;
+                    
+                    folder.file(filename, blob);
+                    downloaded++;
+                } catch (err) {
+                    console.error(`Failed to download item ${idx}:`, err);
+                    failed++;
+                }
+            }));
+        }
+
+        if (downloaded === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Download Failed',
+                text: 'Could not download any files. Please try again.',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+            });
+            setGlobalStatus('idle');
+            setZipProgress(null);
+            return;
+        }
+
+        setZipProgress({ current: itemIds.length, total: itemIds.length, status: 'Creating ZIP...' });
+
+        try {
+            const content = await zip.generateAsync({ 
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, (metadata) => {
+                setZipProgress({ 
+                    current: itemIds.length, 
+                    total: itemIds.length, 
+                    status: `Compressing... ${Math.round(metadata.percent)}%` 
+                });
+            });
+
+            // Trigger download
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${data.title?.substring(0, 50).replace(/[<>:"/\\|?*]/g, '_') || 'download'}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Show success
+            if (failed > 0 || skipped > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Partial Download',
+                    text: `Downloaded ${downloaded} files.${failed > 0 ? ` ${failed} failed.` : ''}${skipped > 0 ? ` ${skipped} skipped (>400MB).` : ''}`,
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                });
+            }
+        } catch (err) {
+            console.error('ZIP creation failed:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'ZIP Failed',
+                text: 'Failed to create ZIP file.',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+            });
+        }
+
         setGlobalStatus('idle');
+        setZipProgress(null);
     };
 
     const renderFormatButtons = (formats: MediaFormat[], itemId: string) => (
@@ -916,7 +1223,7 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                                         ? 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)] ring-opacity-30'
                                         : 'border-[var(--border-color)] hover:border-[var(--accent-primary)] opacity-60 hover:opacity-100'}`}>
                                     {thumbnail ? (
-                                        <Image src={getProxiedThumbnail(thumbnail, platform)} alt={`#${index + 1}`} fill className="object-cover" unoptimized />
+                                        <LazyThumbnail src={thumbnail} alt={`#${index + 1}`} platform={platform} eager={index < 10} />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-[var(--bg-secondary)]">
                                             <Play className="w-4 h-4 text-[var(--text-muted)]" />
@@ -1035,12 +1342,27 @@ export function DownloadPreview({ data, platform, onDownloadComplete }: Download
                         </div>
                     </div>
 
-                    {/* Download All */}
-                    <div className="pt-4 border-t border-[var(--border-color)] flex justify-end">
-                        <Button variant="primary" size="sm" onClick={handleDownloadAll} disabled={globalStatus === 'downloading'}
-                            leftIcon={globalStatus === 'downloading' ? <Loader2 className="animate-spin w-4 h-4" /> : <Download className="w-4 h-4" />}>
-                            {globalStatus === 'downloading' ? t('downloadingAll') : `${t('downloadAll')} (${itemIds.length})`}
-                        </Button>
+                    {/* Download All / ZIP */}
+                    <div className="pt-4 border-t border-[var(--border-color)] flex flex-col gap-2">
+                        {/* ZIP Progress */}
+                        {zipProgress && (
+                            <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>{zipProgress.status}</span>
+                                <span className="ml-auto">{zipProgress.current}/{zipProgress.total}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-end">
+                            <Button variant="primary" size="sm" onClick={handleDownloadAll} disabled={globalStatus === 'downloading'}
+                                leftIcon={globalStatus === 'downloading' ? <Loader2 className="animate-spin w-4 h-4" /> : 
+                                         itemIds.length > ZIP_THRESHOLD ? <Archive className="w-4 h-4" /> : <Download className="w-4 h-4" />}>
+                                {globalStatus === 'downloading' 
+                                    ? (zipProgress ? zipProgress.status : t('downloadingAll'))
+                                    : itemIds.length > ZIP_THRESHOLD 
+                                        ? `Download ZIP (${itemIds.length})`
+                                        : `${t('downloadAll')} (${itemIds.length})`}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             ) : (

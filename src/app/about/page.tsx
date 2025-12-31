@@ -81,13 +81,14 @@ export default function AboutPage() {
                         <div className="flex items-center gap-2 mb-4">
                             <Clock className="w-5 h-5 text-[var(--accent-primary)]" />
                             <h3 className="font-semibold text-lg text-[var(--text-primary)]">Changelog</h3>
-                            <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v1.9.0</span>
+                            <span className="text-xs font-bold text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded">v2.0.0</span>
                         </div>
                         <ul className="text-sm text-[var(--text-muted)] space-y-2 mb-4">
-                            <li>🎨 New Themes - Nord, Dracula, Monokai</li>
-                            <li>🤖 Bot v2.0.0 - Reliability Fixes</li>
-                            <li>💾 Redis Sessions</li>
-                            <li>📊 Enhanced Monitoring</li>
+                            <li>📦 Download ZIP - Album &gt;10 items auto-ZIP</li>
+                            <li>🔞 New Platforms - Erome, Rule34Video, Eporner, PornHub</li>
+                            <li>⚡ Lazy Thumbnails - Faster loading, retry on fail</li>
+                            <li>🚫 400MB Limit - Global download limit protection</li>
+                            <li>❌ Per-item Cancel - Cancel individual downloads</li>
                         </ul>
                         <Link
                             href="/docs/changelog"
