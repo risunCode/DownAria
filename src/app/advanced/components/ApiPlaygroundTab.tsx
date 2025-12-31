@@ -53,7 +53,6 @@ const PLATFORM_ICONS: Record<PlatformId, { icon: IconDefinition; color: string }
     bilibili: { icon: faGlobe, color: 'text-cyan-400' },
     reddit: { icon: faReddit, color: 'text-orange-500' },
     soundcloud: { icon: faSoundcloud, color: 'text-orange-400' },
-    threads: { icon: faThreads, color: 'text-gray-100' },
     pixiv: { icon: faGlobe, color: 'text-blue-400' },
     erome: { icon: faGlobe, color: 'text-pink-400' },
     eporner: { icon: faGlobe, color: 'text-red-400' },

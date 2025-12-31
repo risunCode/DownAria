@@ -25,7 +25,7 @@ export type AlertType = 'error_rate' | 'response_time' | 'cookie_health' | 'rate
 export type PlatformId = 
     | 'facebook' | 'instagram' | 'twitter' | 'tiktok' | 'weibo' | 'youtube'
     | 'bilibili' | 'reddit' | 'soundcloud'
-    | 'eporner' | 'pornhub' | 'rule34video' | 'threads' | 'erome' | 'pixiv';
+    | 'eporner' | 'pornhub' | 'rule34video' | 'erome' | 'pixiv';
 
 // ============================================================================
 // ENGAGEMENT STATS (Aligned with Backend)
@@ -239,17 +239,6 @@ export const PLATFORMS: PlatformConfig[] = [
         placeholder: 'https://soundcloud.com/...',
         patterns: [
             /^(https?:\/\/)?(www\.|m\.)?soundcloud\.com\/.+/,
-        ],
-    },
-    {
-        id: 'threads',
-        name: 'Threads',
-        icon: '🧵',
-        color: '#000000',
-        placeholder: 'https://www.threads.net/@user/post/...',
-        patterns: [
-            /^(https?:\/\/)?(www\.)?threads\.net\/.+/,
-            /^(https?:\/\/)?(www\.)?threads\.com\/.+/,
         ],
     },
     {

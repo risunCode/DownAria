@@ -160,11 +160,6 @@ const DOMAIN_PLATFORM_MAP: Record<string, PlatformId> = {
     'soundcloud.com': 'soundcloud',
     'www.soundcloud.com': 'soundcloud',
     'm.soundcloud.com': 'soundcloud',
-    // Threads
-    'threads.net': 'threads',
-    'www.threads.net': 'threads',
-    'threads.com': 'threads',
-    'www.threads.com': 'threads',
     // Pixiv
     'pixiv.net': 'pixiv',
     'www.pixiv.net': 'pixiv',

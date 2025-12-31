@@ -72,7 +72,6 @@ const TTL_CONFIG: Record<PlatformId, number> = {
   bilibili: 30 * 60 * 1000,    // 30 minutes
   reddit: 30 * 60 * 1000,      // 30 minutes
   soundcloud: 30 * 60 * 1000,  // 30 minutes
-  threads: 30 * 60 * 1000,     // 30 minutes
   pixiv: 30 * 60 * 1000,       // 30 minutes
   erome: 30 * 60 * 1000,       // 30 minutes
   eporner: 30 * 60 * 1000,     // 30 minutes
@@ -213,11 +212,6 @@ const CONTENT_ID_EXTRACTORS: Record<PlatformId, (url: string) => string | null> 
   soundcloud: (url) => {
     const trackPath = url.match(/soundcloud\.com\/([^/]+\/[^/?]+)/i);
     return trackPath ? trackPath[1].replace('/', ':') : null;
-  },
-  
-  threads: (url) => {
-    const postId = url.match(/\/post\/([A-Za-z0-9_-]+)/i);
-    return postId ? postId[1] : null;
   },
   
   pixiv: (url) => {
