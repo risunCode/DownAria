@@ -249,6 +249,7 @@ export const PLATFORMS: PlatformConfig[] = [
         placeholder: 'https://www.threads.net/@user/post/...',
         patterns: [
             /^(https?:\/\/)?(www\.)?threads\.net\/.+/,
+            /^(https?:\/\/)?(www\.)?threads\.com\/.+/,
         ],
     },
     {
