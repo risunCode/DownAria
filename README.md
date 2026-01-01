@@ -1,5 +1,8 @@
 # 🎵 DownAria
 
+# Im here Glad to say. Now this project is open source, you freely to modify, use and fork this repository
+- thank you. ~ risunCode
+
 **Social Media Video Downloader** — Free, fast, and easy-to-use tool for downloading videos from social media. No registration, no limits, no BS.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
